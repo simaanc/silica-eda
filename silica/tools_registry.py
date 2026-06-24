@@ -141,8 +141,8 @@ TOOLS = {
         "category": "waveform",
         "license": "open_source",
         "install": {
-            "darwin": "# Download from https://gitlab.com/surfer-project/surfer/-/releases",
-            "linux": "# Download from https://gitlab.com/surfer-project/surfer/-/releases",
+            "brew": "brew install surfer",
+            "apt": "# Download from https://gitlab.com/surfer-project/surfer/-/releases",
         },
         "url": "https://surfer-project.org/",
         "docs": "https://surfer-project.org/docs/installation.html",
