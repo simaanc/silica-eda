@@ -1,20 +1,19 @@
-import argparse
 import sys
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        prog="silica",
-        description="Silica — AI-native EDA environment",
-    )
-    sub = parser.add_subparsers(dest="command")
-    sub.add_parser("serve", help="Start the MCP server (stdio transport)")
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "serve"
 
-    args = parser.parse_args()
-
-    if args.command == "serve":
+    if cmd == "serve":
         from silica.server import mcp
         mcp.run()
+    elif cmd == "setup":
+        from silica.setup import main as setup_main
+        setup_main()
+    elif cmd == "config":
+        from silica.setup import print_config
+        print_config()
     else:
-        parser.print_help()
+        print(f"silica: unknown command '{cmd}'")
+        print("Usage: silica [serve|setup|config]")
         sys.exit(1)
