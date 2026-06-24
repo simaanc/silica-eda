@@ -389,7 +389,7 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
     solo: list[str] = []
     for hint in all_hints:
         parts = hint.split()
-        if hint.startswith("#") or len(parts) < 3 or parts[-1].startswith("-"):
+        if hint.startswith("#") or "&&" in hint or len(parts) < 3 or parts[-1].startswith("-"):
             solo.append(hint)
         else:
             # "brew install X" → prefix="brew install", pkg="X"
