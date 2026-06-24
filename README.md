@@ -12,23 +12,46 @@ The core value: **closed autonomous loops**. Run sim → parse failure → reaso
 
 ### 1. Install prerequisites
 
+**macOS**
 ```bash
-# macOS
-brew install verilator yosys icarus-verilog
-
-# Verible (linter) — grab the latest release binary
-# https://github.com/chipsalliance/verible/releases
+brew install verilator yosys icarus-verilog verible
 ```
+
+**Ubuntu / Debian**
+```bash
+sudo apt update
+sudo apt install verilator yosys iverilog
+# Verible: grab the release binary from https://github.com/chipsalliance/verible/releases
+# or on Ubuntu 22.04+: sudo apt install verible
+```
+
+**Fedora / RHEL**
+```bash
+sudo dnf install verilator yosys iverilog
+# Verible: https://github.com/chipsalliance/verible/releases
+```
+
+**Arch**
+```bash
+sudo pacman -S verilator yosys iverilog verible
+```
+
+**Windows**
+Native EDA tools on Windows are limited. WSL2 is the recommended path:
+```powershell
+wsl --install          # installs Ubuntu by default
+```
+Then follow the Ubuntu instructions above inside WSL. Claude Desktop and Cursor both support MCP servers running inside WSL via the `wsl -e silica serve` command pattern.
 
 ### 2. Install Silica
 
 ```bash
-pip install silica
+pip install silica-eda
 ```
 
 ### 3. Add to Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+**macOS / Linux** — edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/Claude/claude_desktop_config.json` (Linux):
 
 ```json
 {
@@ -41,7 +64,20 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. Silica loads automatically.
+**Windows (WSL2)** — use `wsl -e` to invoke the server inside WSL:
+
+```json
+{
+  "mcpServers": {
+    "silica": {
+      "command": "wsl",
+      "args": ["-e", "silica", "serve"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Silica loads automatically. The same config works identically in Cursor and Zed.
 
 ### 4. Test the UART example
 
