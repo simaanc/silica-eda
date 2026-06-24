@@ -35,6 +35,21 @@ _HINTS: dict[str, dict[str, str]] = {
         "Windows": "WSL2 recommended: wsl --install, then install Verible in WSL\n"
                    "Native binary: https://github.com/chipsalliance/verible/releases",
     },
+    "surfer": {
+        "Darwin":  "brew install surfer",
+        "Linux":   "Download from https://gitlab.com/surfer-project/surfer/-/releases\n"
+                   "(apt/dnf packages are outdated — use the GitLab release binary)",
+        "Windows": "Download from https://gitlab.com/surfer-project/surfer/-/releases",
+    },
+    "gtkwave": {
+        "Darwin":  "brew install --cask gtkwave\n"
+                   "Note: GTKWave is discontinued upstream — consider Surfer instead",
+        "Linux":   "sudo apt install gtkwave           # Ubuntu/Debian\n"
+                   "sudo dnf install gtkwave           # Fedora/RHEL\n"
+                   "sudo pacman -S gtkwave             # Arch",
+        "Windows": "Download from https://gtkwave.sourceforge.net/\n"
+                   "Or use Surfer: https://gitlab.com/surfer-project/surfer/-/releases",
+    },
 }
 
 _FALLBACK = "See the project's official documentation for install instructions."
