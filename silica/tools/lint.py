@@ -1,12 +1,14 @@
 """MCP tool: lint."""
 
-import shutil
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import verible, verilator
+from silica.tools._config_dispatch import pick
+
+_LINT_TOOL_MAP = {"verible-verilog-lint": "verible", "verilator": "verilator"}
 
 
 def register(mcp: "FastMCP") -> None:
@@ -22,18 +24,16 @@ def register(mcp: "FastMCP") -> None:
         Args:
             file: Path to the source file to lint.
             ruleset: "default" | "all" | comma-separated rule list (tool-specific).
-            tool: "auto" | "verible" | "verilator". Auto priority: verible → verilator.
+            tool: "auto" | "verible" | "verilator". Auto uses config priority order.
             timeout: Seconds before killing the linter.
 
         Returns a LintResult dict:
             warnings [{file, line, severity, rule_id, message}], tool, raw_output
         """
         if tool == "auto":
-            if shutil.which("verible-verilog-lint"):
-                tool = "verible"
-            elif shutil.which("verilator"):
-                tool = "verilator"
-            else:
+            chosen = pick("lint")
+            tool = _LINT_TOOL_MAP.get(chosen, "") if chosen else ""
+            if not tool:
                 return {
                     "warnings": [],
                     "tool": "none",
