@@ -1,6 +1,5 @@
 """MCP tool: run_simulation."""
 
-import shutil
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,6 +7,10 @@ if TYPE_CHECKING:
 
 from silica.adapters import icarus, verilator
 from silica.adapters._hints import install_hint
+from silica.tools._config_dispatch import pick
+
+# Maps registry name → adapter identifier used below
+_SIM_ADAPTERS = {"verilator": "verilator", "iverilog": "icarus"}
 
 
 def register(mcp: "FastMCP") -> None:
@@ -24,7 +27,7 @@ def register(mcp: "FastMCP") -> None:
         Args:
             file: Path to the DUT source file (.sv or .v).
             testbench: Path to the testbench file.
-            simulator: "auto" | "verilator" | "icarus". Auto priority: verilator → icarus.
+            simulator: "auto" | "verilator" | "icarus". Auto uses config priority order.
             top: Top module name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
 
@@ -32,10 +35,9 @@ def register(mcp: "FastMCP") -> None:
             exit_code, errors [{file, line, severity, message}], warnings, raw_stdout, raw_stderr
         """
         if simulator == "auto":
-            if shutil.which("verilator"):
-                simulator = "verilator"
-            elif shutil.which("iverilog"):
-                simulator = "icarus"
+            chosen = pick("simulation")
+            if chosen in _SIM_ADAPTERS:
+                simulator = _SIM_ADAPTERS[chosen]
             else:
                 return {
                     "exit_code": -1,
