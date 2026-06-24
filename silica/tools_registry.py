@@ -110,7 +110,7 @@ TOOLS = {
         "docs": "https://www.synopsys.com/support.html",
         "note": "Requires Synopsys license",
     },
-    "verible": {
+    "verible-verilog-lint": {
         "category": "lint",
         "license": "open_source",
         "install": {
@@ -137,18 +137,6 @@ TOOLS = {
         "docs": "https://www.synopsys.com/support.html",
         "note": "Requires Synopsys license",
     },
-    "gtkwave": {
-        "category": "waveform",
-        "license": "open_source",
-        "install": {
-            "brew": "brew install gtkwave",
-            "apt": "sudo apt install gtkwave",
-            "dnf": "sudo dnf install gtkwave",
-            "pacman": "sudo pacman -S gtkwave",
-        },
-        "url": "https://gtkwave.sourceforge.net/",
-        "docs": "https://gtkwave.sourceforge.net/gtkwave.pdf",
-    },
     "surfer": {
         "category": "waveform",
         "license": "open_source",
@@ -157,6 +145,19 @@ TOOLS = {
         },
         "url": "https://surfer-project.org/",
         "docs": "https://surfer-project.org/docs/installation.html",
+    },
+    "gtkwave": {
+        "category": "waveform",
+        "license": "open_source",
+        "install": {
+            "brew": "brew install --cask gtkwave",
+            "apt": "sudo apt install gtkwave",
+            "dnf": "sudo dnf install gtkwave",
+            "pacman": "sudo pacman -S gtkwave",
+        },
+        "url": "https://gtkwave.sourceforge.net/",
+        "docs": "https://gtkwave.sourceforge.net/gtkwave.pdf",
+        "note": "Discontinued upstream — consider Surfer as a modern alternative",
     },
     "verdi": {
         "category": "waveform",
