@@ -22,4 +22,4 @@ jobs:
 
       - run: uv build
 
-      - run: uv publish --trusted-publishing always
+      - run: uv publish --trusted-publishing always --skip-existing
