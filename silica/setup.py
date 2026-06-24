@@ -5,6 +5,7 @@
 import json
 import platform
 import shutil
+import subprocess
 import sys
 import termios
 import tty
@@ -329,9 +330,36 @@ def _inject_file_client(key: str, silica_bin: str) -> None:
 def _inject_command_client(key: str, silica_bin: str) -> None:
     client = CLIENTS[key]
     cmd = client["command_template"].format(binary=silica_bin)
-    print(f"\n  {_bold(client['name'])} — run this command:")
-    print(f"    {_cyan(cmd)}")
-    print(f"  {_dim(client['restart_note'])}\n")
+    print(f"\n  {_bold(client['name'])} — running: {_cyan(cmd)}")
+
+    detect_bin = client.get("detect_binary")
+    if detect_bin and not shutil.which(detect_bin):
+        print(f"  {_dim(f'{detect_bin!r} not found in PATH — skipping.')}")
+        print(f"  Run manually: {_cyan(cmd)}\n")
+        return
+
+    answer = input("  Run this command now? [Y/n] ").strip().lower()
+    if answer not in ("", "y", "yes"):
+        print(f"  {_dim('Skipped.')}  Run manually: {_cyan(cmd)}\n")
+        return
+
+    try:
+        result = subprocess.run(cmd.split(), capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"  {_green('Done.')}  {_dim(client['restart_note'])}\n")
+            if result.stdout.strip():
+                for line in result.stdout.strip().splitlines():
+                    print(f"    {_dim(line)}")
+        else:
+            err = (result.stderr or result.stdout).strip()
+            print(f"  {_YELLOW}Command failed (exit {result.returncode}){_RESET}")
+            if err:
+                for line in err.splitlines():
+                    print(f"    {_dim(line)}")
+            print(f"  Run manually: {_cyan(cmd)}\n")
+    except Exception as e:
+        print(f"  {_YELLOW}Could not run command: {e}{_RESET}")
+        print(f"  Run manually: {_cyan(cmd)}\n")
 
 
 def _inject_other(silica_bin: str) -> None:
