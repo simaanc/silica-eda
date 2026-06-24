@@ -9,7 +9,7 @@ description = "AI-native EDA environment — MCP server for hardware design and 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-only" }
-authors = [{ name = "Christopher Simaan", email = "simaanc@gmail.com" }]
+authors = [{ name = "Christopher Simaan", email = "dev@getsilica.dev" }]
 keywords = ["eda", "rtl", "fpga", "mcp", "ai", "hardware", "verilog", "systemverilog"]
 classifiers = [
     "Development Status :: 3 - Alpha",
