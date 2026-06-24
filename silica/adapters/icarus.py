@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from silica.adapters._hints import install_hint
+
 # filename.sv:10: error: some message
 # filename.sv:10: warning: some message
 _DIAG_RE = re.compile(
@@ -108,7 +110,7 @@ def _not_found() -> dict:
             "file": "",
             "line": 0,
             "severity": "error",
-            "message": "iverilog/vvp not found. Install with: brew install icarus-verilog",
+            "message": f"iverilog/vvp not found.\n{install_hint('iverilog')}",
         }],
         "warnings": [],
         "raw_stdout": "",
