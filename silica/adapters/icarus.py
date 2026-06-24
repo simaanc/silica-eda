@@ -35,12 +35,26 @@ def _parse_output(text: str) -> tuple[list[dict], list[dict]]:
     return errors, warnings
 
 
-def run(dut: str, testbench: str, top: str | None = None, timeout: int = 60) -> dict:
-    """Compile with iverilog -g2012, then simulate with vvp."""
+def run(
+    dut: str,
+    testbench: str,
+    top: str | None = None,
+    timeout: int = 60,
+    trace: bool = False,
+) -> dict:
+    """Compile with iverilog -g2012, then simulate with vvp.
+
+    When trace=True, runs the simulation in a persistent temp directory so
+    any $dumpfile VCD written by the testbench survives. Returns trace_vcd
+    pointing to the first .vcd found in that directory.
+    """
     iverilog = shutil.which("iverilog")
     vvp = shutil.which("vvp")
     if not iverilog or not vvp:
         return _not_found()
+
+    # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
+    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
     with tempfile.TemporaryDirectory(prefix="silica_icarus_") as tmpdir:
         sim_out = Path(tmpdir) / "sim.out"
@@ -71,15 +85,17 @@ def run(dut: str, testbench: str, top: str | None = None, timeout: int = 60) -> 
                 "warnings": compile_warnings,
                 "raw_stdout": cp.stdout,
                 "raw_stderr": cp.stderr,
+                "trace_vcd": None,
             }
 
-        # Run simulation
+        # If tracing, run vvp in trace_dir so $dumpfile relative paths land there.
+        sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
         rp = subprocess.run(
             [vvp, str(sim_out)],
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=str(Path(dut).parent),
+            cwd=sim_cwd,
         )
 
         run_errors, run_warnings = _parse_output(rp.stderr)
@@ -94,12 +110,18 @@ def run(dut: str, testbench: str, top: str | None = None, timeout: int = 60) -> 
                 "message": f"Simulation exited with code {rp.returncode}",
             })
 
+        trace_vcd = None
+        if trace_dir:
+            vcds = sorted(Path(trace_dir).glob("*.vcd"))
+            trace_vcd = str(vcds[0]) if vcds else None
+
         return {
             "exit_code": rp.returncode,
             "errors": all_errors,
             "warnings": all_warnings,
             "raw_stdout": cp.stdout + rp.stdout,
             "raw_stderr": cp.stderr + rp.stderr,
+            "trace_vcd": trace_vcd,
         }
 
 
