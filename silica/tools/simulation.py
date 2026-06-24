@@ -21,6 +21,7 @@ def register(mcp: "FastMCP") -> None:
         simulator: str = "auto",
         top: str | None = None,
         timeout: int = 60,
+        trace: bool = False,
     ) -> dict:
         """Run RTL simulation and return structured diagnostics.
 
@@ -30,9 +31,12 @@ def register(mcp: "FastMCP") -> None:
             simulator: "auto" | "verilator" | "icarus". Auto uses config priority order.
             top: Top module name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
+            trace: When True, capture a VCD waveform trace. Returns trace_vcd path
+                   in the result dict. Pass that path to launch_waveform to open it.
 
         Returns a SimulationResult dict:
-            exit_code, errors [{file, line, severity, message}], warnings, raw_stdout, raw_stderr
+            exit_code, errors [{file, line, severity, message}], warnings,
+            raw_stdout, raw_stderr, trace_vcd (str path or None)
         """
         if simulator == "auto":
             chosen = pick("simulation")
@@ -54,12 +58,13 @@ def register(mcp: "FastMCP") -> None:
                     "warnings": [],
                     "raw_stdout": "",
                     "raw_stderr": "",
+                    "trace_vcd": None,
                 }
 
         if simulator == "verilator":
-            return verilator.run(file, testbench, top=top, timeout=timeout)
+            return verilator.run(file, testbench, top=top, timeout=timeout, trace=trace)
         elif simulator == "icarus":
-            return icarus.run(file, testbench, top=top, timeout=timeout)
+            return icarus.run(file, testbench, top=top, timeout=timeout, trace=trace)
         else:
             return {
                 "exit_code": -1,
@@ -72,4 +77,5 @@ def register(mcp: "FastMCP") -> None:
                 "warnings": [],
                 "raw_stdout": "",
                 "raw_stderr": "",
+                "trace_vcd": None,
             }
