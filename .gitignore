@@ -42,3 +42,4 @@ dmypy.json
 # Project-specific
 *.vcd
 obj_dir/
+HANDOFF.md
