@@ -138,9 +138,11 @@ claude mcp add silica silica serve
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL (Verilator / Icarus). Returns structured errors. |
+| `run_simulation` | Simulate RTL (Verilator / Icarus). Returns structured errors and optional VCD trace path. |
 | `synthesize` | Synthesize to gates (Yosys). Returns utilization. |
 | `lint` | Static analysis (Verible / Verilator). Returns structured warnings. |
+| `run_formal` | Formal verification (SymbiYosys). Returns pass/fail/error status. |
+| `launch_waveform` | Open a VCD trace in Surfer or GTKWave (fire-and-forget). |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
 | `get_project_structure` | Scan for RTL and constraint files. |
@@ -161,7 +163,7 @@ Silica ships reasoning scripts that teach the model how to interpret tool output
 ```
 silica/
 ├── silica/
-│   ├── server.py              # FastMCP server; loads skills at boot
+│   ├── server.py              # FastMCP server; registers all tools and prompts
 │   ├── cli.py                 # subcommand dispatch (serve / setup / config)
 │   ├── tools_registry.py      # canonical list of all supported EDA tools
 │   ├── clients_registry.py    # canonical list of all supported MCP clients
@@ -169,21 +171,22 @@ silica/
 │   ├── config.py              # ~/.silica/config.toml load/save
 │   ├── setup.py               # interactive setup wizard + config viewer
 │   ├── tools/                 # MCP tool definitions
+│   │   ├── _config_dispatch.py  # config-aware auto tool selection
 │   │   ├── simulation.py      # run_simulation()
 │   │   ├── synthesis.py       # synthesize()
 │   │   ├── lint.py            # lint()
+│   │   ├── formal.py          # run_formal()
+│   │   ├── waveform.py        # launch_waveform()
 │   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
-│   ├── adapters/              # per-tool CLI wrappers + output parsers
-│   │   ├── verilator.py
-│   │   ├── icarus.py
-│   │   ├── yosys.py
-│   │   └── verible.py
-│   └── skills/
-│       ├── base/rtl_assistant.md
-│       └── workflows/
-│           └── debug_simulation_failure.md
+│   └── adapters/              # per-tool CLI wrappers + output parsers
+│       ├── _hints.py          # platform-aware install hint strings
+│       ├── verilator.py
+│       ├── icarus.py
+│       ├── yosys.py
+│       ├── verible.py
+│       └── sby.py
 └── examples/
-    └── uart/                  # reference design for end-to-end testing
+    └── uart/                  # 8N1 UART TX — reference design for end-to-end testing
 ```
 
 ## Toolchain coverage (v0.1)
@@ -199,8 +202,8 @@ silica/
 ## Development
 
 ```bash
-git clone https://github.com/getsilica/silica
-cd silica
+git clone https://github.com/simaanc/silica-eda
+cd silica-eda
 pip install -e ".[dev]"
 
 # Run the server locally (for debugging)
@@ -213,4 +216,4 @@ vvp /tmp/uart_sim
 
 ## License
 
-MIT
+Apache-2.0
