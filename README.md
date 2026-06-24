@@ -10,25 +10,44 @@ The core value: **closed autonomous loops**. Run sim → parse failure → reaso
 
 ## Quick start
 
-### 1. Install prerequisites
+### 1. Install Silica
 
-**macOS**
+```bash
+pip install silica-eda
+```
+
+### 2. Run the setup wizard
+
+```bash
+silica setup
+```
+
+The wizard detects which MCP clients and EDA tools you already have installed, lets you choose what to enable, and writes the MCP client config for you. It covers Claude Desktop, Claude Code, Cursor, Zed, Windsurf, OpenCode, and Gemini CLI.
+
+When it's done, check your config anytime with:
+
+```bash
+silica config
+```
+
+### 3. Install missing tools (if any)
+
+The wizard prints install commands for any open source tools you selected but don't have yet. For example on macOS:
+
 ```bash
 brew install verilator yosys icarus-verilog verible
 ```
 
 **Ubuntu / Debian**
 ```bash
-sudo apt update
-sudo apt install verilator yosys iverilog
-# Verible: grab the release binary from https://github.com/chipsalliance/verible/releases
-# or on Ubuntu 22.04+: sudo apt install verible
+sudo apt update && sudo apt install verilator yosys iverilog
+# Verible: sudo apt install verible  (Ubuntu 22.04+)
+# or grab the release binary: https://github.com/chipsalliance/verible/releases
 ```
 
 **Fedora / RHEL**
 ```bash
 sudo dnf install verilator yosys iverilog
-# Verible: https://github.com/chipsalliance/verible/releases
 ```
 
 **Arch**
@@ -37,21 +56,35 @@ sudo pacman -S verilator yosys iverilog verible
 ```
 
 **Windows**
-Native EDA tools on Windows are limited. WSL2 is the recommended path:
+WSL2 is the recommended path:
 ```powershell
-wsl --install          # installs Ubuntu by default
+wsl --install   # installs Ubuntu by default
 ```
 Then follow the Ubuntu instructions above inside WSL. Claude Desktop and Cursor both support MCP servers running inside WSL via the `wsl -e silica serve` command pattern.
 
-### 2. Install Silica
+### 4. Start the server
 
 ```bash
-pip install silica-eda
+silica serve
 ```
 
-### 3. Add to Claude Desktop
+Your MCP client will launch this automatically — you typically don't need to run it manually.
 
-**macOS / Linux** — edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/Claude/claude_desktop_config.json` (Linux):
+### 5. Test the UART example
+
+Ask Claude:
+
+> Run the UART TX simulation in examples/uart/ and tell me if it passes.
+
+Or introduce a bug and ask Claude to find and fix it autonomously:
+
+> In examples/uart/uart_tx.sv, change line 54 to use `==` instead of `== CLKS_PER_BIT - 1` for the baud counter comparison. Then run the simulation, find the bug, and fix it.
+
+## Manual client setup
+
+If you prefer to configure your MCP client by hand instead of using `silica setup`:
+
+**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/Claude/claude_desktop_config.json` (Linux):
 
 ```json
 {
@@ -64,8 +97,24 @@ pip install silica-eda
 }
 ```
 
-**Windows (WSL2)** — use `wsl -e` to invoke the server inside WSL:
+**Claude Code**
+```bash
+claude mcp add silica silica serve
+```
 
+**Cursor** — `~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "silica": {
+      "command": "silica",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+**Windows (WSL2)**
 ```json
 {
   "mcpServers": {
@@ -77,17 +126,13 @@ pip install silica-eda
 }
 ```
 
-Restart Claude Desktop. Silica loads automatically. The same config works identically in Cursor and Zed.
+## CLI reference
 
-### 4. Test the UART example
-
-Ask Claude:
-
-> Run the UART TX simulation in examples/uart/ and tell me if it passes.
-
-Or introduce a bug and ask Claude to find and fix it autonomously:
-
-> In examples/uart/uart_tx.sv, change line 54 to use `==` instead of `== CLKS_PER_BIT - 1` for the baud counter comparison. Then run the simulation, find the bug, and fix it.
+| Command | Description |
+|---|---|
+| `silica serve` | Start the MCP server (stdio transport). Default if no subcommand given. |
+| `silica setup` | Interactive first-run configuration wizard. |
+| `silica config` | Show current configuration and live tool status. |
 
 ## MCP Tools (v0.1)
 
@@ -116,35 +161,40 @@ Silica ships reasoning scripts that teach the model how to interpret tool output
 ```
 silica/
 ├── silica/
-│   ├── server.py          # FastMCP server; loads skills at boot
-│   ├── cli.py             # silica serve entrypoint
-│   ├── tools/             # MCP tool definitions
-│   │   ├── simulation.py  # run_simulation()
-│   │   ├── synthesis.py   # synthesize()
-│   │   ├── lint.py        # lint()
-│   │   └── project.py     # read_rtl(), write_rtl(), get_project_structure(), ...
-│   ├── adapters/          # per-tool CLI wrappers + output parsers
+│   ├── server.py              # FastMCP server; loads skills at boot
+│   ├── cli.py                 # subcommand dispatch (serve / setup / config)
+│   ├── tools_registry.py      # canonical list of all supported EDA tools
+│   ├── clients_registry.py    # canonical list of all supported MCP clients
+│   ├── terminal.py            # OSC 8 hyperlink support
+│   ├── config.py              # ~/.silica/config.toml load/save
+│   ├── setup.py               # interactive setup wizard + config viewer
+│   ├── tools/                 # MCP tool definitions
+│   │   ├── simulation.py      # run_simulation()
+│   │   ├── synthesis.py       # synthesize()
+│   │   ├── lint.py            # lint()
+│   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
+│   ├── adapters/              # per-tool CLI wrappers + output parsers
 │   │   ├── verilator.py
 │   │   ├── icarus.py
 │   │   ├── yosys.py
 │   │   └── verible.py
 │   └── skills/
-│       ├── base/rtl_assistant.md         # always loaded
-│       └── workflows/                    # loaded on demand
+│       ├── base/rtl_assistant.md
+│       └── workflows/
 │           └── debug_simulation_failure.md
 └── examples/
-    └── uart/              # reference design for end-to-end testing
+    └── uart/                  # reference design for end-to-end testing
 ```
 
 ## Toolchain coverage (v0.1)
 
-| Category | Tools |
-|---|---|
-| Simulation | Verilator (primary), Icarus Verilog (fallback) |
-| Synthesis | Yosys (generic, ice40, ecp5, xilinx, gowin) |
-| Linting | Verible (primary), Verilator lint-only (fallback) |
-
-Commercial tools (VCS, Questa, Vivado, JasperGold) are post-MVP and will auto-activate when the binary is on PATH.
+| Category | Open source | Commercial (detected if on PATH) |
+|---|---|---|
+| Simulation | Verilator, Icarus Verilog | VCS (Synopsys), Questa (Siemens), Xcelium (Cadence) |
+| Synthesis | Yosys | Vivado (AMD/Xilinx), Quartus (Intel), DC Shell (Synopsys) |
+| Formal | SymbiYosys | JasperGold (Cadence), VC Formal (Synopsys) |
+| Lint | Verible, svlint | SpyGlass (Synopsys) |
+| Waveform | GTKWave, Surfer | Verdi (Synopsys) |
 
 ## Development
 
