@@ -1,0 +1,44 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Testing and analysis caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Type checkers
+.dmypy.json
+dmypy.json
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Project-specific
+*.vcd
+obj_dir/
