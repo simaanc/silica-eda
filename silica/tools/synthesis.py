@@ -1,12 +1,12 @@
 """MCP tool: synthesize."""
 
-import shutil
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import yosys
+from silica.tools._config_dispatch import pick
 
 
 def register(mcp: "FastMCP") -> None:
@@ -24,7 +24,7 @@ def register(mcp: "FastMCP") -> None:
             top_module: Name of the top-level module to synthesize.
             files: List of source file paths (.sv / .v).
             target: Synthesis target — "generic" | "ice40" | "ecp5" | "xilinx" | "gowin".
-            tool: "auto" | "yosys". Auto priority: yosys → (commercial tools post-MVP).
+            tool: "auto" | "yosys". Auto uses config priority order.
             timeout: Seconds before killing the synthesis process.
 
         Returns a SynthesisResult dict:
@@ -32,7 +32,7 @@ def register(mcp: "FastMCP") -> None:
             timing_summary {wns, tns, failing_endpoints}, warnings, errors, raw_output
         """
         if tool == "auto":
-            tool = "yosys" if shutil.which("yosys") else "none"
+            tool = pick("synthesis") or "none"
 
         if tool == "yosys":
             return yosys.run(top_module, files, target=target, timeout=timeout)
