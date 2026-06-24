@@ -83,11 +83,11 @@ TOOLS = {
         "docs": "https://www.synopsys.com/support.html",
         "note": "Requires Synopsys license",
     },
-    "symbiyosys": {
+    "sby": {
         "category": "formal",
         "license": "open_source",
         "install": {
-            "brew": "brew install symbiyosys",
+            "brew": "brew install sby",
             "apt": "sudo apt install symbiyosys",
             "pip": "pip install symbiyosys",
         },
