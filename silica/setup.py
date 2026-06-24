@@ -365,6 +365,7 @@ def _step_inject_clients(client_selections: list[str]) -> None:
 
 def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
     pm = _pkg_manager()
+    plat = {"darwin": "darwin", "linux": "linux", "win32": "win32"}.get(sys.platform, "linux")
     # Collect raw install commands for all missing open source tools
     all_hints: list[str] = []
     for names in tool_selections.values():
@@ -375,7 +376,8 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
             if shutil.which(name):
                 continue
             install = tool.get("install", {})
-            hint = install.get(pm) or next(iter(install.values()), None)
+            # prefer exact pm key, then platform key, then first available
+            hint = install.get(pm) or install.get(plat) or next(iter(install.values()), None)
             if hint and hint not in all_hints:
                 all_hints.append(hint)
 
@@ -387,15 +389,12 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
     solo: list[str] = []
     for hint in all_hints:
         parts = hint.split()
-        # Find the longest prefix that looks like a command (no package names yet)
-        # Convention: commands end before the first non-flag word after the verb
-        # We split at the package name boundary: "brew install X Y" → prefix="brew install"
-        if len(parts) >= 3 and not parts[-1].startswith("-"):
-            # Last word is the package name; everything before is the prefix
+        if hint.startswith("#") or len(parts) < 3 or parts[-1].startswith("-"):
+            solo.append(hint)
+        else:
+            # "brew install X" → prefix="brew install", pkg="X"
             prefix = " ".join(parts[:-1])
             groups.setdefault(prefix, []).append(parts[-1])
-        else:
-            solo.append(hint)
 
     print(_bold("Step 5 — Missing open source tools — run to install:\n"))
     for prefix, pkgs in groups.items():
