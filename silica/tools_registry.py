@@ -114,7 +114,7 @@ TOOLS = {
         "category": "lint",
         "license": "open_source",
         "install": {
-            "darwin": "# No brew formula — download from https://github.com/chipsalliance/verible/releases",
+            "brew": "brew tap chipsalliance/verible && brew install verible",
             "apt": "sudo apt install verible",
         },
         "url": "https://chipsalliance.github.io/verible/",
