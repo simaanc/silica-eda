@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "silica"
+name = "silica-eda"
 version = "0.1.0"
 description = "AI-native EDA environment — MCP server for hardware design and verification"
 readme = "README.md"

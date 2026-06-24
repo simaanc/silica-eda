@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters._hints import install_hint
+
 # FF cells in generic/abstract synthesis
 _FF_CELLS = {
     "$dff", "$dffe", "$sdff", "$sdffe", "$adff", "$adffe",
@@ -139,6 +141,6 @@ def _not_found() -> dict:
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
-                    "message": "yosys not found. Install with: brew install yosys"}],
+                    "message": f"yosys not found.\n{install_hint('yosys')}"}],
         "raw_output": "",
     }

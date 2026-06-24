@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import icarus, verilator
+from silica.adapters._hints import install_hint
 
 
 def register(mcp: "FastMCP") -> None:
@@ -43,8 +44,9 @@ def register(mcp: "FastMCP") -> None:
                         "line": 0,
                         "severity": "error",
                         "message": (
-                            "No simulator found. Install Verilator (brew install verilator) "
-                            "or Icarus Verilog (brew install icarus-verilog)."
+                            "No simulator found. Install Verilator or Icarus Verilog:\n"
+                            f"Verilator: {install_hint('verilator')}\n"
+                            f"Icarus:    {install_hint('iverilog')}"
                         ),
                     }],
                     "warnings": [],

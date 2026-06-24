@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from silica.adapters._hints import install_hint
+
 # %Error-PARSE: path/to/file.sv:10:5: message
 # %Warning-UNUSED: path/to/file.sv:20:3: message
 # %Error: path/to/file.sv:10: message   (no column)
@@ -144,7 +146,7 @@ def _not_found() -> dict:
             "file": "",
             "line": 0,
             "severity": "error",
-            "message": "verilator not found. Install with: brew install verilator",
+            "message": f"verilator not found.\n{install_hint('verilator')}",
         }],
         "warnings": [],
         "raw_stdout": "",

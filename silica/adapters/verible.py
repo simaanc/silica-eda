@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from typing import Any
 
+from silica.adapters._hints import install_hint
+
 # filename.sv:10:5: message [rule-id]
 # filename.sv:10:5: message  (no rule-id)
 _WARN_RE = re.compile(
@@ -63,5 +65,5 @@ def _not_found() -> dict:
         "warnings": [],
         "tool": "verible-verilog-lint",
         "raw_output": "",
-        "error": "verible-verilog-lint not found. Install from https://github.com/chipsalliance/verible/releases",
+        "error": f"verible-verilog-lint not found.\n{install_hint('verible-verilog-lint')}",
     }
