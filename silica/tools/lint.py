@@ -1,0 +1,68 @@
+"""MCP tool: lint."""
+
+import shutil
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import FastMCP
+
+from silica.adapters import verible, verilator
+
+
+def register(mcp: "FastMCP") -> None:
+    @mcp.tool()
+    def lint(
+        file: str,
+        ruleset: str = "default",
+        tool: str = "auto",
+        timeout: int = 30,
+    ) -> dict:
+        """Lint a SystemVerilog/Verilog file and return structured warnings.
+
+        Args:
+            file: Path to the source file to lint.
+            ruleset: "default" | "all" | comma-separated rule list (tool-specific).
+            tool: "auto" | "verible" | "verilator". Auto priority: verible → verilator.
+            timeout: Seconds before killing the linter.
+
+        Returns a LintResult dict:
+            warnings [{file, line, severity, rule_id, message}], tool, raw_output
+        """
+        if tool == "auto":
+            if shutil.which("verible-verilog-lint"):
+                tool = "verible"
+            elif shutil.which("verilator"):
+                tool = "verilator"
+            else:
+                return {
+                    "warnings": [],
+                    "tool": "none",
+                    "raw_output": "",
+                    "error": (
+                        "No linter found. Install Verible: "
+                        "https://github.com/chipsalliance/verible/releases"
+                    ),
+                }
+
+        if tool == "verible":
+            return verible.run(file, ruleset=ruleset, timeout=timeout)
+
+        if tool == "verilator":
+            result = verilator.lint_only(file, timeout=timeout)
+            # Normalize verilator output to LintResult shape
+            warnings = [
+                {**w, "rule_id": "verilator"}
+                for w in result.get("warnings", [])
+            ]
+            return {
+                "warnings": warnings,
+                "tool": "verilator",
+                "raw_output": result.get("raw_stderr", ""),
+            }
+
+        return {
+            "warnings": [],
+            "tool": tool,
+            "raw_output": "",
+            "error": f"Unknown lint tool '{tool}'. Supported: auto, verible, verilator.",
+        }
