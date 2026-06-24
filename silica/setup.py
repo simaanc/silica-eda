@@ -365,8 +365,9 @@ def _step_inject_clients(client_selections: list[str]) -> None:
 
 def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
     pm = _pkg_manager()
-    missing: dict[str, list[str]] = {}
-    for category, names in tool_selections.items():
+    # Collect raw install commands for all missing open source tools
+    all_hints: list[str] = []
+    for names in tool_selections.values():
         for name in names:
             tool = TOOLS.get(name)
             if not tool or tool["license"] != "open_source":
@@ -375,17 +376,32 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
                 continue
             install = tool.get("install", {})
             hint = install.get(pm) or next(iter(install.values()), None)
-            if hint:
-                missing.setdefault(category, []).append(hint)
+            if hint and hint not in all_hints:
+                all_hints.append(hint)
 
-    if not missing:
+    if not all_hints:
         return
 
-    print(_bold("Step 5 — Missing open source tools — run these to install:\n"))
-    for category, hints in missing.items():
-        print(f"  {_bold(category.capitalize())}:")
-        for h in hints:
-            print(f"    {h}")
+    # Group by command prefix (e.g. "brew install", "sudo apt install") and combine
+    groups: dict[str, list[str]] = {}
+    solo: list[str] = []
+    for hint in all_hints:
+        parts = hint.split()
+        # Find the longest prefix that looks like a command (no package names yet)
+        # Convention: commands end before the first non-flag word after the verb
+        # We split at the package name boundary: "brew install X Y" → prefix="brew install"
+        if len(parts) >= 3 and not parts[-1].startswith("-"):
+            # Last word is the package name; everything before is the prefix
+            prefix = " ".join(parts[:-1])
+            groups.setdefault(prefix, []).append(parts[-1])
+        else:
+            solo.append(hint)
+
+    print(_bold("Step 5 — Missing open source tools — run to install:\n"))
+    for prefix, pkgs in groups.items():
+        print(f"    {_cyan(prefix + ' ' + ' '.join(pkgs))}")
+    for hint in solo:
+        print(f"    {_cyan(hint)}")
     print()
 
 
