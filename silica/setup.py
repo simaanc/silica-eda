@@ -361,46 +361,52 @@ def _step_inject_clients(client_selections: list[str]) -> None:
                 _inject_command_client(key, silica_bin)
 
 
-# ── Step 5: install hints ─────────────────────────────────────────────────────
+# ── Install hint helpers ──────────────────────────────────────────────────────
 
-def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
+def _collect_missing_hints(tool_names: list[str]) -> list[str]:
+    """Return combined install hint lines for missing open source tools."""
     pm = _pkg_manager()
     plat = {"darwin": "darwin", "linux": "linux", "win32": "win32"}.get(sys.platform, "linux")
-    # Collect raw install commands for all missing open source tools
-    all_hints: list[str] = []
-    for names in tool_selections.values():
-        for name in names:
-            tool = TOOLS.get(name)
-            if not tool or tool["license"] != "open_source":
-                continue
-            if shutil.which(name):
-                continue
-            install = tool.get("install", {})
-            # prefer exact pm key, then platform key, then first available
-            hint = install.get(pm) or install.get(plat) or next(iter(install.values()), None)
-            if hint and hint not in all_hints:
-                all_hints.append(hint)
+    raw: list[str] = []
+    for name in tool_names:
+        tool = TOOLS.get(name)
+        if not tool or tool["license"] != "open_source":
+            continue
+        if shutil.which(name):
+            continue
+        install = tool.get("install", {})
+        hint = install.get(pm) or install.get(plat) or next(iter(install.values()), None)
+        if hint and hint not in raw:
+            raw.append(hint)
 
-    if not all_hints:
-        return
+    if not raw:
+        return []
 
-    # Group by command prefix (e.g. "brew install", "sudo apt install") and combine
     groups: dict[str, list[str]] = {}
     solo: list[str] = []
-    for hint in all_hints:
+    for hint in raw:
         parts = hint.split()
         if hint.startswith("#") or "&&" in hint or len(parts) < 3 or parts[-1].startswith("-"):
             solo.append(hint)
         else:
-            # "brew install X" → prefix="brew install", pkg="X"
             prefix = " ".join(parts[:-1])
             groups.setdefault(prefix, []).append(parts[-1])
 
+    lines = [prefix + " " + " ".join(pkgs) for prefix, pkgs in groups.items()]
+    lines.extend(solo)
+    return lines
+
+
+# ── Step 5: install hints ─────────────────────────────────────────────────────
+
+def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
+    all_names = [name for names in tool_selections.values() for name in names]
+    lines = _collect_missing_hints(all_names)
+    if not lines:
+        return
     print(_bold("Step 5 — Missing open source tools — run to install:\n"))
-    for prefix, pkgs in groups.items():
-        print(f"    {_cyan(prefix + ' ' + ' '.join(pkgs))}")
-    for hint in solo:
-        print(f"    {_cyan(hint)}")
+    for line in lines:
+        print(f"    {_cyan(line)}")
     print()
 
 
@@ -472,6 +478,17 @@ def print_config() -> None:
         print(f"\n  {'MCP clients':<14} {'  '.join(client_parts)}")
     else:
         print(f"\n  {'MCP clients':<14} (none configured)")
+
+    all_enabled = [
+        name
+        for cat in CATEGORIES
+        for name in data.get("tools", {}).get(cat, {}).get("enabled", [])
+    ]
+    hints = _collect_missing_hints(all_enabled)
+    if hints:
+        print(f"\n  {_bold('To install missing tools:')}")
+        for line in hints:
+            print(f"    {_cyan(line)}")
 
     print(f"\n  Run 'silica setup' to change configuration.\n")
 
