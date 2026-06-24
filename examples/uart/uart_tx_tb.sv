@@ -82,7 +82,7 @@ module uart_tx_tb;
         end
 
         // --- Check 8 data bits, LSB first ---
-        for (automatic int b = 0; b < 8; b++) begin
+        for (int b = 0; b < 8; b++) begin
             bit_val = ref_data[b];
             for (i = 0; i < CLKS_PER_BIT; i++) begin
                 if (tx !== bit_val) begin

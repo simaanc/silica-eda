@@ -55,7 +55,7 @@ module uart_tx #(
 
                 START: begin
                     tx <= 1'b0;
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == 16'(CLKS_PER_BIT - 1)) begin
                         state    <= DATA;
                         baud_cnt <= '0;
                         bit_idx  <= '0;
@@ -66,7 +66,7 @@ module uart_tx #(
 
                 DATA: begin
                     tx <= shift_reg[0];
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == 16'(CLKS_PER_BIT - 1)) begin
                         baud_cnt  <= '0;
                         shift_reg <= {1'b0, shift_reg[7:1]};
                         if (bit_idx == 3'd7) begin
@@ -81,7 +81,7 @@ module uart_tx #(
 
                 STOP: begin
                     tx <= 1'b1;
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == 16'(CLKS_PER_BIT - 1)) begin
                         state    <= IDLE;
                         baud_cnt <= '0;
                     end else begin
