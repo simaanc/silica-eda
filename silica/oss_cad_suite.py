@@ -27,7 +27,8 @@ RELEASES_PAGE = "https://github.com/YosysHQ/oss-cad-suite-build/releases"
 # Tools bundled in OSS CAD Suite (registry names). Used to decide whether a
 # given tool can be satisfied by a detected suite install.
 BUNDLED: frozenset[str] = frozenset(
-    {"verilator", "iverilog", "yosys", "sby", "surfer", "gtkwave"}
+    {"verilator", "iverilog", "yosys", "sby", "surfer", "gtkwave",
+     "nextpnr", "ghdl", "eqy", "openfpgaloader"}
 )
 
 _root_cache: Path | None = None

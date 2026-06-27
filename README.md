@@ -16,9 +16,9 @@
 
 Silica wraps your EDA toolchain — open-source and commercial — in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
 
-Open-source tools (Verilator, Yosys, Verible, SymbiYosys, Icarus, Surfer) work out of the box. Commercial tools (VCS, Questa, Xcelium, Vivado, Quartus, DC Shell, JasperGold, VC Formal, SpyGlass, Verdi) are detected automatically when present on PATH — no extra config needed.
+Open-source tools (Verilator, Yosys, Verible, SymbiYosys, Icarus, GHDL, nextpnr, eqy, openFPGALoader, Surfer) work out of the box. Commercial tools (VCS, Questa, Xcelium, Vivado, Quartus, DC Shell, JasperGold, VC Formal, SpyGlass, Verdi) are detected automatically when present on PATH — no extra config needed.
 
-The core value: **closed autonomous loops**. Run sim → parse failure → reason about RTL → propose fix → re-run — without human copy-paste.
+The core value: **closed autonomous loops**. Run sim → parse failure → reason about RTL → propose fix → re-run — without human copy-paste. The full open-source FPGA flow is covered end-to-end: synthesize → place and route → program device.
 
 ## Quick start
 
@@ -44,7 +44,7 @@ silica config
 
 ### 3. Install missing tools (if any)
 
-**Easiest path — OSS CAD Suite.** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately.
+**Easiest path — OSS CAD Suite.** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, GHDL, nextpnr, eqy, openFPGALoader, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately.
 
 > silica does **not** download OSS CAD Suite for you (it bundles many tools under their own licenses — that's your call to install). It only *detects* an existing install.
 
@@ -143,10 +143,12 @@ claude mcp add silica silica serve
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, VCS, Questa, Xcelium. Returns structured errors and optional VCD trace path. |
+| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Returns structured errors and optional VCD trace path. |
 | `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Returns utilization and timing summary. |
+| `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
+| `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
 | `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Returns structured warnings. |
-| `run_formal` | Formal verification. Auto-selects from SymbiYosys, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
+| `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
 | `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
@@ -180,6 +182,8 @@ silica/
 │   │   ├── _config_dispatch.py  # config-aware auto tool selection
 │   │   ├── simulation.py      # run_simulation()
 │   │   ├── synthesis.py       # synthesize()
+│   │   ├── place_route.py     # run_place_route()
+│   │   ├── program.py         # program_device()
 │   │   ├── lint.py            # lint()
 │   │   ├── formal.py          # run_formal()
 │   │   ├── waveform.py        # launch_waveform()
@@ -188,9 +192,13 @@ silica/
 │       ├── _hints.py          # platform-aware install hint strings
 │       ├── verilator.py       # open source
 │       ├── icarus.py
+│       ├── ghdl.py
 │       ├── yosys.py
+│       ├── nextpnr.py
+│       ├── openfpgaloader.py
 │       ├── verible.py
 │       ├── sby.py
+│       ├── eqy.py
 │       ├── vcs.py             # commercial (detected if on PATH)
 │       ├── questa.py
 │       ├── xcelium.py
@@ -209,11 +217,13 @@ silica/
 
 | Category | Open source | Commercial (detected if on PATH) |
 |---|---|---|
-| Simulation | Verilator, Icarus Verilog | VCS (Synopsys), Questa (Siemens), Xcelium (Cadence) |
+| Simulation | Verilator, Icarus Verilog, GHDL | VCS (Synopsys), Questa (Siemens), Xcelium (Cadence) |
 | Synthesis | Yosys | Vivado (AMD/Xilinx), Quartus (Intel), DC Shell (Synopsys) |
-| Formal | SymbiYosys | JasperGold (Cadence), VC Formal (Synopsys) |
+| Place & Route | nextpnr (ice40, ECP5, Nexus, MachXO2) | — |
+| Formal | SymbiYosys, eqy | JasperGold (Cadence), VC Formal (Synopsys) |
 | Lint | Verible, svlint | SpyGlass (Synopsys) |
 | Waveform | GTKWave, Surfer | Verdi (Synopsys) |
+| Program | openFPGALoader | — |
 
 ## Development
 
