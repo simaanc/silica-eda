@@ -198,6 +198,62 @@ TOOLS = {
         "docs": "https://www.synopsys.com/support.html",
         "note": "Requires Synopsys license",
     },
+    "ghdl": {
+        "category": "simulation",
+        "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
+        "install": {
+            "brew":    "brew install ghdl",
+            "apt":     "sudo apt install ghdl",
+            "dnf":     "sudo dnf install ghdl",
+            "windows": "# OSS CAD Suite (bundles ghdl): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        },
+        "url": "https://ghdl.github.io/ghdl/",
+        "docs": "https://ghdl.github.io/ghdl/quick_start/README.html",
+    },
+    "nextpnr": {
+        "category": "place_route",
+        "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
+        "install": {
+            "brew":    "# OSS CAD Suite (recommended — bundles all nextpnr architectures):\n"
+                       "#   https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "apt":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "dnf":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "windows": "# OSS CAD Suite (bundles nextpnr-ice40, nextpnr-ecp5, etc.):\n"
+                       "#   https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        },
+        "url": "https://github.com/YosysHQ/nextpnr",
+        "docs": "https://github.com/YosysHQ/nextpnr/blob/master/docs/",
+        "note": "Architecture-specific binaries: nextpnr-ice40, nextpnr-ecp5, nextpnr-nexus, etc.",
+    },
+    "eqy": {
+        "category": "formal",
+        "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
+        "install": {
+            "brew":    "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "apt":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "dnf":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "windows": "# OSS CAD Suite: https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        },
+        "url": "https://github.com/YosysHQ/eqy",
+        "docs": "https://github.com/YosysHQ/eqy",
+    },
+    "openfpgaloader": {
+        "category": "program",
+        "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
+        "install": {
+            "brew":    "brew install openfpgaloader",
+            "apt":     "sudo apt install openfpgaloader",
+            "dnf":     "# Build from source: https://github.com/trabucayre/openFPGALoader",
+            "windows": "# OSS CAD Suite (bundles openFPGALoader):\n"
+                       "#   https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        },
+        "url": "https://github.com/trabucayre/openFPGALoader",
+        "docs": "https://trabucayre.github.io/openFPGALoader/",
+    },
 }
 
-CATEGORIES = ["simulation", "synthesis", "formal", "lint", "waveform"]
+CATEGORIES = ["simulation", "synthesis", "place_route", "formal", "lint", "waveform", "program"]

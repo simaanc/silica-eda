@@ -14,19 +14,23 @@ _BINARY: dict[str, str | list[str]] = {
     "vcs": "vcs",
     "questa": ["vsim", "qrun"],
     "xcelium": ["xrun", "irun"],
+    "ghdl": "ghdl",
     "yosys": "yosys",
     "vivado": "vivado",
     "quartus": "quartus_sh",
     "dc_shell": ["dc_shell", "dc_shell-t"],
+    "nextpnr": ["nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus", "nextpnr-generic"],
     "sby": "sby",
     "jaspergold": ["jg", "jaspergold"],
     "vc_formal": ["vcf", "vc_static_shell"],
+    "eqy": "eqy",
     "verible-verilog-lint": "verible-verilog-lint",
     "svlint": "svlint",
     "spyglass": ["spyglass", "sg_shell", "vc_static_shell"],
     "surfer": "surfer",
     "gtkwave": "gtkwave",
     "verdi": "verdi",
+    "openfpgaloader": "openFPGALoader",
 }
 
 
@@ -59,11 +63,13 @@ def resolve(name: str) -> str | None:
 # Fallback priority when config is missing entirely, keyed by category.
 # Open-source tools listed first; commercial tools are detected if on PATH.
 _FALLBACK: dict[str, list[str]] = {
-    "simulation": ["verilator", "iverilog", "vcs", "questa", "xcelium"],
-    "synthesis":  ["yosys", "vivado", "quartus", "dc_shell"],
-    "formal":     ["sby", "jaspergold", "vc_formal"],
-    "lint":       ["verible-verilog-lint", "verilator", "svlint", "spyglass"],
-    "waveform":   ["surfer", "gtkwave", "verdi"],
+    "simulation":  ["verilator", "iverilog", "ghdl", "vcs", "questa", "xcelium"],
+    "synthesis":   ["yosys", "vivado", "quartus", "dc_shell"],
+    "place_route": ["nextpnr"],
+    "formal":      ["sby", "eqy", "jaspergold", "vc_formal"],
+    "lint":        ["verible-verilog-lint", "verilator", "svlint", "spyglass"],
+    "waveform":    ["surfer", "gtkwave", "verdi"],
+    "program":     ["openfpgaloader"],
 }
 
 
