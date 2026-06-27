@@ -45,12 +45,12 @@ def _candidate_roots() -> list[Path]:
     # 1. explicit config
     recorded = cfg.load().get("oss_cad_suite", {}).get("path")
     if recorded:
-        roots.append(Path(recorded))
+        roots.append(Path(recorded).expanduser())
     # 2. env overrides
     for var in ("SILICA_OSS_CAD_SUITE", "OSS_CAD_SUITE", "OSS_CAD_SUITE_ROOT"):
         val = os.environ.get(var)
         if val:
-            roots.append(Path(val))
+            roots.append(Path(val).expanduser())
     # 3. common manual-install locations
     roots.append(Path.home() / "oss-cad-suite")
     roots.append(Path.home() / ".silica" / "oss-cad-suite")
