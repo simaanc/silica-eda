@@ -64,6 +64,14 @@ _HINTS: dict[str, dict[str, str]] = {
                    "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
                    "Note: GTKWave is discontinued upstream — consider Surfer instead.",
     },
+    "svlint": {
+        "Darwin":  "cargo install svlint\n"
+                   "(requires Rust — install via: curl https://sh.rustup.rs -sSf | sh)",
+        "Linux":   "cargo install svlint\n"
+                   "(requires Rust — install via: curl https://sh.rustup.rs -sSf | sh)",
+        "Windows": "cargo install svlint\n"
+                   "(requires Rust — install via https://rustup.rs/)",
+    },
 }
 
 _FALLBACK = "See the project's official documentation for install instructions."

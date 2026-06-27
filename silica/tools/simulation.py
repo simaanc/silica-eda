@@ -6,11 +6,18 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import icarus, verilator
+from silica.adapters import vcs, questa, xcelium
 from silica.adapters._hints import install_hint
 from silica.tools._config_dispatch import pick
 
 # Maps registry name → adapter identifier used below
-_SIM_ADAPTERS = {"verilator": "verilator", "iverilog": "icarus"}
+_SIM_ADAPTERS = {
+    "verilator": "verilator",
+    "iverilog":  "icarus",
+    "vcs":       "vcs",
+    "questa":    "questa",
+    "xcelium":   "xcelium",
+}
 
 
 def register(mcp: "FastMCP") -> None:
@@ -28,7 +35,8 @@ def register(mcp: "FastMCP") -> None:
         Args:
             file: Path to the DUT source file (.sv or .v).
             testbench: Path to the testbench file.
-            simulator: "auto" | "verilator" | "icarus". Auto uses config priority order.
+            simulator: "auto" | "verilator" | "icarus" | "vcs" | "questa" | "xcelium".
+                       Auto uses config priority order.
             top: Top module name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
             trace: When True, capture a VCD waveform trace. Returns trace_vcd path
@@ -65,6 +73,12 @@ def register(mcp: "FastMCP") -> None:
             return verilator.run(file, testbench, top=top, timeout=timeout, trace=trace)
         elif simulator == "icarus":
             return icarus.run(file, testbench, top=top, timeout=timeout, trace=trace)
+        elif simulator == "vcs":
+            return vcs.run(file, testbench, top=top, timeout=timeout, trace=trace)
+        elif simulator == "questa":
+            return questa.run(file, testbench, top=top, timeout=timeout, trace=trace)
+        elif simulator == "xcelium":
+            return xcelium.run(file, testbench, top=top, timeout=timeout, trace=trace)
         else:
             return {
                 "exit_code": -1,
@@ -72,7 +86,10 @@ def register(mcp: "FastMCP") -> None:
                     "file": "",
                     "line": 0,
                     "severity": "error",
-                    "message": f"Unknown simulator '{simulator}'. Supported: auto, verilator, icarus.",
+                    "message": (
+                        f"Unknown simulator '{simulator}'. "
+                        "Supported: auto, verilator, icarus, vcs, questa, xcelium."
+                    ),
                 }],
                 "warnings": [],
                 "raw_stdout": "",

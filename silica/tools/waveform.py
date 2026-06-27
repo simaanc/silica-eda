@@ -7,24 +7,27 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import pick, resolve
 
-_VIEWERS = {"surfer", "gtkwave"}
+_OSS_VIEWERS = {"surfer", "gtkwave"}
+_ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}
 
 
 def register(mcp: "FastMCP") -> None:
     @mcp.tool()
     def launch_waveform(trace_file: str, viewer: str = "auto") -> dict:
-        """Open a VCD/FST trace file in a waveform viewer (fire-and-forget).
+        """Open a VCD/FST/FSDB trace file in a waveform viewer (fire-and-forget).
 
         Typical flow:
             1. result = run_simulation(..., trace=True)
             2. launch_waveform(result["trace_vcd"])
 
         Args:
-            trace_file: Absolute path to the .vcd or .fst trace file.
-            viewer: "auto" | "surfer" | "gtkwave". Auto picks from config priority.
+            trace_file: Absolute path to the .vcd, .fst, or .fsdb trace file.
+            viewer: "auto" | "surfer" | "gtkwave" | "verdi".
+                    Auto picks from config priority order.
 
         Returns:
             {"viewer": str, "launched": bool, "trace": str}
@@ -32,7 +35,7 @@ def register(mcp: "FastMCP") -> None:
         """
         if viewer == "auto":
             chosen = pick("waveform")
-            if chosen in _VIEWERS:
+            if chosen in _ALL_VIEWERS:
                 viewer = chosen
             else:
                 return {
@@ -44,7 +47,11 @@ def register(mcp: "FastMCP") -> None:
                     ),
                 }
 
-        binary = shutil.which(viewer)
+        if viewer == "verdi":
+            return verdi_adapter.launch(trace_file)
+
+        # OSS viewers — look up via resolve() so OSS CAD Suite path is checked
+        binary = resolve(viewer) or shutil.which(viewer)
         if not binary:
             return {
                 "launched": False,
