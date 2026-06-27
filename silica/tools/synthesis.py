@@ -39,7 +39,27 @@ def register(mcp: "FastMCP") -> None:
             timing_summary {wns, tns, failing_endpoints}, warnings, errors, raw_output
         """
         if tool == "auto":
-            tool = pick("synthesis") or "none"
+            chosen = pick("synthesis")
+            if not chosen:
+                return {
+                    "tool": "none",
+                    "target": target,
+                    "exit_code": -1,
+                    "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
+                                    "lut_pct": 0.0, "ff_pct": 0.0},
+                    "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                    "warnings": [],
+                    "errors": [{
+                        "file": "", "line": 0, "severity": "error",
+                        "message": (
+                            "No synthesis tool found. Install Yosys "
+                            "(https://github.com/YosysHQ/yosys) or add a commercial "
+                            "tool (Vivado, Quartus, DC Shell) to PATH."
+                        ),
+                    }],
+                    "raw_output": "",
+                }
+            tool = chosen
 
         if tool == "yosys":
             return yosys.run(top_module, files, target=target, timeout=timeout)
@@ -59,9 +79,7 @@ def register(mcp: "FastMCP") -> None:
                 "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
                 "warnings": [],
                 "errors": [{
-                    "file": "",
-                    "line": 0,
-                    "severity": "error",
+                    "file": "", "line": 0, "severity": "error",
                     "message": (
                         f"Unknown synthesis tool '{tool}'. "
                         "Supported: auto, yosys, vivado, quartus, dc_shell."
