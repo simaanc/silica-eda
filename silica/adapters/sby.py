@@ -1,10 +1,12 @@
 """SymbiYosys (sby) adapter — formal verification front-end."""
 
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+
+from silica import oss_cad_suite
+from silica.adapters._hints import install_hint
 
 _DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN), rc=(\d+)\)")
 _ASSERT_FAIL_RE = re.compile(
@@ -25,8 +27,8 @@ _ERROR_RE = re.compile(
 
 
 def _detect_solver() -> str:
-    for solver in ("z3", "bitwuzla", "boolector"):
-        if shutil.which(solver):
+    for solver in ("z3", "bitwuzla", "boolector", "yices-smt2"):
+        if oss_cad_suite.which(solver):
             return solver
     return ""
 
@@ -49,7 +51,7 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
         workdir: path to sby work directory (persists for trace viewing)
         raw_output: full combined log
     """
-    binary = shutil.which("sby")
+    binary = oss_cad_suite.which("sby")
     if not binary:
         return _not_found()
 
@@ -80,6 +82,7 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
             text=True,
             timeout=timeout,
             cwd=str(sby_path.parent),
+            env=oss_cad_suite.env_with_suite(),
         )
     except subprocess.TimeoutExpired:
         return {
@@ -187,7 +190,7 @@ def _not_found() -> dict:
         "failures": [],
         "traces": [],
         "warnings": [],
-        "errors": [{"file": "", "line": 0, "message": "sby not found. Install: brew install sby"}],
+        "errors": [{"file": "", "line": 0, "message": f"sby not found.\n{install_hint('sby')}"}],
         "workdir": "",
         "raw_output": "",
     }
