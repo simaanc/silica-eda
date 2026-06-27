@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="banner.svg" alt="Silica" width="480"/>
+<img src="banner.png" alt="Silica" width="414"/>
 
 **AI-native EDA environment** · MCP server for hardware design and verification
 
