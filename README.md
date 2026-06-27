@@ -73,33 +73,7 @@ silica config
 
    The path should point at the `oss-cad-suite` folder itself (the one containing `bin/`). Run `silica config` to confirm it's detected.
 
-Otherwise, the wizard prints per-tool install commands for whatever you selected but don't have. By platform:
-
-**macOS**
-```bash
-brew install verilator yosys icarus-verilog surfer
-brew tap chipsalliance/verible && brew install verible
-```
-
-**Ubuntu / Debian**
-```bash
-sudo apt update && sudo apt install verilator yosys iverilog gtkwave
-# Verible has no apt package — grab the release binary:
-#   https://github.com/chipsalliance/verible/releases
-```
-
-**Fedora / RHEL**
-```bash
-sudo dnf install verilator yosys iverilog gtkwave
-```
-
-**Arch**
-```bash
-sudo pacman -S verilator yosys iverilog gtkwave
-```
-
-**Windows**
-Install OSS CAD Suite (native, recommended) from its [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) for Verilator/Icarus/Yosys/SymbiYosys/Surfer/GTKWave — silica detects it automatically. Add Verible from its [GitHub releases](https://github.com/chipsalliance/verible/releases) (`win64.zip`). WSL2 also works if you prefer a Linux environment — install the Ubuntu packages above inside WSL and point your client at `wsl -e silica serve`.
+For anything not bundled in OSS CAD Suite, the wizard prints the exact install commands for your platform automatically.
 
 ### 4. Start the server
 
