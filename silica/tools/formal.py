@@ -8,11 +8,12 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import sby as sby_adapter
-from silica.adapters import jaspergold, vc_formal
+from silica.adapters import jaspergold, vc_formal, eqy as eqy_adapter
 from silica.tools._config_dispatch import pick
 
 _FORMAL_ADAPTERS = {
     "sby":        "sby",
+    "eqy":        "eqy",
     "jaspergold": "jaspergold",
     "vc_formal":  "vc_formal",
 }
@@ -29,34 +30,38 @@ def register(mcp: "FastMCP") -> None:
         engine: str = "auto",
         tool: str = "auto",
         timeout: int = 300,
+        gold_files: list[str] | None = None,
+        gate_files: list[str] | None = None,
     ) -> dict:
-        """Run formal verification and return structured results.
+        """Run formal verification or equivalence checking and return structured results.
 
-        Two usage modes:
-          1. Pass sby_file — run an existing .sby (SymbiYosys) or .tcl (JasperGold/VC Formal)
-             config file directly.
+        Two usage modes for property verification (sby/jaspergold/vc_formal):
+          1. Pass sby_file — run an existing .sby or .tcl config file directly.
           2. Pass files + top — auto-generate a config and run it.
 
+        For equivalence checking (tool="eqy"):
+          1. Pass sby_file pointing to an .eqy config file.
+          2. Pass gold_files + gate_files + top — auto-generate an .eqy config.
+
         Args:
-            sby_file: Path to an existing config file (.sby for SymbiYosys, .tcl for others).
-            files: RTL source files (used when sby_file is omitted).
-            top: Top module name (used when sby_file is omitted).
-            mode: "prove" | "bmc" | "cover" | "live". Default: "prove".
-            depth: Bound depth for bmc/prove. Default: 20.
-            engine: "auto" (detect z3/bitwuzla) or explicit e.g. "smtbmc z3".
-                    Applies to sby only.
-            tool: "auto" | "sby" | "jaspergold" | "vc_formal". Auto uses config priority.
+            sby_file: Path to an existing config file (.sby, .eqy, or .tcl).
+            files: RTL source files for property verification (when sby_file is omitted).
+            top: Top module name.
+            mode: "prove" | "bmc" | "cover" | "live". Default: "prove". (sby only)
+            depth: Bound depth for bmc/prove. Default: 20. (sby only)
+            engine: "auto" or explicit e.g. "smtbmc z3". (sby only)
+            tool: "auto" | "sby" | "eqy" | "jaspergold" | "vc_formal".
+                  Auto uses config priority order.
             timeout: Seconds before killing the tool. Default: 300.
+            gold_files: Gold (reference) design files for equivalence checking (eqy only).
+            gate_files: Gate (implementation) design files for equivalence checking (eqy only).
 
         Returns a FormalResult dict:
             status: "PASS" | "FAIL" | "ERROR" | "UNKNOWN"
-            rc: exit code (0=PASS, 2=FAIL, 16=ERROR for sby)
+            rc: exit code
             failures: [{property, file, line}]
-            traces: [path to counterexample VCD — open with launch_waveform]
-            warnings: [{file, line, message}]
-            errors: [{file, line, message}]
-            workdir: work directory (persists so traces can be opened)
-            raw_output: full tool log
+            traces: [path to counterexample VCD — open with launch_waveform] (sby only)
+            warnings, errors, workdir, raw_output
         """
         if tool == "auto":
             chosen = pick("formal")
@@ -79,6 +84,15 @@ def register(mcp: "FastMCP") -> None:
             result["generated_sby"] = sby_content
             return result
 
+        elif tool == "eqy":
+            return eqy_adapter.run(
+                eqy_file=sby_file,
+                gold_files=gold_files,
+                gate_files=gate_files,
+                top=top,
+                timeout=timeout,
+            )
+
         elif tool == "jaspergold":
             return jaspergold.run(
                 sby_file=sby_file, files=files, top=top,
@@ -93,7 +107,7 @@ def register(mcp: "FastMCP") -> None:
 
         else:
             return _error_result(
-                f"Unknown formal tool '{tool}'. Supported: auto, sby, jaspergold, vc_formal."
+                f"Unknown formal tool '{tool}'. Supported: auto, sby, eqy, jaspergold, vc_formal."
             )
 
 
