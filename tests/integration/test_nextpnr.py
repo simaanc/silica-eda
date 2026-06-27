@@ -1,7 +1,6 @@
 """Integration tests for the nextpnr adapter (place-and-route)."""
 
 import os
-import shutil
 import pytest
 from silica import oss_cad_suite
 from silica.adapters import nextpnr
@@ -9,7 +8,7 @@ from silica.adapters import nextpnr
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        oss_cad_suite.which("nextpnr-ice40") is None or shutil.which("yosys") is None,
+        oss_cad_suite.which("nextpnr-ice40") is None or oss_cad_suite.which("yosys") is None,
         reason="nextpnr-ice40 or yosys not installed",
     ),
 ]

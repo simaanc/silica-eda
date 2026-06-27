@@ -68,6 +68,7 @@ def test_env_with_suite_has_path_key():
 def test_env_with_suite_prepends_bin_dir(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    with patch.object(oss_cad_suite, "bin_dir", return_value=bin_dir):
-        env = oss_cad_suite.env_with_suite()
+    # Patch find_root (used directly by env_with_suite) rather than bin_dir
+    with patch.object(oss_cad_suite, "find_root", return_value=tmp_path):
+        env = oss_cad_suite.env_with_suite(base_env={"PATH": "/usr/bin"})
         assert str(bin_dir) in env["PATH"]

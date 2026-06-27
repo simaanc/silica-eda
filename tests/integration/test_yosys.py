@@ -1,13 +1,13 @@
 """Integration tests for the Yosys adapter (synthesis)."""
 
-import shutil
 import pytest
+from silica import oss_cad_suite
 from silica.adapters import yosys
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        shutil.which("yosys") is None,
+        oss_cad_suite.which("yosys") is None,
         reason="yosys not installed",
     ),
 ]

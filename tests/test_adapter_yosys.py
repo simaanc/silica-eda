@@ -20,7 +20,7 @@ YOSYS_WARNING = "Warning: Wire dut.clk is used but never driven.\n"
 YOSYS_ERROR = "ERROR: Module not found: undefined_mod\n"
 
 
-@patch("silica.adapters.yosys.shutil.which", return_value=None)
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value=None)
 def test_not_found(mock_which):
     result = yosys.run("top", ["dut.sv"])
     assert result["exit_code"] == -1
@@ -29,7 +29,7 @@ def test_not_found(mock_which):
 
 
 @patch("silica.adapters.yosys.subprocess.run")
-@patch("silica.adapters.yosys.shutil.which", return_value="/usr/bin/yosys")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
 def test_success(mock_which, mock_run):
     mock_run.return_value = make_proc(stdout=STAT_OUTPUT, returncode=0)
     result = yosys.run("top", ["dut.sv"])
@@ -41,7 +41,7 @@ def test_success(mock_which, mock_run):
 
 
 @patch("silica.adapters.yosys.subprocess.run")
-@patch("silica.adapters.yosys.shutil.which", return_value="/usr/bin/yosys")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
 def test_failure(mock_which, mock_run):
     mock_run.return_value = make_proc(stdout=YOSYS_ERROR, returncode=1)
     result = yosys.run("top", ["dut.sv"])
@@ -50,7 +50,7 @@ def test_failure(mock_which, mock_run):
 
 
 @patch("silica.adapters.yosys.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
-@patch("silica.adapters.yosys.shutil.which", return_value="/usr/bin/yosys")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
 def test_timeout_propagates(mock_which, mock_run):
     with pytest.raises(subprocess.TimeoutExpired):
         yosys.run("top", ["dut.sv"])
@@ -78,7 +78,7 @@ def test_parse_warnings():
     ("gowin", "synth_gowin"),
 ])
 @patch("silica.adapters.yosys.subprocess.run")
-@patch("silica.adapters.yosys.shutil.which", return_value="/usr/bin/yosys")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
 def test_target_selects_synth_command(mock_which, mock_run, target, expected_cmd):
     mock_run.return_value = make_proc(returncode=0)
     yosys.run("top", ["dut.sv"], target=target)

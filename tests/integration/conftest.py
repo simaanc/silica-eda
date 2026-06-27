@@ -3,6 +3,7 @@
 import shutil
 import subprocess
 import pytest
+from silica import oss_cad_suite
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +203,7 @@ def counter_tb_vhd(tmp_path):
 @pytest.fixture
 def ice40_netlist(tmp_path, counter_v):
     """Synthesize counter.v to an iCE40 JSON netlist using yosys directly."""
-    yosys_bin = shutil.which("yosys")
+    yosys_bin = oss_cad_suite.which("yosys")
     if not yosys_bin:
         pytest.skip("yosys not found — cannot build ice40 netlist fixture")
     json_out = tmp_path / "counter_ice40.json"
@@ -211,6 +212,7 @@ def ice40_netlist(tmp_path, counter_v):
         [yosys_bin, "-p", script],
         capture_output=True,
         text=True,
+        env=oss_cad_suite.env_with_suite(),
     )
     if cp.returncode != 0 or not json_out.exists():
         pytest.skip(f"yosys ice40 synthesis failed:\n{cp.stderr}")
