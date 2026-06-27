@@ -4,6 +4,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
+from tempfile import mkdtemp
 
 from silica.tools._config_dispatch import resolve
 
@@ -59,27 +60,27 @@ def run(
     if not jg:
         return _not_found()
 
-    with tempfile.TemporaryDirectory(prefix="silica_jg_") as tmpdir:
-        if sby_file:
-            tcl_path = sby_file
-            work_cwd = str(Path(sby_file).parent)
-        else:
-            if not files or not top:
-                return _error_result("Provide either sby_file or both files + top.")
-            tcl_path = str(Path(tmpdir) / f"{top}.tcl")
-            Path(tcl_path).write_text(
-                _make_tcl(top, files, mode, depth, clock, reset),
-                encoding="utf-8",
-            )
-            work_cwd = tmpdir
-
-        cp = subprocess.run(
-            [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=work_cwd,
+    tmpdir = mkdtemp(prefix="silica_jg_")
+    if sby_file:
+        tcl_path = sby_file
+        work_cwd = str(Path(sby_file).parent)
+    else:
+        if not files or not top:
+            return _error_result("Provide either sby_file or both files + top.")
+        tcl_path = str(Path(tmpdir) / f"{top}.tcl")
+        Path(tcl_path).write_text(
+            _make_tcl(top, files, mode, depth, clock, reset),
+            encoding="utf-8",
         )
+        work_cwd = tmpdir
+
+    cp = subprocess.run(
+        [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=work_cwd,
+    )
 
     raw = cp.stdout + cp.stderr
 
@@ -97,7 +98,10 @@ def run(
         if result.lower() in ("falsified", "bounded proof"):
             failures.append({"property": prop, "file": "", "line": 0})
 
-    traces = [m.group(1) for m in _TRACE_RE.finditer(raw) if Path(m.group(1)).exists()]
+    traces = [
+        m.group(1) for m in _TRACE_RE.finditer(raw)
+        if (Path(m.group(1)).exists() or (Path(work_cwd) / m.group(1)).exists())
+    ]
 
     errors = []
     warnings = []
