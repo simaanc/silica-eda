@@ -1,12 +1,12 @@
 """Verilator adapter — compile-and-simulate using --binary (Verilator 5+)."""
 
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
 
+from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
 # %Error-PARSE: path/to/file.sv:10:5: message
@@ -51,9 +51,11 @@ def run(
     When trace=True, writes dump.vcd to a persistent temp directory and
     returns its path as trace_vcd in the result.
     """
-    binary = shutil.which("verilator")
+    binary = oss_cad_suite.which("verilator")
     if not binary:
         return _not_found()
+
+    env = oss_cad_suite.env_with_suite()
 
     if top is None:
         # Infer top from testbench filename stem
@@ -87,6 +89,7 @@ def run(
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
 
         errors, warnings = _parse_output(cp.stderr)
@@ -110,6 +113,7 @@ def run(
             text=True,
             timeout=timeout,
             cwd=sim_cwd,
+            env=env,
         )
 
         run_errors, run_warnings = _parse_output(rp.stderr)
@@ -142,7 +146,7 @@ def run(
 
 def lint_only(file: str, timeout: int = 30) -> dict:
     """Run verilator --lint-only for a quick syntax/semantic check."""
-    binary = shutil.which("verilator")
+    binary = oss_cad_suite.which("verilator")
     if not binary:
         return _not_found()
 
@@ -151,6 +155,7 @@ def lint_only(file: str, timeout: int = 30) -> dict:
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=oss_cad_suite.env_with_suite(),
     )
     errors, warnings = _parse_output(cp.stderr)
     return {
