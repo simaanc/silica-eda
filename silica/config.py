@@ -15,6 +15,7 @@ _DEFAULTS: dict = {
         "waveform": {"enabled": [], "priority": []},
     },
     "clients": {"configured": []},
+    "oss_cad_suite": {"path": ""},
 }
 
 

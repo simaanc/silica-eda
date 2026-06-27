@@ -7,14 +7,23 @@ import platform
 import shutil
 import subprocess
 import sys
-import termios
-import tty
 from pathlib import Path
 from typing import Any
 
+# Raw keystroke reading is platform-specific. termios/tty are Unix-only;
+# Windows uses msvcrt. Import lazily-but-at-top guarded by platform so the
+# module imports cleanly everywhere.
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import termios
+    import tty
+
 from silica import config as cfg
+from silica import oss_cad_suite
 from silica.clients_registry import CLIENTS
 from silica.terminal import docs_link, hyperlink, supports_hyperlinks, tool_link
+from silica.tools import _config_dispatch as dispatch
 from silica.tools_registry import CATEGORIES, TOOLS
 
 # ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -51,6 +60,12 @@ def _cyan(s: str) -> str:
 # ── Raw keystroke reader ──────────────────────────────────────────────────────
 
 def _read_key() -> str:
+    if sys.platform == "win32":
+        return _read_key_windows()
+    return _read_key_unix()
+
+
+def _read_key_unix() -> str:
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
@@ -65,6 +80,23 @@ def _read_key() -> str:
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _read_key_windows() -> str:
+    # Special keys (arrows) come as a two-byte sequence prefixed by \x00 or \xe0.
+    # Map them to the ANSI escapes the rest of the widget already understands.
+    ch = msvcrt.getwch()
+    if ch in ("\x00", "\xe0"):
+        ch2 = msvcrt.getwch()
+        return {
+            "H": "\x1b[A",  # up
+            "P": "\x1b[B",  # down
+            "M": "\x1b[C",  # right
+            "K": "\x1b[D",  # left
+        }.get(ch2, "")
+    if ch == "\x03":  # Ctrl-C
+        raise KeyboardInterrupt
+    return ch
 
 
 # ── Multi-select widget ───────────────────────────────────────────────────────
@@ -129,16 +161,28 @@ def _platform_key() -> str:
 def _pkg_manager() -> str:
     if sys.platform == "darwin":
         return "brew"
+    if sys.platform == "win32":
+        return "windows"
     for pm in ("apt", "dnf", "pacman"):
         if shutil.which(pm):
             return pm
     return "apt"
 
 
+def _current_os() -> str:
+    """Return 'darwin', 'linux', or 'windows'."""
+    if sys.platform == "darwin":
+        return "darwin"
+    if sys.platform == "win32":
+        return "windows"
+    return "linux"
+
+
 # ── Tool / client detection ───────────────────────────────────────────────────
 
 def _detect_tool(name: str) -> str | None:
-    return shutil.which(name)
+    # Maps registry name (e.g. "questa") to its real binary ("vsim") before probing.
+    return dispatch.resolve(name)
 
 
 def _detect_client(key: str) -> str | None:
@@ -210,7 +254,12 @@ def _step_clients(existing_clients: list[str]) -> list[str]:
 
 def _tool_items_for_category(category: str, existing_enabled: list[str]) -> list[dict]:
     items = []
-    cat_tools = {name: t for name, t in TOOLS.items() if t["category"] == category}
+    current_os = _current_os()
+    cat_tools = {
+        name: t for name, t in TOOLS.items()
+        if t["category"] == category
+        and current_os in t.get("os_support", ["darwin", "linux", "windows"])
+    }
     for name, tool in cat_tools.items():
         detected = _detect_tool(name)
         label_text = name
@@ -400,7 +449,7 @@ def _collect_missing_hints(tool_names: list[str]) -> list[str]:
         tool = TOOLS.get(name)
         if not tool or tool["license"] != "open_source":
             continue
-        if shutil.which(name):
+        if dispatch.resolve(name):
             continue
         install = tool.get("install", {})
         hint = install.get(pm) or install.get(plat) or next(iter(install.values()), None)
@@ -429,12 +478,50 @@ def _collect_missing_hints(tool_names: list[str]) -> list[str]:
 
 def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
     all_names = [name for names in tool_selections.values() for name in names]
+
+    missing_bundled = [
+        n for n in all_names
+        if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
+    ]
+
+    if oss_cad_suite.is_installed():
+        print(f"  {_green('OSS CAD Suite found')} at {oss_cad_suite.find_root()} "
+              f"{_dim('— bundled tools will be used from there.')}\n")
+    elif missing_bundled:
+        # If the user already has the suite somewhere non-standard, let them
+        # point silica at it now.
+        print(f"  {_dim('OSS CAD Suite bundles: ' + ', '.join(missing_bundled) + '.')}")
+        answer = input(
+            "  Already have OSS CAD Suite installed? Enter its path "
+            "(or leave blank to skip): "
+        ).strip()
+        if answer:
+            root = oss_cad_suite.set_path(answer)
+            if root:
+                print(f"  {_green('Registered')} OSS CAD Suite at {root}\n")
+            else:
+                print(f"  {_YELLOW}No OSS CAD Suite found there "
+                      f"(expected <path>/bin/yosys).{_RESET}\n")
+
+    # Recompute after any manual registration above.
     lines = _collect_missing_hints(all_names)
     if not lines:
         return
-    print(_bold("Step 5 — Missing open source tools — run to install:\n"))
+
+    print(_bold("Step 5 — Missing tools — run to install:\n"))
     for line in lines:
         print(f"    {_cyan(line)}")
+
+    # Tip: the tools the suite bundles can be installed together (you install it
+    # yourself; silica auto-detects it). svlint/verible are not in the suite.
+    still_missing = [
+        n for n in all_names
+        if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
+    ]
+    if still_missing:
+        joined = ", ".join(still_missing)
+        print(f"\n  {_dim(f'Tip: {joined} are bundled together in OSS CAD Suite:')}")
+        print(f"    {_cyan(oss_cad_suite.RELEASES_PAGE)}")
     print()
 
 
@@ -488,7 +575,7 @@ def print_config() -> None:
             continue
         parts = []
         for name in enabled:
-            live = shutil.which(name)
+            live = dispatch.resolve(name)
             mark = "✅" if live else "❌ (not installed)"
             parts.append(f"{name} {mark}")
         print(f"  {category.capitalize():<14} {'  '.join(parts)}")
@@ -506,6 +593,13 @@ def print_config() -> None:
         print(f"\n  {'MCP clients':<14} {'  '.join(client_parts)}")
     else:
         print(f"\n  {'MCP clients':<14} (none configured)")
+
+    suite_root = oss_cad_suite.find_root()
+    if suite_root:
+        print(f"\n  {'OSS CAD Suite':<14} ✅ {suite_root}")
+    else:
+        hint = _dim("not detected — install it and silica will find it automatically")
+        print(f"\n  {'OSS CAD Suite':<14} {hint}")
 
     all_enabled = [
         name

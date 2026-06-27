@@ -1,12 +1,12 @@
 """Icarus Verilog adapter — full SV simulation via iverilog + vvp."""
 
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
 
+from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
 # filename.sv:10: error: some message
@@ -48,10 +48,12 @@ def run(
     any $dumpfile VCD written by the testbench survives. Returns trace_vcd
     pointing to the first .vcd found in that directory.
     """
-    iverilog = shutil.which("iverilog")
-    vvp = shutil.which("vvp")
+    iverilog = oss_cad_suite.which("iverilog")
+    vvp = oss_cad_suite.which("vvp")
     if not iverilog or not vvp:
         return _not_found()
+
+    env = oss_cad_suite.env_with_suite()
 
     # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
     trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
@@ -74,6 +76,7 @@ def run(
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
 
         compile_errors, compile_warnings = _parse_output(cp.stdout + cp.stderr)
@@ -96,6 +99,7 @@ def run(
             text=True,
             timeout=timeout,
             cwd=sim_cwd,
+            env=env,
         )
 
         run_errors, run_warnings = _parse_output(rp.stderr)
