@@ -61,8 +61,9 @@ def test_unknown_tool_returns_error(program_device, bitstream_file):
     assert result["success"] is False
 
 
+@patch("silica.adapters.openfpgaloader.oss_cad_suite.which", return_value=None)
 @patch("silica.tools.program.pick", return_value=None)
-def test_auto_no_tool_returns_error(mock_pick, program_device, bitstream_file):
+def test_auto_no_tool_returns_error(mock_pick, mock_which, program_device, bitstream_file):
     result = program_device(bitstream_file, tool="auto")
     assert result["exit_code"] == -1
     assert result["success"] is False

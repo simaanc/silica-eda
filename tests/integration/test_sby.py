@@ -1,6 +1,5 @@
 """Integration tests for the SymbiYosys (sby) formal verification adapter."""
 
-import shutil
 import pytest
 from silica import oss_cad_suite
 from silica.adapters import sby
@@ -8,7 +7,7 @@ from silica.adapters import sby
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        oss_cad_suite.which("sby") is None or shutil.which("yosys") is None,
+        oss_cad_suite.which("sby") is None or oss_cad_suite.which("yosys") is None,
         reason="sby or yosys not installed",
     ),
 ]

@@ -54,8 +54,9 @@ def test_unknown_tool_returns_error(run_place_route, netlist_file):
     assert result["exit_code"] == -1
 
 
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value=None)
 @patch("silica.tools.place_route.pick", return_value=None)
-def test_auto_no_tool_returns_error(mock_pick, run_place_route, netlist_file):
+def test_auto_no_tool_returns_error(mock_pick, mock_which, run_place_route, netlist_file):
     result = run_place_route(netlist_file, tool="auto")
     assert result["exit_code"] == -1
 

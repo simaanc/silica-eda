@@ -1,5 +1,6 @@
 """Integration tests for the Verilator adapter."""
 
+import shutil
 import pytest
 from silica import oss_cad_suite
 from silica.adapters import verilator
@@ -12,7 +13,11 @@ pytestmark = [
     ),
 ]
 
+# Simulation requires `make` to compile verilator-generated C++ code.
+_have_make = shutil.which("make") is not None or shutil.which("gmake") is not None
 
+
+@pytest.mark.skipif(not _have_make, reason="make not installed (needed for verilator --binary --build)")
 def test_successful_simulation(counter_v, counter_tb_v):
     result = verilator.run(dut=counter_v, testbench=counter_tb_v, top="counter_tb")
     assert result["exit_code"] == 0
