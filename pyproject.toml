@@ -37,6 +37,12 @@ silica = "silica.cli:main"
 packages = ["silica"]
 artifacts = ["silica/skills/**/*.md"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires real EDA tool binaries on PATH or in OSS CAD Suite",
+]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
