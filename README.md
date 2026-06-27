@@ -1,10 +1,22 @@
-# Silica
+<div align="center">
 
-AI-native EDA environment — an MCP server that gives any LLM deep integration with the full EDA toolchain: simulation, synthesis, linting, formal verification, and autonomous debug loops.
+<img src="banner.png" alt="Silica" width="414"/>
+
+**AI-native EDA environment** · MCP server for hardware design and verification
+
+[![PyPI](https://img.shields.io/pypi/v/silica-eda?style=flat-square&color=3b82f6&label=pypi)](https://pypi.org/project/silica-eda/)
+[![Python](https://img.shields.io/pypi/pyversions/silica-eda?style=flat-square)](https://pypi.org/project/silica-eda/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square)](LICENSE)
+
+</div>
+
+---
 
 ## What it does
 
-Silica wraps open source EDA tools (Verilator, Yosys, Verible, Icarus) in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
+Silica wraps your EDA toolchain — open-source and commercial — in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
+
+Open-source tools (Verilator, Yosys, Verible, SymbiYosys, Icarus, Surfer) work out of the box. Commercial tools (VCS, Questa, Xcelium, Vivado, Quartus, DC Shell, JasperGold, VC Formal, SpyGlass, Verdi) are detected automatically when present on PATH — no extra config needed.
 
 The core value: **closed autonomous loops**. Run sim → parse failure → reason about RTL → propose fix → re-run — without human copy-paste.
 
@@ -32,35 +44,28 @@ silica config
 
 ### 3. Install missing tools (if any)
 
-The wizard prints install commands for any open source tools you selected but don't have yet. For example on macOS:
+**Easiest path — OSS CAD Suite.** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately.
 
-```bash
-brew install verilator yosys icarus-verilog verible
-```
+> silica does **not** download OSS CAD Suite for you (it bundles many tools under their own licenses — that's your call to install). It only *detects* an existing install.
 
-**Ubuntu / Debian**
-```bash
-sudo apt update && sudo apt install verilator yosys iverilog
-# Verible: sudo apt install verible  (Ubuntu 22.04+)
-# or grab the release binary: https://github.com/chipsalliance/verible/releases
-```
+**How silica finds your OSS CAD Suite** — any one of these:
 
-**Fedora / RHEL**
-```bash
-sudo dnf install verilator yosys iverilog
-```
+1. **Auto-detect** — common locations are checked automatically: `~/oss-cad-suite`, `~/.silica/oss-cad-suite`, `/opt/oss-cad-suite`, `/usr/local/oss-cad-suite` (Linux/macOS), or `C:\oss-cad-suite` (Windows).
+2. **Enter a path in the wizard** — if it's installed somewhere else, `silica setup` prompts you for the path and remembers it.
+3. **Set it manually** — point silica at any location with either:
+   - the config key in `~/.silica/config.toml`:
+     ```toml
+     [oss_cad_suite]
+     path = "/your/path/to/oss-cad-suite"
+     ```
+   - or the `SILICA_OSS_CAD_SUITE` environment variable:
+     ```bash
+     export SILICA_OSS_CAD_SUITE=/your/path/to/oss-cad-suite
+     ```
 
-**Arch**
-```bash
-sudo pacman -S verilator yosys iverilog verible
-```
+   The path should point at the `oss-cad-suite` folder itself (the one containing `bin/`). Run `silica config` to confirm it's detected.
 
-**Windows**
-WSL2 is the recommended path:
-```powershell
-wsl --install   # installs Ubuntu by default
-```
-Then follow the Ubuntu instructions above inside WSL. Claude Desktop and Cursor both support MCP servers running inside WSL via the `wsl -e silica serve` command pattern.
+For anything not bundled in OSS CAD Suite, the wizard prints the exact install commands for your platform automatically.
 
 ### 4. Start the server
 
@@ -132,17 +137,17 @@ claude mcp add silica silica serve
 |---|---|
 | `silica serve` | Start the MCP server (stdio transport). Default if no subcommand given. |
 | `silica setup` | Interactive first-run configuration wizard. |
-| `silica config` | Show current configuration and live tool status. |
+| `silica config` | Show current configuration and live tool status (incl. detected OSS CAD Suite). |
 
-## MCP Tools (v0.1)
+## MCP Tools
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL (Verilator / Icarus). Returns structured errors and optional VCD trace path. |
-| `synthesize` | Synthesize to gates (Yosys). Returns utilization. |
-| `lint` | Static analysis (Verible / Verilator). Returns structured warnings. |
-| `run_formal` | Formal verification (SymbiYosys). Returns pass/fail/error status. |
-| `launch_waveform` | Open a VCD trace in Surfer or GTKWave (fire-and-forget). |
+| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, VCS, Questa, Xcelium. Returns structured errors and optional VCD trace path. |
+| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Returns utilization and timing summary. |
+| `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Returns structured warnings. |
+| `run_formal` | Formal verification. Auto-selects from SymbiYosys, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
+| `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
 | `get_project_structure` | Scan for RTL and constraint files. |
@@ -165,10 +170,11 @@ silica/
 ├── silica/
 │   ├── server.py              # FastMCP server; registers all tools and prompts
 │   ├── cli.py                 # subcommand dispatch (serve / setup / config)
-│   ├── tools_registry.py      # canonical list of all supported EDA tools
+│   ├── tools_registry.py      # canonical list of EDA tools (per-OS support + install)
 │   ├── clients_registry.py    # canonical list of all supported MCP clients
 │   ├── terminal.py            # OSC 8 hyperlink support
 │   ├── config.py              # ~/.silica/config.toml load/save
+│   ├── oss_cad_suite.py       # detect an existing OSS CAD Suite; binary resolution
 │   ├── setup.py               # interactive setup wizard + config viewer
 │   ├── tools/                 # MCP tool definitions
 │   │   ├── _config_dispatch.py  # config-aware auto tool selection
@@ -180,16 +186,26 @@ silica/
 │   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
 │   └── adapters/              # per-tool CLI wrappers + output parsers
 │       ├── _hints.py          # platform-aware install hint strings
-│       ├── verilator.py
+│       ├── verilator.py       # open source
 │       ├── icarus.py
 │       ├── yosys.py
 │       ├── verible.py
-│       └── sby.py
+│       ├── sby.py
+│       ├── vcs.py             # commercial (detected if on PATH)
+│       ├── questa.py
+│       ├── xcelium.py
+│       ├── vivado.py
+│       ├── quartus.py
+│       ├── dc_shell.py
+│       ├── jaspergold.py
+│       ├── vc_formal.py
+│       ├── spyglass.py
+│       └── verdi.py
 └── examples/
     └── uart/                  # 8N1 UART TX — reference design for end-to-end testing
 ```
 
-## Toolchain coverage (v0.1)
+## Toolchain coverage
 
 | Category | Open source | Commercial (detected if on PATH) |
 |---|---|---|
