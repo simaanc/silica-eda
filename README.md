@@ -1,13 +1,6 @@
 <div align="center">
 
-<pre>
-  ███████╗██╗██╗     ██╗ ██████╗ █████╗
-  ██╔════╝██║██║     ██║██╔════╝██╔══██╗
-  ███████╗██║██║     ██║██║     ███████║
-  ╚════██║██║██║     ██║██║     ██╔══██║
-  ███████║██║███████╗██║╚██████╗██║  ██║
-  ╚══════╝╚═╝╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝
-</pre>
+<img src="banner.svg" alt="Silica" width="480"/>
 
 **AI-native EDA environment** · MCP server for hardware design and verification
 
