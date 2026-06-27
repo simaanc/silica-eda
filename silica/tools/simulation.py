@@ -36,8 +36,8 @@ def register(mcp: "FastMCP") -> None:
         Args:
             file: Path to the DUT source file (.sv / .v for Verilog, .vhd for VHDL).
             testbench: Path to the testbench file.
-            simulator: "auto" | "verilator" | "icarus" | "ghdl" | "vcs" | "questa" | "xcelium".
-                       Auto uses config priority order.
+            simulator: "auto" | "verilator" | "icarus" | "iverilog" | "ghdl" | "vcs" | "questa" | "xcelium".
+                       "iverilog" is accepted as an alias for "icarus". Auto uses config priority order.
             top: Top module/entity name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
             trace: When True, capture a VCD waveform trace. Returns trace_vcd path
@@ -73,7 +73,7 @@ def register(mcp: "FastMCP") -> None:
 
         if simulator == "verilator":
             return verilator.run(file, testbench, top=top, timeout=timeout, trace=trace)
-        elif simulator == "icarus":
+        elif simulator in ("icarus", "iverilog"):
             return icarus.run(file, testbench, top=top, timeout=timeout, trace=trace)
         elif simulator == "ghdl":
             return ghdl.run(file, testbench, top=top, timeout=timeout, trace=trace)

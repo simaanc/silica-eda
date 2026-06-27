@@ -82,7 +82,7 @@ def run(
 
     workdir = Path(tempfile.mkdtemp(prefix="silica_nextpnr_"))
     out_ext = _OUT_EXT.get(arch, ".out")
-    out_path = Path(output) if output else workdir / f"out{out_ext}"
+    out_path = Path(output).resolve() if output else workdir / f"out{out_ext}"
 
     cmd = [binary, "--json", str(netlist_path)]
 
@@ -111,6 +111,7 @@ def run(
             capture_output=True,
             text=True,
             timeout=timeout,
+            cwd=workdir,
             env=oss_cad_suite.env_with_suite(),
         )
     except subprocess.TimeoutExpired:
