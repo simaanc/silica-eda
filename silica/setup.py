@@ -37,7 +37,7 @@ _RESET = "\033[0m"
 _UP = "\033[A"
 _CLEAR_LINE = "\033[2K\r"
 
-_CHECK = "✅"
+_CHECK = "✓ "
 _CIRCLE = "○ "
 
 
@@ -544,7 +544,7 @@ def _step_summary(tool_selections: dict[str, list[str]], client_selections: list
     serve_cmd = hyperlink("silica serve", "https://getsilica.dev")
     config_cmd = _bold("silica config")
 
-    print(_bold("Setup complete ✅\n"))
+    print(_bold("Setup complete ✓\n"))
     print(f"  Tools enabled:      {tools_str}")
     print(f"  Clients configured: {clients_str}")
     print(f"  Config saved to:    {cfg.config_path()}\n")
@@ -576,7 +576,7 @@ def print_config() -> None:
         parts = []
         for name in enabled:
             live = dispatch.resolve(name)
-            mark = "✅" if live else "❌ (not installed)"
+            mark = "✓" if live else "✗ (not installed)"
             parts.append(f"{name} {mark}")
         print(f"  {category.capitalize():<14} {'  '.join(parts)}")
 
@@ -588,7 +588,7 @@ def print_config() -> None:
             client = CLIENTS.get(key)
             if client:
                 detected = _detect_client(key)
-                mark = "✅" if detected else "❌"
+                mark = "✓" if detected else "✗"
                 client_parts.append(f"{client['name']} {mark}")
         print(f"\n  {'MCP clients':<14} {'  '.join(client_parts)}")
     else:
@@ -596,7 +596,7 @@ def print_config() -> None:
 
     suite_root = oss_cad_suite.find_root()
     if suite_root:
-        print(f"\n  {'OSS CAD Suite':<14} ✅ {suite_root}")
+        print(f"\n  {'OSS CAD Suite':<14} ✓ {suite_root}")
     else:
         hint = _dim("not detected — install it and silica will find it automatically")
         print(f"\n  {'OSS CAD Suite':<14} {hint}")
