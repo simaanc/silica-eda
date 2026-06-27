@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
-from silica.adapters import icarus, verilator
+from silica.adapters import icarus, verilator, ghdl
 from silica.adapters import vcs, questa, xcelium
 from silica.adapters._hints import install_hint
 from silica.tools._config_dispatch import pick
@@ -14,6 +14,7 @@ from silica.tools._config_dispatch import pick
 _SIM_ADAPTERS = {
     "verilator": "verilator",
     "iverilog":  "icarus",
+    "ghdl":      "ghdl",
     "vcs":       "vcs",
     "questa":    "questa",
     "xcelium":   "xcelium",
@@ -33,11 +34,11 @@ def register(mcp: "FastMCP") -> None:
         """Run RTL simulation and return structured diagnostics.
 
         Args:
-            file: Path to the DUT source file (.sv or .v).
+            file: Path to the DUT source file (.sv / .v for Verilog, .vhd for VHDL).
             testbench: Path to the testbench file.
-            simulator: "auto" | "verilator" | "icarus" | "vcs" | "questa" | "xcelium".
-                       Auto uses config priority order.
-            top: Top module name (inferred from testbench filename if omitted).
+            simulator: "auto" | "verilator" | "icarus" | "iverilog" | "ghdl" | "vcs" | "questa" | "xcelium".
+                       "iverilog" is accepted as an alias for "icarus". Auto uses config priority order.
+            top: Top module/entity name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
             trace: When True, capture a VCD waveform trace. Returns trace_vcd path
                    in the result dict. Pass that path to launch_waveform to open it.
@@ -58,9 +59,10 @@ def register(mcp: "FastMCP") -> None:
                         "line": 0,
                         "severity": "error",
                         "message": (
-                            "No simulator found. Install Verilator or Icarus Verilog:\n"
+                            "No simulator found. Install Verilator, Icarus Verilog, or GHDL:\n"
                             f"Verilator: {install_hint('verilator')}\n"
-                            f"Icarus:    {install_hint('iverilog')}"
+                            f"Icarus:    {install_hint('iverilog')}\n"
+                            f"GHDL:      {install_hint('ghdl')}"
                         ),
                     }],
                     "warnings": [],
@@ -71,8 +73,10 @@ def register(mcp: "FastMCP") -> None:
 
         if simulator == "verilator":
             return verilator.run(file, testbench, top=top, timeout=timeout, trace=trace)
-        elif simulator == "icarus":
+        elif simulator in ("icarus", "iverilog"):
             return icarus.run(file, testbench, top=top, timeout=timeout, trace=trace)
+        elif simulator == "ghdl":
+            return ghdl.run(file, testbench, top=top, timeout=timeout, trace=trace)
         elif simulator == "vcs":
             return vcs.run(file, testbench, top=top, timeout=timeout, trace=trace)
         elif simulator == "questa":
@@ -88,7 +92,7 @@ def register(mcp: "FastMCP") -> None:
                     "severity": "error",
                     "message": (
                         f"Unknown simulator '{simulator}'. "
-                        "Supported: auto, verilator, icarus, vcs, questa, xcelium."
+                        "Supported: auto, verilator, icarus, ghdl, vcs, questa, xcelium."
                     ),
                 }],
                 "warnings": [],

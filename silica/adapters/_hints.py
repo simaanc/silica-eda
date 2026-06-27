@@ -72,6 +72,43 @@ _HINTS: dict[str, dict[str, str]] = {
         "Windows": "cargo install svlint\n"
                    "(requires Rust — install via https://rustup.rs/)",
     },
+    "nextpnr": {
+        "Darwin":  "OSS CAD Suite (recommended — bundles all nextpnr architectures):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
+                   "Or: brew install nextpnr (ice40 only, requires --HEAD for others)",
+        "Linux":   "OSS CAD Suite (recommended — bundles all nextpnr architectures):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
+                   "Or build from source: https://github.com/YosysHQ/nextpnr",
+        "Windows": "OSS CAD Suite (bundles nextpnr-ice40, nextpnr-ecp5, etc.):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases",
+    },
+    "ghdl": {
+        "Darwin":  "brew install ghdl\n"
+                   "Or via OSS CAD Suite: https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        "Linux":   "sudo apt install ghdl                # Ubuntu/Debian\n"
+                   "sudo dnf install ghdl                # Fedora/RHEL\n"
+                   "Or via OSS CAD Suite: https://github.com/YosysHQ/oss-cad-suite-build/releases",
+        "Windows": "OSS CAD Suite (bundles ghdl):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases",
+    },
+    "eqy": {
+        "Darwin":  "OSS CAD Suite (recommended — includes eqy + yosys + solvers):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
+                   "Or: pip install eqy (requires yosys on PATH)",
+        "Linux":   "OSS CAD Suite (recommended — includes eqy + yosys + solvers):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
+                   "Or: pip install eqy (requires yosys on PATH)",
+        "Windows": "OSS CAD Suite (bundles eqy + yosys + solvers):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases",
+    },
+    "openfpgaloader": {
+        "Darwin":  "brew install openfpgaloader",
+        "Linux":   "sudo apt install openfpgaloader       # Ubuntu/Debian\n"
+                   "Or build from source: https://github.com/trabucayre/openFPGALoader",
+        "Windows": "OSS CAD Suite (bundles openFPGALoader):\n"
+                   "  https://github.com/YosysHQ/oss-cad-suite-build/releases\n"
+                   "Or download from: https://github.com/trabucayre/openFPGALoader/releases",
+    },
 }
 
 _FALLBACK = "See the project's official documentation for install instructions."
