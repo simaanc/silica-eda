@@ -169,13 +169,18 @@ def _pkg_manager() -> str:
     return "apt"
 
 
-def _current_os() -> str:
-    """Return 'darwin', 'linux', or 'windows'."""
-    if sys.platform == "darwin":
-        return "darwin"
-    if sys.platform == "win32":
-        return "windows"
-    return "linux"
+_OS_READABLE = {"darwin": "macOS", "linux": "Linux", "windows": "Windows"}
+
+
+def _os_availability(tool: dict) -> str | None:
+    """Return a brief note if the tool doesn't support the current OS, else None."""
+    plat = _platform_key()
+    current = "windows" if plat == "win32" else plat  # normalise to os_support keys
+    supported = tool.get("os_support", ["darwin", "linux", "windows"])
+    if current not in supported:
+        names = [_OS_READABLE.get(p, p) for p in supported]
+        return "/".join(names) + " only"
+    return None
 
 
 # ── Tool / client detection ───────────────────────────────────────────────────
@@ -254,11 +259,9 @@ def _step_clients(existing_clients: list[str]) -> list[str]:
 
 def _tool_items_for_category(category: str, existing_enabled: list[str]) -> list[dict]:
     items = []
-    current_os = _current_os()
     cat_tools = {
         name: t for name, t in TOOLS.items()
         if t["category"] == category
-        and current_os in t.get("os_support", ["darwin", "linux", "windows"])
     }
     for name, tool in cat_tools.items():
         detected = _detect_tool(name)
@@ -276,10 +279,12 @@ def _tool_items_for_category(category: str, existing_enabled: list[str]) -> list
         else:
             vendor = tool.get("vendor", "commercial")
             note = tool.get("note", "requires license")
+            avail = _os_availability(tool)
             if detected:
                 meta = f"installed   {vendor} — {note}"
             else:
-                meta = f"not found   {vendor} — {note}"
+                avail_note = f"   ({avail})" if avail else ""
+                meta = f"not found   {vendor} — {note}{avail_note}"
 
         if existing_enabled:
             preselected = name in existing_enabled
@@ -474,6 +479,22 @@ def _collect_missing_hints(tool_names: list[str]) -> list[str]:
     return lines
 
 
+def _collect_vendor_links(tool_names: list[str]) -> list[tuple[str, str]]:
+    """Return [(display_name, url)] for selected commercial tools that aren't installed."""
+    links = []
+    for name in tool_names:
+        tool = TOOLS.get(name)
+        if not tool or tool["license"] != "commercial":
+            continue
+        if dispatch.resolve(name):
+            continue
+        vendor = tool.get("vendor", "commercial")
+        url = tool.get("url", "")
+        if url:
+            links.append((f"{name} ({vendor})", url))
+    return links
+
+
 # ── Step 5: install hints ─────────────────────────────────────────────────────
 
 def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
@@ -505,23 +526,36 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
 
     # Recompute after any manual registration above.
     lines = _collect_missing_hints(all_names)
-    if not lines:
+    vendor_links = _collect_vendor_links(all_names)
+
+    if not lines and not vendor_links:
         return
 
-    print(_bold("Step 5 — Missing tools — run to install:\n"))
-    for line in lines:
-        print(f"    {_cyan(line)}")
+    if lines:
+        print(_bold("Step 5 — Missing open-source tools — run to install:\n"))
+        for line in lines:
+            print(f"    {_cyan(line)}")
 
-    # Tip: the tools the suite bundles can be installed together (you install it
-    # yourself; silica auto-detects it). svlint/verible are not in the suite.
-    still_missing = [
-        n for n in all_names
-        if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
-    ]
-    if still_missing:
-        joined = ", ".join(still_missing)
-        print(f"\n  {_dim(f'Tip: {joined} are bundled together in OSS CAD Suite:')}")
-        print(f"    {_cyan(oss_cad_suite.RELEASES_PAGE)}")
+        # Tip: the tools the suite bundles can be installed together.
+        still_missing = [
+            n for n in all_names
+            if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
+        ]
+        if still_missing:
+            joined = ", ".join(still_missing)
+            print(f"\n  {_dim(f'Tip: {joined} are bundled together in OSS CAD Suite:')}")
+            print(f"    {_cyan(oss_cad_suite.RELEASES_PAGE)}")
+
+    if vendor_links:
+        header = "\nStep 5 — Commercial tools selected but not found — contact vendor:\n" \
+            if not lines else "\n  Commercial tools — contact vendor for access:\n"
+        print(_bold(header) if not lines else _dim(header))
+        for display_name, url in vendor_links:
+            link = hyperlink(display_name, url) if supports_hyperlinks() else f"{display_name}:"
+            print(f"    {link}")
+            if not supports_hyperlinks():
+                print(f"      {_cyan(url)}")
+
     print()
 
 
@@ -608,9 +642,18 @@ def print_config() -> None:
     ]
     hints = _collect_missing_hints(all_enabled)
     if hints:
-        print(f"\n  {_bold('To install missing tools:')}")
+        print(f"\n  {_bold('To install missing open-source tools:')}")
         for line in hints:
             print(f"    {_cyan(line)}")
+
+    vendor_links = _collect_vendor_links(all_enabled)
+    if vendor_links:
+        print(f"\n  {_bold('Commercial tools not found — contact vendor:')}")
+        for display_name, url in vendor_links:
+            link = hyperlink(display_name, url) if supports_hyperlinks() else f"{display_name}:"
+            print(f"    {link}")
+            if not supports_hyperlinks():
+                print(f"      {_cyan(url)}")
 
     print(f"\n  Run 'silica setup' to change configuration.\n")
 

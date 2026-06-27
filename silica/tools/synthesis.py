@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import yosys
+from silica.adapters import vivado, quartus, dc_shell
 from silica.tools._config_dispatch import pick
 
 
@@ -23,8 +24,14 @@ def register(mcp: "FastMCP") -> None:
         Args:
             top_module: Name of the top-level module to synthesize.
             files: List of source file paths (.sv / .v).
-            target: Synthesis target — "generic" | "ice40" | "ecp5" | "xilinx" | "gowin".
-            tool: "auto" | "yosys". Auto uses config priority order.
+            target: Synthesis target.
+                    Yosys:   "generic" | "ice40" | "ecp5" | "xilinx" | "gowin"
+                    Vivado:  FPGA part string e.g. "xc7a35tcsg324-1", or shorthand
+                             "artix7" | "kintex7" | "ultrascale" | "ultrascale+" | "zynq"
+                    Quartus: device family e.g. "cyclone5" | "arria10" | "stratix10"
+                    DC Shell: technology library path, or "generic"
+            tool: "auto" | "yosys" | "vivado" | "quartus" | "dc_shell".
+                  Auto uses config priority order.
             timeout: Seconds before killing the synthesis process.
 
         Returns a SynthesisResult dict:
@@ -36,6 +43,12 @@ def register(mcp: "FastMCP") -> None:
 
         if tool == "yosys":
             return yosys.run(top_module, files, target=target, timeout=timeout)
+        elif tool == "vivado":
+            return vivado.run(top_module, files, target=target, timeout=timeout)
+        elif tool == "quartus":
+            return quartus.run(top_module, files, target=target, timeout=timeout)
+        elif tool == "dc_shell":
+            return dc_shell.run(top_module, files, target=target, timeout=timeout)
         else:
             return {
                 "tool": "none",
@@ -49,7 +62,10 @@ def register(mcp: "FastMCP") -> None:
                     "file": "",
                     "line": 0,
                     "severity": "error",
-                    "message": "No synthesis tool found. Install Yosys: brew install yosys",
+                    "message": (
+                        f"Unknown synthesis tool '{tool}'. "
+                        "Supported: auto, yosys, vivado, quartus, dc_shell."
+                    ),
                 }],
                 "raw_output": "",
             }

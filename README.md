@@ -4,7 +4,9 @@ AI-native EDA environment — an MCP server that gives any LLM deep integration 
 
 ## What it does
 
-Silica wraps open source EDA tools (Verilator, Yosys, Verible, Icarus) in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
+Silica wraps your EDA toolchain — open-source and commercial — in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
+
+Open-source tools (Verilator, Yosys, Verible, SymbiYosys, Icarus, Surfer) work out of the box. Commercial tools (VCS, Questa, Xcelium, Vivado, Quartus, DC Shell, JasperGold, VC Formal, SpyGlass, Verdi) are detected automatically when present on PATH — no extra config needed.
 
 The core value: **closed autonomous loops**. Run sim → parse failure → reason about RTL → propose fix → re-run — without human copy-paste.
 
@@ -32,7 +34,7 @@ silica config
 
 ### 3. Install missing tools (if any)
 
-**Easiest path — OSS CAD Suite (Linux & Windows).** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately. On **macOS**, use Homebrew instead (the OSS CAD Suite macOS builds are unreliable upstream).
+**Easiest path — OSS CAD Suite.** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately.
 
 > silica does **not** download OSS CAD Suite for you (it bundles many tools under their own licenses — that's your call to install). It only *detects* an existing install.
 
@@ -153,15 +155,15 @@ claude mcp add silica silica serve
 | `silica setup` | Interactive first-run configuration wizard. |
 | `silica config` | Show current configuration and live tool status (incl. detected OSS CAD Suite). |
 
-## MCP Tools (v0.1)
+## MCP Tools
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL (Verilator / Icarus). Returns structured errors and optional VCD trace path. |
-| `synthesize` | Synthesize to gates (Yosys). Returns utilization. |
-| `lint` | Static analysis (Verible / Verilator). Returns structured warnings. |
-| `run_formal` | Formal verification (SymbiYosys). Returns pass/fail/error status. |
-| `launch_waveform` | Open a VCD trace in Surfer or GTKWave (fire-and-forget). |
+| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, VCS, Questa, Xcelium. Returns structured errors and optional VCD trace path. |
+| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Returns utilization and timing summary. |
+| `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Returns structured warnings. |
+| `run_formal` | Formal verification. Auto-selects from SymbiYosys, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
+| `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
 | `get_project_structure` | Scan for RTL and constraint files. |
@@ -200,16 +202,26 @@ silica/
 │   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
 │   └── adapters/              # per-tool CLI wrappers + output parsers
 │       ├── _hints.py          # platform-aware install hint strings
-│       ├── verilator.py
+│       ├── verilator.py       # open source
 │       ├── icarus.py
 │       ├── yosys.py
 │       ├── verible.py
-│       └── sby.py
+│       ├── sby.py
+│       ├── vcs.py             # commercial (detected if on PATH)
+│       ├── questa.py
+│       ├── xcelium.py
+│       ├── vivado.py
+│       ├── quartus.py
+│       ├── dc_shell.py
+│       ├── jaspergold.py
+│       ├── vc_formal.py
+│       ├── spyglass.py
+│       └── verdi.py
 └── examples/
     └── uart/                  # 8N1 UART TX — reference design for end-to-end testing
 ```
 
-## Toolchain coverage (v0.1)
+## Toolchain coverage
 
 | Category | Open source | Commercial (detected if on PATH) |
 |---|---|---|
