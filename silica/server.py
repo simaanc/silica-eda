@@ -43,10 +43,14 @@ def close_timing() -> str:
 
 # --- register MCP tools ---
 
-from silica.tools import formal, lint, project, simulation, synthesis, waveform  # noqa: E402
+from silica.tools import (  # noqa: E402
+    formal, lint, place_route, program, project, simulation, synthesis, waveform,
+)
 
 simulation.register(mcp)
 synthesis.register(mcp)
+place_route.register(mcp)
+program.register(mcp)
 lint.register(mcp)
 formal.register(mcp)
 project.register(mcp)
