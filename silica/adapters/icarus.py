@@ -11,8 +11,10 @@ from silica.adapters._hints import install_hint
 
 # filename.sv:10: error: some message
 # filename.sv:10: warning: some message
+# On Windows, paths start with a drive letter (C:\...) so [^:]+ would stop at the colon.
+# severity keyword is optional — iverilog emits "syntax error" without an explicit "error:" prefix.
 _DIAG_RE = re.compile(
-    r"^([^:]+):(\d+):\s*(error|warning|note):\s*(.+)$",
+    r"^((?:[A-Za-z]:)?[^:]+):(\d+):\s*(?:(error|warning|note):\s*)?(.+)$",
     re.MULTILINE,
 )
 
@@ -21,14 +23,22 @@ def _parse_output(text: str) -> tuple[list[dict], list[dict]]:
     errors: list[dict] = []
     warnings: list[dict] = []
     for m in _DIAG_RE.finditer(text):
-        file, line, severity, message = m.groups()
+        file_str, line_str, sev, msg = m.group(1), m.group(2), m.group(3), m.group(4)
+        if sev is None:
+            msg_lower = msg.strip().lower()
+            if "error" in msg_lower:
+                sev = "error"
+            elif "warning" in msg_lower:
+                sev = "warning"
+            else:
+                continue  # skip noise (e.g. "I give up.")
         entry: dict[str, Any] = {
-            "file": file.strip(),
-            "line": int(line),
-            "severity": severity,
-            "message": message.strip(),
+            "file": file_str.strip(),
+            "line": int(line_str),
+            "severity": sev,
+            "message": msg.strip(),
         }
-        if severity == "error":
+        if sev == "error":
             errors.append(entry)
         else:
             warnings.append(entry)
@@ -65,11 +75,10 @@ def run(
             iverilog,
             "-g2012",
             "-o", str(sim_out),
-            testbench,
-            dut,
         ]
         if top:
             compile_cmd += ["-s", top]
+        compile_cmd += [testbench, dut]
 
         cp = subprocess.run(
             compile_cmd,
