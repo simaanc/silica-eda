@@ -19,7 +19,7 @@ _BINARY: dict[str, str | list[str]] = {
     "vivado": "vivado",
     "quartus": "quartus_sh",
     "dc_shell": ["dc_shell", "dc_shell-t"],
-    "nextpnr": ["nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus", "nextpnr-generic"],
+    "nextpnr": ["nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus", "nextpnr-machxo2", "nextpnr-generic"],
     "sby": "sby",
     "jaspergold": ["jg", "jaspergold"],
     "vc_formal": ["vcf", "vc_static_shell"],
