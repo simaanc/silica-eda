@@ -1,6 +1,24 @@
-# Silica
+<div align="center">
 
-AI-native EDA environment — an MCP server that gives any LLM deep integration with the full EDA toolchain: simulation, synthesis, linting, formal verification, and autonomous debug loops.
+<pre>
+  ███████╗██╗██╗     ██╗ ██████╗ █████╗
+  ██╔════╝██║██║     ██║██╔════╝██╔══██╗
+  ███████╗██║██║     ██║██║     ███████║
+  ╚════██║██║██║     ██║██║     ██╔══██║
+  ███████║██║███████╗██║╚██████╗██║  ██║
+  ╚══════╝╚═╝╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝
+</pre>
+
+**AI-native EDA environment** · MCP server for hardware design and verification
+
+[![PyPI](https://img.shields.io/pypi/v/silica-eda?style=flat-square&color=3b82f6&label=pypi)](https://pypi.org/project/silica-eda/)
+[![Python](https://img.shields.io/pypi/pyversions/silica-eda?style=flat-square)](https://pypi.org/project/silica-eda/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square)](LICENSE)
+[![Publish](https://img.shields.io/github/actions/workflow/status/simaanc/silica-eda/publish.yml?style=flat-square&label=publish)](https://github.com/simaanc/silica-eda/actions/workflows/publish.yml)
+
+</div>
+
+---
 
 ## What it does
 
