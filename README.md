@@ -7,7 +7,6 @@
 [![PyPI](https://img.shields.io/pypi/v/silica-eda?style=flat-square&color=3b82f6&label=pypi)](https://pypi.org/project/silica-eda/)
 [![Python](https://img.shields.io/pypi/pyversions/silica-eda?style=flat-square)](https://pypi.org/project/silica-eda/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square)](LICENSE)
-[![Publish](https://img.shields.io/github/actions/workflow/status/simaanc/silica-eda/publish.yml?style=flat-square&label=publish)](https://github.com/simaanc/silica-eda/actions/workflows/publish.yml)
 
 </div>
 
