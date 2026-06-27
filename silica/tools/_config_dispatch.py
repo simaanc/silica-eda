@@ -56,13 +56,14 @@ def resolve(name: str) -> str | None:
                 return path
     return None
 
-# Fallback priority when config is missing entirely, keyed by category
+# Fallback priority when config is missing entirely, keyed by category.
+# Open-source tools listed first; commercial tools are detected if on PATH.
 _FALLBACK: dict[str, list[str]] = {
-    "simulation": ["verilator", "iverilog"],
-    "synthesis": ["yosys"],
-    "formal": ["sby"],
-    "lint": ["verible-verilog-lint", "verilator"],
-    "waveform": ["surfer", "gtkwave"],
+    "simulation": ["verilator", "iverilog", "vcs", "questa", "xcelium"],
+    "synthesis":  ["yosys", "vivado", "quartus", "dc_shell"],
+    "formal":     ["sby", "jaspergold", "vc_formal"],
+    "lint":       ["verible-verilog-lint", "verilator", "svlint", "spyglass"],
+    "waveform":   ["surfer", "gtkwave", "verdi"],
 }
 
 
