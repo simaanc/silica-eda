@@ -2,11 +2,13 @@ TOOLS = {
     "verilator": {
         "category": "simulation",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install verilator",
-            "apt": "sudo apt install verilator",
-            "dnf": "sudo dnf install verilator",
-            "pacman": "sudo pacman -S verilator",
+            "brew":    "brew install verilator",
+            "apt":     "sudo apt install verilator",
+            "dnf":     "sudo dnf install verilator",
+            "pacman":  "sudo pacman -S verilator",
+            "windows": "# OSS CAD Suite (bundles verilator): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://verilator.org",
         "docs": "https://verilator.org/guide/latest/install.html",
@@ -14,11 +16,13 @@ TOOLS = {
     "iverilog": {
         "category": "simulation",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install icarus-verilog",
-            "apt": "sudo apt install iverilog",
-            "dnf": "sudo dnf install iverilog",
-            "pacman": "sudo pacman -S iverilog",
+            "brew":    "brew install icarus-verilog",
+            "apt":     "sudo apt install iverilog",
+            "dnf":     "sudo dnf install iverilog",
+            "pacman":  "sudo pacman -S iverilog",
+            "windows": "# OSS CAD Suite (bundles iverilog): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://steveicarus.github.io/iverilog/",
         "docs": "https://steveicarus.github.io/iverilog/usage/installation.html",
@@ -26,6 +30,7 @@ TOOLS = {
     "vcs": {
         "category": "simulation",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Synopsys",
         "url": "https://www.synopsys.com/verification/simulation/vcs.html",
         "docs": "https://www.synopsys.com/support.html",
@@ -34,6 +39,7 @@ TOOLS = {
     "questa": {
         "category": "simulation",
         "license": "commercial",
+        "os_support": ["linux", "windows"],
         "vendor": "Siemens EDA",
         "url": "https://eda.sw.siemens.com/en-US/ic/questa/simulation/advanced-simulator/",
         "docs": "https://support.sw.siemens.com/",
@@ -42,6 +48,7 @@ TOOLS = {
     "xcelium": {
         "category": "simulation",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Cadence",
         "url": "https://www.cadence.com/en_US/home/tools/system-design-and-verification/simulation-and-testbench-verification/xcelium-simulator.html",
         "docs": "https://support.cadence.com/",
@@ -50,11 +57,13 @@ TOOLS = {
     "yosys": {
         "category": "synthesis",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install yosys",
-            "apt": "sudo apt install yosys",
-            "dnf": "sudo dnf install yosys",
-            "pacman": "sudo pacman -S yosys",
+            "brew":    "brew install yosys",
+            "apt":     "sudo apt install yosys",
+            "dnf":     "sudo dnf install yosys",
+            "pacman":  "sudo pacman -S yosys",
+            "windows": "# OSS CAD Suite (includes yosys + solvers): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://yosyshq.net/yosys/",
         "docs": "https://yosyshq.readthedocs.io/projects/yosys/en/latest/getting_started/installation.html",
@@ -62,6 +71,7 @@ TOOLS = {
     "vivado": {
         "category": "synthesis",
         "license": "commercial",
+        "os_support": ["linux", "windows"],
         "vendor": "AMD/Xilinx",
         "url": "https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html",
         "docs": "https://docs.amd.com/r/en-US/ug973-vivado-release-notes-install-license",
@@ -70,6 +80,7 @@ TOOLS = {
     "quartus": {
         "category": "synthesis",
         "license": "commercial",
+        "os_support": ["linux", "windows"],
         "vendor": "Intel/Altera",
         "url": "https://www.intel.com/content/www/us/en/products/details/fpga/development-tools/quartus-prime.html",
         "docs": "https://www.intel.com/content/www/us/en/docs/programmable/683472/current/installing-the-software.html",
@@ -78,6 +89,7 @@ TOOLS = {
     "dc_shell": {
         "category": "synthesis",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Synopsys",
         "url": "https://www.synopsys.com/implementation-and-signoff/rtl-synthesis-test/design-compiler-graphical.html",
         "docs": "https://www.synopsys.com/support.html",
@@ -86,10 +98,13 @@ TOOLS = {
     "sby": {
         "category": "formal",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install sby",
-            "apt": "sudo apt install symbiyosys",
-            "pip": "pip install symbiyosys",
+            "brew":    "brew install sby",
+            "apt":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "dnf":     "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "pacman":  "# OSS CAD Suite (recommended): https://github.com/YosysHQ/oss-cad-suite-build/releases",
+            "windows": "# OSS CAD Suite (includes sby + z3): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://symbiyosys.readthedocs.io/",
         "docs": "https://symbiyosys.readthedocs.io/en/latest/install.html",
@@ -97,6 +112,7 @@ TOOLS = {
     "jaspergold": {
         "category": "formal",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Cadence",
         "url": "https://www.cadence.com/en_US/home/tools/system-design-and-verification/formal-and-static-verification/jasper-gold-verification-platform.html",
         "docs": "https://support.cadence.com/",
@@ -105,6 +121,7 @@ TOOLS = {
     "vc_formal": {
         "category": "formal",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Synopsys",
         "url": "https://www.synopsys.com/verification/static-and-formal-verification/vc-formal.html",
         "docs": "https://www.synopsys.com/support.html",
@@ -113,9 +130,13 @@ TOOLS = {
     "verible-verilog-lint": {
         "category": "lint",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew tap chipsalliance/verible && brew install verible",
-            "apt": "sudo apt install verible",
+            "brew":    "brew tap chipsalliance/verible && brew install verible",
+            "apt":     "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "dnf":     "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "pacman":  "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "windows": "# Download win64.zip from https://github.com/chipsalliance/verible/releases",
         },
         "url": "https://chipsalliance.github.io/verible/",
         "docs": "https://chipsalliance.github.io/verible/installation.html",
@@ -123,6 +144,7 @@ TOOLS = {
     "svlint": {
         "category": "lint",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
             "cargo": "cargo install svlint",
         },
@@ -132,6 +154,7 @@ TOOLS = {
     "spyglass": {
         "category": "lint",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Synopsys",
         "url": "https://www.synopsys.com/implementation-and-signoff/signoff/spyglass.html",
         "docs": "https://www.synopsys.com/support.html",
@@ -140,21 +163,27 @@ TOOLS = {
     "surfer": {
         "category": "waveform",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install surfer",
-            "apt": "# Download from https://gitlab.com/surfer-project/surfer/-/releases",
+            "brew":    "brew install surfer",
+            "apt":     "# Download from https://surfer-project.org/ (apt packages are outdated)",
+            "dnf":     "# Download from https://surfer-project.org/",
+            "pacman":  "# Download from https://surfer-project.org/",
+            "windows": "# OSS CAD Suite (bundles surfer), or https://surfer-project.org/",
         },
         "url": "https://surfer-project.org/",
-        "docs": "https://surfer-project.org/docs/installation.html",
+        "docs": "https://surfer-project.org/",
     },
     "gtkwave": {
         "category": "waveform",
         "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
         "install": {
-            "brew": "brew install --cask gtkwave",
-            "apt": "sudo apt install gtkwave",
-            "dnf": "sudo dnf install gtkwave",
-            "pacman": "sudo pacman -S gtkwave",
+            "brew":    "brew install --cask gtkwave",
+            "apt":     "sudo apt install gtkwave",
+            "dnf":     "sudo dnf install gtkwave",
+            "pacman":  "sudo pacman -S gtkwave",
+            "windows": "# OSS CAD Suite (bundles gtkwave): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://gtkwave.sourceforge.net/",
         "docs": "https://gtkwave.sourceforge.net/gtkwave.pdf",
@@ -163,6 +192,7 @@ TOOLS = {
     "verdi": {
         "category": "waveform",
         "license": "commercial",
+        "os_support": ["linux"],
         "vendor": "Synopsys",
         "url": "https://www.synopsys.com/verification/debug/verdi.html",
         "docs": "https://www.synopsys.com/support.html",

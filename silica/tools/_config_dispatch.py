@@ -3,36 +3,67 @@
 import shutil
 
 from silica import config as cfg
+from silica import oss_cad_suite
 
-# Maps registry tool names to the binary that shutil.which should probe
-_BINARY: dict[str, str] = {
+# Maps registry tool names to the binary (or binaries) that shutil.which
+# should probe. A list means "try each in order" — commercial tools ship
+# under different invocation names across versions and product variants.
+_BINARY: dict[str, str | list[str]] = {
     "verilator": "verilator",
     "iverilog": "iverilog",
     "vcs": "vcs",
-    "questa": "vsim",
-    "xcelium": "xrun",
+    "questa": ["vsim", "qrun"],
+    "xcelium": ["xrun", "irun"],
     "yosys": "yosys",
     "vivado": "vivado",
     "quartus": "quartus_sh",
-    "dc_shell": "dc_shell",
+    "dc_shell": ["dc_shell", "dc_shell-t"],
     "sby": "sby",
-    "jaspergold": "jg",
-    "vc_formal": "vcf",
+    "jaspergold": ["jg", "jaspergold"],
+    "vc_formal": ["vcf", "vc_static_shell"],
     "verible-verilog-lint": "verible-verilog-lint",
     "svlint": "svlint",
-    "spyglass": "spyglass",
+    "spyglass": ["spyglass", "sg_shell", "vc_static_shell"],
     "surfer": "surfer",
     "gtkwave": "gtkwave",
     "verdi": "verdi",
 }
 
-# Fallback priority when config is missing entirely, keyed by category
+
+def _binaries(name: str) -> list[str]:
+    """Return the candidate binary names for a registry tool, in priority order."""
+    val = _BINARY.get(name, name)
+    return val if isinstance(val, list) else [val]
+
+
+def resolve(name: str) -> str | None:
+    """Return the location of the first matching binary for a tool, or None.
+
+    Maps the registry name (e.g. ``"questa"``) to its real binary (``vsim``)
+    before probing — use this for detection instead of ``shutil.which(name)``.
+    Checks global PATH first, then a managed/detected OSS CAD Suite install for
+    tools the suite bundles.
+    """
+    for binary in _binaries(name):
+        path = shutil.which(binary)
+        if path:
+            return path
+    # Fall back to an OSS CAD Suite install (not necessarily on PATH).
+    if name in oss_cad_suite.BUNDLED:
+        for binary in _binaries(name):
+            path = oss_cad_suite.binary_path(binary)
+            if path:
+                return path
+    return None
+
+# Fallback priority when config is missing entirely, keyed by category.
+# Open-source tools listed first; commercial tools are detected if on PATH.
 _FALLBACK: dict[str, list[str]] = {
-    "simulation": ["verilator", "iverilog"],
-    "synthesis": ["yosys"],
-    "formal": ["sby"],
-    "lint": ["verible-verilog-lint", "verilator"],
-    "waveform": ["surfer", "gtkwave"],
+    "simulation": ["verilator", "iverilog", "vcs", "questa", "xcelium"],
+    "synthesis":  ["yosys", "vivado", "quartus", "dc_shell"],
+    "formal":     ["sby", "jaspergold", "vc_formal"],
+    "lint":       ["verible-verilog-lint", "verilator", "svlint", "spyglass"],
+    "waveform":   ["surfer", "gtkwave", "verdi"],
 }
 
 
@@ -51,8 +82,7 @@ def pick(category: str) -> str | None:
         priority = _FALLBACK.get(category, [])
 
     for name in priority:
-        binary = _BINARY.get(name, name)
-        if shutil.which(binary):
+        if resolve(name):
             return name
 
     return None
