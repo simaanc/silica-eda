@@ -54,6 +54,7 @@ def test_timeout_returns_error(mock_run, mock_which, mock_env, eqy_file):
     assert "timed out" in result["errors"][0]["message"]
 
 
+@patch("silica.adapters.eqy.sys.platform", "linux")
 @patch("silica.adapters.eqy.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.eqy.oss_cad_suite.which", return_value="/usr/bin/eqy")
 @patch("silica.adapters.eqy.subprocess.run")
@@ -68,7 +69,8 @@ def test_auto_generate_eqy(mock_run, mock_which, mock_env, tmp_path):
 
 
 def test_generate_eqy_content():
-    content = eqy._generate_eqy(["gold.sv"], ["gate.sv"], "top")
+    content = eqy.generate_eqy(["gold.sv"], ["gate.sv"], "top")
     assert "[gold]" in content
     assert "[gate]" in content
     assert "top" in content
+    assert "[strategy sat]" in content

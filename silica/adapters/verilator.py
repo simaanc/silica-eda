@@ -1,6 +1,7 @@
 """Verilator adapter — compile-and-simulate using --binary (Verilator 5+)."""
 
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -9,6 +10,15 @@ from typing import Any
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
+
+
+def _find_make() -> str | None:
+    """Return the first available make-compatible tool, searching the OSS CAD Suite PATH too."""
+    suite_path = oss_cad_suite.env_with_suite().get("PATH", "")
+    for tool in ("make", "gmake", "mingw32-make"):
+        if shutil.which(tool) or shutil.which(tool, path=suite_path):
+            return tool
+    return None
 
 
 def _find_verilator() -> str | None:
@@ -70,6 +80,7 @@ def run(
         return _not_found()
 
     env = oss_cad_suite.env_with_suite()
+    make_tool = _find_make()
 
     if top is None:
         # Infer top from testbench filename stem
@@ -89,12 +100,15 @@ def run(
             "-Wall",
             "-Wno-TIMESCALEMOD",
             "-Wno-STMTDLY",
+            "-Wno-PROCASSINIT",
             "--top-module", top,
             "--Mdir", str(obj_dir),
             "-o", str(sim_bin),
             dut,
             testbench,
         ]
+        if make_tool and make_tool != "make":
+            compile_cmd.extend(["--make", make_tool])
         if trace:
             compile_cmd.append("--trace")
 
