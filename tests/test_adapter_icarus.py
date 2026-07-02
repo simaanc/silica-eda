@@ -48,9 +48,10 @@ def test_compile_error(mock_run, mock_which, mock_env):
 @patch("silica.adapters.icarus.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.icarus.oss_cad_suite.which", return_value=FAKE_BIN)
 @patch("silica.adapters.icarus.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
-def test_timeout_propagates(mock_run, mock_which, mock_env):
-    with pytest.raises(subprocess.TimeoutExpired):
-        icarus.run("dut.sv", "tb.sv")
+def test_timeout_returns_error(mock_run, mock_which, mock_env):
+    result = icarus.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_output_error():

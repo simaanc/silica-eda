@@ -65,13 +65,17 @@ def run(
         Path(tcl_path).write_text(_make_tcl(top, files, mode, depth), encoding="utf-8")
         work_cwd = tmpdir
 
-    cp = subprocess.run(
-        [binary, "-f", tcl_path],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        cwd=work_cwd,
-    )
+    try:
+        cp = subprocess.run(
+            [binary, "-f", tcl_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=work_cwd,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _error_result(f"vc_formal timed out after {timeout}s")
 
     raw = cp.stdout + cp.stderr
 

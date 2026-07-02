@@ -43,12 +43,21 @@ def run(file: str, ruleset: str = "default", timeout: int = 30) -> dict:
         cmd += [f"--rules={ruleset}"]
     cmd.append(file)
 
-    cp = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    try:
+        cp = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return {
+            "warnings": [],
+            "tool": "verible-verilog-lint",
+            "raw_output": "",
+            "error": f"verible-verilog-lint timed out after {timeout}s",
+        }
 
     combined = cp.stdout + cp.stderr
     warnings = _parse(combined, file)

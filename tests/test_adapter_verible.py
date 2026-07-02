@@ -58,3 +58,10 @@ def test_parse_warnings():
     assert warnings[0]["line"] == 5
     assert warnings[1]["line"] == 10
     assert warnings[0]["rule_id"] == "whitespace/line-length"
+
+
+@patch("silica.adapters.verible.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
+@patch("silica.adapters.verible.resolve", return_value="/usr/bin/verible-verilog-lint")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = verible.run("dut.sv")
+    assert "timed out" in result["error"]

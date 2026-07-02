@@ -41,9 +41,10 @@ def test_compile_error(mock_resolve, mock_run):
 
 @patch("silica.adapters.xcelium.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.xcelium.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        xcelium.run("dut.sv", "tb.sv")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = xcelium.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_output_error():

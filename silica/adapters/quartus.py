@@ -88,17 +88,21 @@ def run(
         qsf_path = Path(tmpdir) / f"{top}.qsf"
         qsf_path.write_text(_make_qsf(top, files, device), encoding="utf-8")
 
-        cp = subprocess.run(
-            [quartus_map,
-             "--read_settings_files=on",
-             "--write_settings_files=off",
-             top,
-             f"--settings={qsf_path}"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                [quartus_map,
+                 "--read_settings_files=on",
+                 "--write_settings_files=off",
+                 top,
+                 f"--settings={qsf_path}"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return _script_error(f"quartus_map timed out after {timeout}s", device)
 
     combined = cp.stdout + cp.stderr
     util = _parse_report(combined)
