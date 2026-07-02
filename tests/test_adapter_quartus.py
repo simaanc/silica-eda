@@ -57,3 +57,12 @@ def test_parse_report_luts_and_ffs():
     assert result["luts"] == 100
     assert result["ffs"] == 50
     assert result["dsp"] == 2
+
+
+@patch("silica.adapters.quartus.subprocess.run")
+@patch("silica.adapters.quartus.resolve", return_value=FAKE_BIN)
+def test_unparseable_report_flagged(mock_resolve, mock_run):
+    mock_run.return_value = make_proc(stdout="some unrecognized output format", returncode=0)
+    result = quartus.run("top", ["dut.sv"])
+    assert result["exit_code"] == 0
+    assert any("raw_output" in w["message"] for w in result["warnings"])

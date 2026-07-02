@@ -80,3 +80,12 @@ def test_make_tcl_contains_synth_design():
     tcl = vivado._make_tcl("top", ["dut.sv"], "xc7a35tcsg324-1")
     assert "synth_design" in tcl
     assert "top" in tcl
+
+
+@patch("silica.adapters.vivado.subprocess.run")
+@patch("silica.adapters.vivado.resolve", return_value=FAKE_BIN)
+def test_unparseable_report_flagged(mock_resolve, mock_run):
+    mock_run.return_value = make_proc(stdout="some unrecognized output format", returncode=0)
+    result = vivado.run("top", ["dut.sv"])
+    assert result["exit_code"] == 0
+    assert any("raw_output" in w["message"] for w in result["warnings"])

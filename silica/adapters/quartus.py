@@ -117,6 +117,14 @@ def run(
         errors.append({"file": "", "line": 0, "severity": "error",
                         "message": f"quartus_map exited with code {cp.returncode}"})
 
+    # rc==0 with nothing parsed is indistinguishable from an empty design;
+    # flag it so all-zero metrics aren't read as a real result.
+    if cp.returncode == 0 and not any(util.values()):
+        warnings.append({"file": "", "line": 0, "severity": "warning", "message": (
+            "No utilization figures found in Quartus output; "
+            "the report format may be unsupported — check raw_output."
+        )})
+
     return {
         "tool": "quartus",
         "target": device,
