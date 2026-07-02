@@ -77,3 +77,27 @@ def test_failed_traced_compile_leaves_no_trace_dir(mock_resolve, mock_run, mock_
     result = questa.run("dut.sv", "tb.sv", trace=True)
     assert result["exit_code"] == 1
     assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)
+
+
+@patch("silica.adapters.questa.subprocess.run")
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_vlib_failure_reported(mock_resolve, mock_run):
+    mock_run.return_value = make_proc(stderr="vlib: cannot create directory", returncode=2)
+    result = questa.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == 2
+    assert any("vlib" in e["message"] for e in result["errors"])
+    # vlog/vsim must not run after vlib fails
+    assert mock_run.call_count == 1
+
+
+@patch("silica.adapters.questa.subprocess.run")
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_vlib_gets_timeout(mock_resolve, mock_run):
+    mock_run.side_effect = [
+        make_proc(returncode=0),  # vlib
+        make_proc(returncode=0),  # vlog
+        make_proc(stdout="run done", returncode=0),  # vsim
+    ]
+    questa.run("dut.sv", "tb.sv", timeout=17)
+    vlib_call = mock_run.call_args_list[0]
+    assert vlib_call.kwargs.get("timeout") == 17
