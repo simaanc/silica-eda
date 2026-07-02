@@ -96,6 +96,7 @@ def register(mcp: "FastMCP") -> None:
                 gate_files=gate_files,
                 top=top,
                 timeout=timeout,
+                depth=depth,
             )
 
         elif tool == "jaspergold":
