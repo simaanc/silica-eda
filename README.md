@@ -188,6 +188,7 @@ Silica ships reasoning scripts that teach the model how to interpret tool output
 - `generate_assertions` — write SVA assertions from design intent
 - `close_timing` — work through timing violations with synthesis feedback
 - `debug_formal_failure` — triage a formal FAIL/UNKNOWN from the counterexample trace to a verified fix
+- `cdc_review` — enumerate and classify every clock domain crossing against known-safe patterns
 
 ## Architecture
 
