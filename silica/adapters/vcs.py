@@ -42,8 +42,6 @@ def run(
     if not vcs:
         return _not_found()
 
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
-
     with tempfile.TemporaryDirectory(prefix="silica_vcs_") as tmpdir:
         simv = str(Path(tmpdir) / "simv")
         csrc = str(Path(tmpdir) / "csrc")
@@ -77,6 +75,10 @@ def run(
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
             }
+
+        # Persistent trace dir, created only after a successful compile so
+        # failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         sim_cmd = [simv]
         if trace:

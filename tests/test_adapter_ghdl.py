@@ -63,3 +63,13 @@ def test_parse_output_warning():
     errors, warnings = ghdl._parse_output(GHDL_WARNING)
     assert len(warnings) == 1
     assert warnings[0]["severity"] == "warning"
+
+
+@patch("silica.adapters.ghdl.tempfile.mkdtemp")
+@patch("silica.adapters.ghdl.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.ghdl.subprocess.run")
+def test_failed_traced_analyze_leaves_no_trace_dir(mock_run, mock_which, mock_mkdtemp):
+    mock_run.return_value = make_proc(stderr=GHDL_ERROR, returncode=1)
+    result = ghdl.run("dut.vhd", "tb.vhd", trace=True)
+    assert result["exit_code"] == 1
+    assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)
