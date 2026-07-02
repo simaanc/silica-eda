@@ -117,6 +117,21 @@ def test_search_rtl_no_matches(tools, tmp_path):
     assert result["matches"] == []
 
 
+def test_search_rtl_truncation_flagged(tools, tmp_path):
+    body = "\n".join(f"wire clk_{i};" for i in range(60))
+    (tmp_path / "dut.sv").write_text(f"module dut();\n{body}\nendmodule\n")
+    result = tools["search_rtl"](query="clk_", root=str(tmp_path))
+    assert result["match_count"] == 60
+    assert len(result["matches"]) == 50
+    assert result["truncated"] is True
+
+
+def test_search_rtl_not_truncated_when_under_cap(tools, tmp_path):
+    (tmp_path / "dut.sv").write_text("module dut();\n  wire clk;\nendmodule\n")
+    result = tools["search_rtl"](query="clk", root=str(tmp_path))
+    assert result["truncated"] is False
+
+
 def test_search_rtl_scoped_to_sv(tools, tmp_path):
     (tmp_path / "dut.sv").write_text("module dut(); endmodule\n")
     (tmp_path / "dut.v").write_text("module dut_v(); endmodule\n")

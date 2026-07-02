@@ -141,7 +141,9 @@ def register(mcp: "FastMCP") -> None:
             scope: "all" | "sv" | "v" — filter by file extension.
 
         Returns:
-            matches: [{file, line, context}]
+            matches: [{file, line, context}] — capped at 50 entries
+            match_count: total matches found (may exceed len(matches))
+            truncated: True when matches were dropped by the 50-entry cap
         """
         root_path = Path(root).resolve()
         ext_filter = {
@@ -174,7 +176,12 @@ def register(mcp: "FastMCP") -> None:
                         "context": context,
                     })
 
-        return {"query": query, "match_count": len(matches), "matches": matches[:50]}
+        return {
+            "query": query,
+            "match_count": len(matches),
+            "matches": matches[:50],
+            "truncated": len(matches) > 50,
+        }
 
     @mcp.tool()
     def get_constraints(file: str) -> dict:
