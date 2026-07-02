@@ -79,13 +79,17 @@ def run(
         )
         work_cwd = tmpdir
 
-    cp = subprocess.run(
-        [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        cwd=work_cwd,
-    )
+    try:
+        cp = subprocess.run(
+            [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=work_cwd,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _error_result(f"jaspergold timed out after {timeout}s")
 
     raw = cp.stdout + cp.stderr
 

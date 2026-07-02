@@ -100,14 +100,18 @@ def run(
         tcl_path = Path(tmpdir) / "synth.tcl"
         tcl_path.write_text(_make_tcl(top, files, part), encoding="utf-8")
 
-        cp = subprocess.run(
-            [binary, "-mode", "batch", "-source", str(tcl_path),
-             "-nojournal", "-nolog"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                [binary, "-mode", "batch", "-source", str(tcl_path),
+                 "-nojournal", "-nolog"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return _script_error(f"vivado timed out after {timeout}s", part)
 
     combined = cp.stdout + cp.stderr
     util = _parse_utilization(combined)

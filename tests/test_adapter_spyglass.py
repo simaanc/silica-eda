@@ -41,9 +41,9 @@ def test_clean_file(mock_resolve, mock_run):
 
 @patch("silica.adapters.spyglass.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
 @patch("silica.adapters.spyglass.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        spyglass.run("dut.sv")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = spyglass.run("dut.sv")
+    assert "timed out" in result["error"]
 
 
 def test_parse_violations():

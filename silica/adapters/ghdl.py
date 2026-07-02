@@ -55,6 +55,22 @@ def run(
         std: VHDL standard — "87" | "93" | "00" | "02" | "08". Default "08".
         stop_time: Simulation stop time e.g. "1ms", "100us". Optional.
     """
+    try:
+        return _run(dut, testbench, top, timeout, trace, std, stop_time)
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _timeout_result(dut, timeout)
+
+
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    std: str,
+    stop_time: str | None,
+) -> dict:
     binary = oss_cad_suite.which("ghdl")
     if not binary:
         return _not_found()
@@ -149,6 +165,18 @@ def run(
             "raw_stderr": ap.stderr + ep.stderr + rp.stderr,
             "trace_vcd": trace_vcd,
         }
+
+
+def _timeout_result(file: str, timeout: int) -> dict:
+    return {
+        "exit_code": -1,
+        "errors": [{"file": file, "line": 0, "severity": "error",
+                    "message": f"ghdl timed out after {timeout}s"}],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
+    }
 
 
 def _not_found() -> dict:

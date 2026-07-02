@@ -1,5 +1,6 @@
 """Tests for silica.adapters.questa."""
 
+import subprocess
 import pytest
 from unittest.mock import patch, MagicMock
 from conftest import make_proc
@@ -101,3 +102,11 @@ def test_vlib_gets_timeout(mock_resolve, mock_run):
     questa.run("dut.sv", "tb.sv", timeout=17)
     vlib_call = mock_run.call_args_list[0]
     assert vlib_call.kwargs.get("timeout") == 17
+
+
+@patch("silica.adapters.questa.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = questa.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])

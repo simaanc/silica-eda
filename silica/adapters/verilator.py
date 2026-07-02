@@ -75,6 +75,14 @@ def run(
     When trace=True, writes dump.vcd to a persistent temp directory and
     returns its path as trace_vcd in the result.
     """
+    try:
+        return _run(dut, testbench, top, timeout, trace)
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _timeout_result(dut, timeout)
+
+
+def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
     binary = _find_verilator()
     if not binary:
         return _not_found()
@@ -179,13 +187,23 @@ def lint_only(file: str, timeout: int = 30) -> dict:
     if not binary:
         return _not_found()
 
-    cp = subprocess.run(
-        [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=oss_cad_suite.env_with_suite(),
-    )
+    try:
+        cp = subprocess.run(
+            [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=oss_cad_suite.env_with_suite(),
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "exit_code": -1,
+            "errors": [{"file": file, "line": 0, "severity": "error",
+                        "message": f"verilator timed out after {timeout}s"}],
+            "warnings": [],
+            "raw_stdout": "",
+            "raw_stderr": "",
+        }
     errors, warnings = _parse_output(cp.stderr)
     return {
         "exit_code": cp.returncode,
@@ -193,6 +211,18 @@ def lint_only(file: str, timeout: int = 30) -> dict:
         "warnings": warnings,
         "raw_stdout": cp.stdout,
         "raw_stderr": cp.stderr,
+    }
+
+
+def _timeout_result(file: str, timeout: int) -> dict:
+    return {
+        "exit_code": -1,
+        "errors": [{"file": file, "line": 0, "severity": "error",
+                    "message": f"verilator timed out after {timeout}s"}],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
     }
 
 

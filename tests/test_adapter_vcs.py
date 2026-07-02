@@ -57,9 +57,10 @@ def test_sim_failure_generic_error(mock_resolve, mock_run):
 
 @patch("silica.adapters.vcs.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.vcs.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        vcs.run("dut.sv", "tb.sv")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = vcs.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_output_error():
