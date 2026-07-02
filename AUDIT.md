@@ -69,7 +69,7 @@ from the `tools` package.
 | 4.2 | ✅ **FIXED** (`6337e79`) — **`verible` and `svlint` bypass both helpers** — call `shutil.which()` directly (and `svlint` imports `shutil` *inside* `run()` at line 51). Other lint adapter `spyglass` uses `resolve()`. Inconsistent within the same category. | `verible.py:35`, `svlint.py:51` | low | unlocked | Route through the shared detector; hoist the `svlint` import to module top. |
 | 4.3 | ✅ **FIXED** (`6337e79`, documented convention) — **`env=` handling differs** — OSS adapters pass `env=oss_cad_suite.env_with_suite()`; commercial and `verible`/`svlint` pass no `env`. Defensible (commercial tools aren't in the suite) but undocumented and easy to get wrong for a new adapter. | verible/svlint/all commercial `subprocess.run` calls | low | unlocked | Document the convention, or always pass an explicit env. |
 | 4.4 | ✅ **FIXED** (`6337e79`, documented the inline exception) — **Waveform launch is split** — `launch_waveform` handles OSS viewers inline via `subprocess.Popen` (`waveform.py:61`) but delegates `verdi` to an adapter (`verdi.py`). Surfer/GTKWave have no adapter module while every other tool does. | `tools/waveform.py:50-61` | low | unlocked | Add `surfer`/`gtkwave` adapter modules for symmetry, or document the inline exception. |
-| 4.5 | ⏸️ **SKIPPED** (entangled with the pending 5.1 `is_enabled()` decision — unifying the readers means touching or removing `is_enabled()`) — **`_config_dispatch.pick()` reads `priority` or `enabled`; `is_enabled()` reads only `enabled`** — two slightly different config-shape readers. | `_config_dispatch.py:85`, `:97-103` | low | unlocked | Unify the config-access helpers. |
+| 4.5 | ✅ **FIXED** (`c699bf0` — all config readers share `_category_cfg()`) — **`_config_dispatch.pick()` reads `priority` or `enabled`; `is_enabled()` reads only `enabled`** — two slightly different config-shape readers. | `_config_dispatch.py:85`, `:97-103` | low | unlocked | Unify the config-access helpers. |
 
 ---
 
@@ -77,7 +77,7 @@ from the `tools` package.
 
 | # | Issue | File:line | Sev | Test-lock | Proposed fix |
 |---|---|---|---|---|---|
-| 5.1 | ⏸️ **SKIPPED** (per instruction — decision pending on delete vs. wire into dispatch) — **`is_enabled()` is dead in production** — referenced only by `test_config_dispatch.py`; no tool or adapter calls it. | `_config_dispatch.py:97-103` | low | **LOCKED** — `test_is_enabled_*` cover it; removing it deletes those tests | Remove the function and its tests, or wire it into `pick()`/dispatch where selection is enforced. |
+| 5.1 | ✅ **FIXED** (`c699bf0` + per-category commits `805f8e3`–`a6dcd6a`, decision: wire into dispatch) — **`is_enabled()` is dead in production** — referenced only by `test_config_dispatch.py`; no tool or adapter calls it. | `_config_dispatch.py:97-103` | low | **LOCKED** — `test_is_enabled_*` cover it; removing it deletes those tests | Remove the function and its tests, or wire it into `pick()`/dispatch where selection is enforced. |
 | 5.2 | ✅ **FIXED** (`c84730d`) — **Unused imports in `eqy.py`** — `import os` and `import shutil` are never used. | `adapters/eqy.py:3`, `:5` | low | unlocked | Remove. (Not caught automatically — `ruff` is configured but not installed in this env.) |
 | 5.3 | ✅ **FIXED** (`c84730d`) — **Unused `import tempfile` in `jaspergold.py` and `vc_formal.py`** — both also `from tempfile import mkdtemp`; only `mkdtemp` is used, the plain module import is dead. | `jaspergold.py:5`, `vc_formal.py:5` | low | unlocked | Drop the redundant `import tempfile`. |
 | 5.4 | ✅ **FIXED** (`c84730d`) — **Unused imports in `clients_registry.py`** — `import sys` and `import shutil` are never used. | `clients_registry.py:2-3` | low | unlocked | Remove. |
@@ -102,12 +102,16 @@ from the `tools` package.
 
 ## Summary
 
-**Remediation status (2026-07-01):** every actionable item is **FIXED** except two **SKIPPED**
-pending a decision — **5.1** (`is_enabled()` delete-vs-wire-into-dispatch) and **4.5** (config-reader
-unification, entangled with 5.1). Each table row above carries its status and the commit hash it
-landed in. Verified by: full test suite (399 passed, 9 environment skips), ruff (remaining findings
-are pre-existing style debt — long lines, f-string/import-sort nits — not introduced by these fixes),
-and a live `run_simulation` + `lint` run against `examples/uart` (all 5 testbench bytes PASS).
+**Remediation status (2026-07-02):** every actionable item is **FIXED** — nothing skipped.
+The last two open items landed with the decision to wire `is_enabled()` into dispatch as a real
+enforcement gate: config `tools.<category>.enabled` lists now restrict both auto-pick and explicit
+tool overrides across all seven tool entry points (simulation, synthesis, place_route, formal,
+lint, waveform, program), rejecting disabled overrides with a structured error that names the tool,
+category, and enabled list. No enabled list configured = unrestricted, as before. Each table row
+above carries its status and the commit hash it landed in. Verified by: full test suite
+(425 passed, 9 environment skips), ruff (remaining findings are pre-existing style debt — long
+lines, f-string/import-sort nits — not introduced by these fixes), and a live `run_simulation` +
+`lint` run against `examples/uart` (all 5 testbench bytes PASS).
 
 **Total issues: 30** (positive findings 1.7 and 3.2 excluded from counts).
 
@@ -139,4 +143,4 @@ These touch no existing test assertion and no tool signature — fix freely:
 - **2.1** — standardized: all adapters return a structured error dict on timeout (`338fd4d`).
 - **1.1/1.2** — confinement added: file tools reject paths escaping the server's working directory (`bb78849`).
 - **3.1/4.1** — `resolve()`/`_BINARY` moved to the new lower-layer `silica.detect` module (`58c317b`).
-- **5.1** — skipped per instruction; see the pending question on what `is_enabled()` is for.
+- **5.1/4.5** — resolved: `is_enabled()` wired into dispatch as an enforcement gate (`c699bf0` + per-category commits); config readers unified behind `_category_cfg()`.
