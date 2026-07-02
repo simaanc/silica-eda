@@ -111,14 +111,29 @@ def run(
     script = "; ".join(read_cmds + [synth_cmd, "stat"])
 
     with tempfile.TemporaryDirectory(prefix="silica_yosys_") as tmpdir:
-        cp = subprocess.run(
-            [binary, "-p", script],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-            env=oss_cad_suite.env_with_suite(),
-        )
+        try:
+            cp = subprocess.run(
+                [binary, "-p", script],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+                env=oss_cad_suite.env_with_suite(),
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return {
+                "tool": "yosys",
+                "target": target,
+                "exit_code": -1,
+                "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
+                                "lut_pct": 0.0, "ff_pct": 0.0},
+                "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                "warnings": [],
+                "errors": [{"file": "", "line": 0, "severity": "error",
+                            "message": f"yosys timed out after {timeout}s"}],
+                "raw_output": "",
+            }
 
     combined = cp.stdout + cp.stderr
     util = _count_cells(combined)

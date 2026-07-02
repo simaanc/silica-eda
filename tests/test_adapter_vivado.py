@@ -54,9 +54,10 @@ def test_failure(mock_resolve, mock_run):
 
 @patch("silica.adapters.vivado.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.vivado.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        vivado.run("top", ["dut.sv"])
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = vivado.run("top", ["dut.sv"])
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_utilization():

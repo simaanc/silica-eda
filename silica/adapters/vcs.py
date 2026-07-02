@@ -38,6 +38,14 @@ def run(
     trace: bool = False,
 ) -> dict:
     """Compile with vcs -sverilog, then simulate with ./simv."""
+    try:
+        return _run(dut, testbench, top, timeout, trace)
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _timeout_result(dut, timeout)
+
+
+def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
     vcs = resolve("vcs")
     if not vcs:
         return _not_found()
@@ -117,6 +125,17 @@ def run(
 
 def _generic_error(file: str, message: str) -> dict:
     return {"file": file, "line": 0, "severity": "error", "message": message}
+
+
+def _timeout_result(file: str, timeout: int) -> dict:
+    return {
+        "exit_code": -1,
+        "errors": [_generic_error(file, f"vcs timed out after {timeout}s")],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
+    }
 
 
 def _not_found() -> dict:

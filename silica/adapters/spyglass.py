@@ -87,13 +87,22 @@ def run(
         else:
             cmd = [binary, "-batch", "-tcl", str(tcl_path)]
 
-        cp = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return {
+                "warnings": [],
+                "tool": "spyglass",
+                "raw_output": "",
+                "error": f"spyglass timed out after {timeout}s",
+            }
 
     combined = cp.stdout + cp.stderr
     violations = _parse_violations(combined, file)
