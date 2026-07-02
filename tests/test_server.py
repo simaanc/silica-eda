@@ -25,6 +25,7 @@ def test_load_skill_missing_returns_empty_and_warns(caplog):
     server.generate_assertions,
     server.close_timing,
     server.debug_formal_failure,
+    server.cdc_review,
 ])
 def test_registered_prompts_return_content(prompt_fn):
     # Every registered MCP prompt must resolve to a real, non-empty skill file.

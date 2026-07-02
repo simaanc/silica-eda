@@ -53,6 +53,12 @@ def debug_formal_failure() -> str:
     return _load_skill("workflows/debug_formal_failure.md")
 
 
+@mcp.prompt()
+def cdc_review() -> str:
+    """Reasoning script for reviewing clock domain crossings structurally."""
+    return _load_skill("workflows/cdc_review.md")
+
+
 # --- register MCP tools ---
 
 from silica.tools import (  # noqa: E402
