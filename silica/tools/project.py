@@ -75,7 +75,12 @@ def register(mcp: "FastMCP") -> None:
         if path is None:
             return {"error": escape, "content": "", "path": file, "total_lines": 0}
         if not path.exists():
-            return {"error": f"File not found: {file} (resolved to {path}) — use an absolute path", "content": "", "path": str(path), "total_lines": 0}
+            return {
+                "error": f"File not found: {file} (resolved to {path}) — use an absolute path",
+                "content": "",
+                "path": str(path),
+                "total_lines": 0,
+            }
 
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         total = len(lines)
@@ -122,7 +127,8 @@ def register(mcp: "FastMCP") -> None:
             }
 
         if path.exists():
-            original_lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+            original_lines = path.read_text(
+                encoding="utf-8", errors="replace").splitlines(keepends=True)
         else:
             original_lines = []
 

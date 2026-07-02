@@ -141,7 +141,8 @@ def _timeout_result(file: str, timeout: int) -> dict:
 def _not_found() -> dict:
     return {
         "exit_code": -1,
-        "errors": [_generic_error("", "vcs not found. VCS requires a Synopsys license — contact your vendor.")],
+        "errors": [_generic_error(
+            "", "vcs not found. VCS requires a Synopsys license — contact your vendor.")],
         "warnings": [],
         "raw_stdout": "",
         "raw_stderr": "",
