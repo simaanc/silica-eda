@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import nextpnr
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 
 def register(mcp: "FastMCP") -> None:
@@ -51,6 +51,22 @@ def register(mcp: "FastMCP") -> None:
         if tool == "auto":
             chosen = pick("place_route")
             tool = chosen or "nextpnr"
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("place_route", tool)
+            if disabled:
+                return {
+                    "tool": tool,
+                    "target": device,
+                    "exit_code": -1,
+                    "timing_summary": {"clocks": [], "wns": 0.0, "failing_endpoints": 0},
+                    "utilization": {},
+                    "output": None,
+                    "workdir": "",
+                    "warnings": [],
+                    "errors": [{"message": disabled}],
+                    "raw_output": "",
+                }
 
         if tool == "nextpnr":
             return nextpnr.run(
