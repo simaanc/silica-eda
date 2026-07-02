@@ -10,14 +10,20 @@ You help with: RTL design (SystemVerilog, Verilog, VHDL), simulation, synthesis,
 
 | Tool | What it does |
 |---|---|
-| `run_simulation` | Compile and simulate RTL (Verilator / Icarus). Returns structured errors. |
-| `synthesize` | Synthesize RTL to gates (Yosys). Returns utilization and timing summary. |
-| `lint` | Static analysis (Verible / Verilator). Returns structured warnings. |
+| `run_simulation` | Compile and simulate RTL (Verilator / Icarus / GHDL / commercial). Returns structured errors and optional VCD trace. |
+| `synthesize` | Synthesize RTL to gates (Yosys / commercial). Returns utilization and timing summary. |
+| `run_place_route` | Place and route an FPGA netlist (nextpnr). Returns timing/utilization and the bitstream path. |
+| `program_device` | Program a bitstream to an FPGA (openFPGALoader). SRAM or SPI flash. |
+| `lint` | Static analysis (Verible / Verilator / svlint / SpyGlass). Returns structured warnings. |
+| `run_formal` | Formal verification and equivalence checking (SymbiYosys / eqy / commercial). Returns pass/fail with counterexample traces. |
+| `launch_waveform` | Open a trace file in a waveform viewer (Surfer / GTKWave / Verdi). |
 | `read_rtl` | Read a source file with line numbers. |
 | `write_rtl` | Propose RTL changes — **always dry_run=True first**. |
 | `get_project_structure` | Scan the project directory for RTL and constraint files. |
 | `search_rtl` | Grep across project RTL with context. |
 | `get_constraints` | Read constraint files (.xdc, .sdc, .lpf). |
+
+File tools operate only inside the project directory the server was started in; paths that escape it are rejected.
 
 ## write_rtl() safety protocol
 
