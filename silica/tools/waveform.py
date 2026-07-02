@@ -1,12 +1,14 @@
-"""MCP tool: launch_waveform."""
+"""MCP tools: launch_waveform, read_waveform."""
 
 import shutil
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+from silica import vcd
 from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
 from silica.detect import resolve
@@ -14,6 +16,9 @@ from silica.tools._config_dispatch import check_enabled, pick
 
 _OSS_VIEWERS = {"surfer", "gtkwave"}
 _ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}
+
+# Discovery mode lists at most this many signals.
+_MAX_LISTED_SIGNALS = 1000
 
 
 def register(mcp: "FastMCP") -> None:
@@ -74,3 +79,89 @@ def register(mcp: "FastMCP") -> None:
             "launched": True,
             "trace": trace_file,
         }
+
+    @mcp.tool()
+    def read_waveform(
+        trace_file: str,
+        signals: list[str] | None = None,
+        time_start: int | None = None,
+        time_end: int | None = None,
+        max_transitions: int = 200,
+    ) -> dict:
+        """Read signal values from a VCD trace — no waveform viewer needed.
+
+        Typical debug flow:
+            1. result = run_simulation(..., trace=True)   # note failure time T
+            2. read_waveform(result["trace_vcd"])          # discover signal names
+            3. read_waveform(result["trace_vcd"],
+                             signals=["dut.state", "dut.count"],
+                             time_start=T-100, time_end=T+10)
+
+        Args:
+            trace_file: Path to the .vcd trace (from run_simulation's trace_vcd).
+            signals: Signal names to read. A name matches on the full
+                     hierarchical path ("tb.dut.count") or any trailing
+                     component ("count", "dut.count"). Omit to list the
+                     signals available in the trace instead.
+            time_start: Window start in VCD ticks (multiply timescale to get
+                        time). Each signal's value just before the window is
+                        included so state at window start is known.
+            time_end: Window end in VCD ticks.
+            max_transitions: Per-signal cap; "truncated" is set when hit.
+
+        Returns:
+            Discovery mode: {trace, timescale, end_time, signal_count,
+                             signals [{name, width}]}
+            With signals:   {trace, timescale, end_time,
+                             signals [{name, width,
+                                       transitions [{time, value}],
+                                       truncated}],
+                             not_found}
+            {"error": str} on failure. Values are bit strings ("0101",
+            may contain x/z); times are VCD ticks.
+        """
+        path = Path(trace_file)
+        if not path.is_file():
+            return {"error": f"Trace file not found: {trace_file}"}
+        if path.suffix.lower() in (".fst", ".fsdb"):
+            return {"error": (
+                f"Only VCD traces can be read directly; {path.suffix} is a "
+                "binary format. Re-run the simulation with a $dumpfile VCD, "
+                "or use launch_waveform for a viewer."
+            )}
+
+        try:
+            parsed = vcd.parse(
+                str(path),
+                signals=signals,
+                time_start=time_start,
+                time_end=time_end,
+                max_transitions=max_transitions,
+            )
+        except (ValueError, OSError) as exc:
+            return {"error": f"Failed to parse VCD: {exc}"}
+
+        if not signals:
+            available = parsed["all_signals"]
+            return {
+                "trace": trace_file,
+                "timescale": parsed["timescale"],
+                "end_time": parsed["end_time"],
+                "signal_count": len(available),
+                "signals": available[:_MAX_LISTED_SIGNALS],
+            }
+
+        result = {
+            "trace": trace_file,
+            "timescale": parsed["timescale"],
+            "end_time": parsed["end_time"],
+            "signals": parsed["signals"],
+            "not_found": parsed["not_found"],
+        }
+        if parsed["not_found"]:
+            # Nudge toward valid names without re-listing on every call.
+            result["hint"] = (
+                "Call read_waveform without 'signals' to list the names "
+                "available in this trace."
+            )
+        return result

@@ -172,6 +172,7 @@ Built for pointing an autonomous agent at a real repo:
 | `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Returns structured warnings. |
 | `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
 | `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
+| `read_waveform` | Read signal values straight out of a VCD trace (pure Python, no viewer). List available signals, then fetch transitions for chosen signals in a time window — lets the model inspect waveforms autonomously. |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
 | `get_project_structure` | Scan for RTL and constraint files. |
@@ -208,7 +209,7 @@ silica/
 │   │   ├── program.py         # program_device()
 │   │   ├── lint.py            # lint()
 │   │   ├── formal.py          # run_formal()
-│   │   ├── waveform.py        # launch_waveform()
+│   │   ├── waveform.py        # launch_waveform(), read_waveform()
 │   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
 │   └── adapters/              # per-tool CLI wrappers + output parsers
 │       ├── _hints.py          # platform-aware install hint strings
