@@ -1,7 +1,9 @@
 """Integration tests for the nextpnr adapter (place-and-route)."""
 
 import os
+
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import nextpnr
 

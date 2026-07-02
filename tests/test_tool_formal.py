@@ -1,11 +1,11 @@
 """Tests for silica.tools.formal (run_formal MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import formal
-
 
 FORMAL_PASS = {
     "status": "PASS", "rc": 0,

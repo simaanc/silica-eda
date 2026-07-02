@@ -1,7 +1,9 @@
 """Integration tests for the Verilator adapter."""
 
 import shutil
+
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import verilator
 

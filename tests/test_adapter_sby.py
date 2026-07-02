@@ -1,10 +1,10 @@
 """Tests for silica.adapters.sby."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import sby
-
 
 SBY_PASS_OUTPUT = "DONE (PASS, rc=0)\n"
 SBY_FAIL_OUTPUT = (

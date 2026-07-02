@@ -25,10 +25,10 @@ _TRACE_RE = re.compile(r"(?:counterexample|trace)\s+(?:file\s+)?['\"]?(\S+\.vcd)
 def _make_tcl(top: str, files: list[str], mode: str, depth: int, clock: str, reset: str) -> str:
     analyze_cmds = "\n".join(f"analyze -sv09 {{{f}}}" for f in files)
     prop_check = {
-        "prove":  f"prove -property {{*}} -init {{reset}} -bg",
+        "prove":  "prove -property {*} -init {reset} -bg",
         "bmc":    f"prove -property {{*}} -depth {depth}",
-        "cover":  f"cover -property {{*}}",
-    }.get(mode, f"prove -property {{*}} -bg")
+        "cover":  "cover -property {*}",
+    }.get(mode, "prove -property {*} -bg")
 
     return f"""\
 {analyze_cmds}
