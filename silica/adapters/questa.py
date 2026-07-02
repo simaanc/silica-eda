@@ -57,12 +57,23 @@ def run(
 
     with tempfile.TemporaryDirectory(prefix="silica_questa_") as tmpdir:
         # Create work library
-        subprocess.run(
+        lp = subprocess.run(
             ["vlib", "work"],
             capture_output=True,
             text=True,
+            timeout=timeout,
             cwd=tmpdir,
         )
+        if lp.returncode != 0:
+            detail = (lp.stderr or lp.stdout).strip()
+            return {
+                "exit_code": lp.returncode,
+                "errors": [_generic_error(dut, f"vlib failed to create work library: {detail}")],
+                "warnings": [],
+                "raw_stdout": lp.stdout,
+                "raw_stderr": lp.stderr,
+                "trace_vcd": None,
+            }
 
         compile_cmd = [vlog_bin, "-sv", testbench, dut]
         cp = subprocess.run(
