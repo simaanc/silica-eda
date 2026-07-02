@@ -86,9 +86,6 @@ def run(
         # Infer top from testbench filename stem
         top = Path(testbench).stem
 
-    # When tracing, keep a persistent dir so the VCD survives after we return.
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
-
     with tempfile.TemporaryDirectory(prefix="silica_veri_") as tmpdir:
         obj_dir = Path(tmpdir) / "obj_dir"
         sim_bin = Path(tmpdir) / f"V{top}"
@@ -132,6 +129,10 @@ def run(
                 "trace_vcd": None,
             }
             return result
+
+        # When tracing, keep a persistent dir so the VCD survives after we return.
+        # Created only after a successful compile so failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         # Run the simulation binary; if tracing, CWD is trace_dir so dump.vcd lands there.
         sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
