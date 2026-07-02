@@ -137,7 +137,10 @@ def register(mcp: "FastMCP") -> None:
             tofile=f"b/{path.name}",
         ))
         diff_str = "".join(diff_lines)
-        changed = sum(1 for l in diff_lines if l.startswith(("+", "-")) and not l.startswith(("+++", "---")))
+        changed = sum(
+            1 for line in diff_lines
+            if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
+        )
 
         if dry_run:
             return {
