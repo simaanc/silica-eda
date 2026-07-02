@@ -4,6 +4,7 @@ import re
 import subprocess
 
 from silica.adapters._hints import install_hint
+from silica.detect import resolve
 
 # svlint output format:
 # Fail: filename.sv: 10:5  rule_name
@@ -48,8 +49,7 @@ def _parse(output: str) -> list[dict]:
 
 def run(file: str, ruleset: str = "default", timeout: int = 30) -> dict:
     """Lint a SystemVerilog file with svlint."""
-    import shutil
-    binary = shutil.which("svlint")
+    binary = resolve("svlint")
     if not binary:
         return _not_found()
 

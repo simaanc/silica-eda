@@ -1,11 +1,11 @@
 """Verible adapter — SystemVerilog linting via verible-verilog-lint."""
 
 import re
-import shutil
 import subprocess
 from typing import Any
 
 from silica.adapters._hints import install_hint
+from silica.detect import resolve
 
 # filename.sv:10:5: message [rule-id]
 # filename.sv:10:5: message  (no rule-id)
@@ -32,7 +32,7 @@ def _parse(output: str, file: str) -> list[dict]:
 
 def run(file: str, ruleset: str = "default", timeout: int = 30) -> dict:
     """Lint a SystemVerilog file with verible-verilog-lint."""
-    binary = shutil.which("verible-verilog-lint")
+    binary = resolve("verible-verilog-lint")
     if not binary:
         return _not_found()
 

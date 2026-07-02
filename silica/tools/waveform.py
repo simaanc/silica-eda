@@ -51,6 +51,10 @@ def register(mcp: "FastMCP") -> None:
         if viewer == "verdi":
             return verdi_adapter.launch(trace_file)
 
+        # Deliberate asymmetry: surfer/gtkwave have no adapter modules.
+        # Launching them is a one-line fire-and-forget Popen with no output
+        # to parse, so an adapter would only add indirection. verdi goes
+        # through an adapter because it needs license/env handling.
         # OSS viewers — look up via resolve() so OSS CAD Suite path is checked
         binary = resolve(viewer) or shutil.which(viewer)
         if not binary:
