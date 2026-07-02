@@ -67,6 +67,7 @@ def register(mcp: "FastMCP") -> None:
             "tool": "none",
             "exit_code": -1,
             "success": False,
-            "errors": [{"message": f"Unknown programmer '{tool}'. Supported: auto, openfpgaloader."}],
+            "errors": [{"message": f"Unknown programmer '{tool}'. "
+                                   "Supported: auto, openfpgaloader."}],
             "raw_output": "",
         }

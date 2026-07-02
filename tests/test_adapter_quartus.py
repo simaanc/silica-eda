@@ -44,7 +44,8 @@ def test_failure(mock_resolve, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.quartus.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.quartus.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.quartus.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = quartus.run("top", ["dut.sv"])

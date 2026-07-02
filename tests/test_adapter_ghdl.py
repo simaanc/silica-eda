@@ -44,7 +44,8 @@ def test_analyze_error(mock_run, mock_which):
 
 
 @patch("silica.adapters.ghdl.oss_cad_suite.which", return_value=FAKE_BIN)
-@patch("silica.adapters.ghdl.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.ghdl.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 def test_timeout_returns_error(mock_run, mock_which):
     result = ghdl.run("dut.vhd", "tb.vhd")
     assert result["exit_code"] == -1

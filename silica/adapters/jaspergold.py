@@ -19,7 +19,9 @@ _PROP_FAIL_RE = re.compile(
 # WARNING:  message
 _MSG_RE = re.compile(r"^(ERROR|WARNING):\s+(.+)$", re.MULTILINE)
 # Counterexample trace path
-_TRACE_RE = re.compile(r"(?:counterexample|trace)\s+(?:file\s+)?['\"]?(\S+\.vcd)['\"]?", re.IGNORECASE)
+_TRACE_RE = re.compile(
+    r"(?:counterexample|trace)\s+(?:file\s+)?['\"]?(\S+\.vcd)['\"]?", re.IGNORECASE
+)
 
 
 def _make_tcl(top: str, files: list[str], mode: str, depth: int, clock: str, reset: str) -> str:
@@ -97,7 +99,8 @@ def run(
     status_m = _STATUS_RE.search(raw)
     if status_m:
         raw_status = status_m.group(1).lower()
-        status = "PASS" if raw_status == "proven" else "FAIL" if raw_status == "falsified" else "UNKNOWN"
+        status = ("PASS" if raw_status == "proven"
+                  else "FAIL" if raw_status == "falsified" else "UNKNOWN")
     else:
         status = "UNKNOWN" if cp.returncode == 0 else "ERROR"
 
@@ -123,7 +126,8 @@ def run(
             warnings.append(entry)
 
     if cp.returncode != 0 and not errors and status == "ERROR":
-        errors.append({"file": "", "line": 0, "message": f"JasperGold exited with code {cp.returncode}"})
+        errors.append({"file": "", "line": 0,
+                       "message": f"JasperGold exited with code {cp.returncode}"})
 
     return {
         "status": status,

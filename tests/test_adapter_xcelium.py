@@ -38,7 +38,8 @@ def test_compile_error(mock_resolve, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.xcelium.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.xcelium.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.xcelium.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = xcelium.run("dut.sv", "tb.sv")

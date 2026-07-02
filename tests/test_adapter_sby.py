@@ -63,7 +63,8 @@ def test_error_status(mock_run, mock_which, mock_env, sby_file):
 
 @patch("silica.adapters.sby.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.sby.oss_cad_suite.which", return_value="/usr/bin/sby")
-@patch("silica.adapters.sby.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.sby.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=300))
 def test_timeout(mock_run, mock_which, mock_env, sby_file):
     result = sby.run(sby_file)
     assert result["status"] == "UNKNOWN"

@@ -52,7 +52,8 @@ def test_failure(mock_resolve, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.vivado.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.vivado.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.vivado.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = vivado.run("top", ["dut.sv"])
