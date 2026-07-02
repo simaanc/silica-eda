@@ -64,3 +64,33 @@ def test_unknown_tool_returns_error(synthesize):
 def test_auto_no_tool_returns_error(mock_pick, synthesize):
     result = synthesize("top", ["dut.sv"], tool="auto")
     assert result["exit_code"] == -1
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_tool_rejected(synthesize):
+    config = {"tools": {"synthesis": {"enabled": ["yosys"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = synthesize("top", ["dut.sv"], tool="vivado")
+    assert result["exit_code"] == -1
+    assert result["errors"][0]["message"] == (
+        '"vivado" is disabled by config for category "synthesis"; '
+        'enabled: ["yosys"]'
+    )
+
+
+@patch("silica.adapters.yosys.run", return_value=SYNTH_SUCCESS)
+def test_explicit_enabled_tool_allowed(mock_run, synthesize):
+    config = {"tools": {"synthesis": {"enabled": ["yosys"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = synthesize("top", ["dut.sv"], tool="yosys")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.vivado.run", return_value=SYNTH_SUCCESS)
+def test_no_enabled_config_is_unrestricted(mock_run, synthesize):
+    with patch("silica.config.load", return_value={}):
+        result = synthesize("top", ["dut.sv"], tool="vivado")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()
