@@ -126,6 +126,14 @@ def run(
         errors.append({"file": "", "line": 0, "severity": "error",
                         "message": f"Vivado exited with code {cp.returncode}"})
 
+    # rc==0 with nothing parsed is indistinguishable from an empty design;
+    # flag it so all-zero metrics aren't read as a real result.
+    if cp.returncode == 0 and not any(util.values()) and _TIMING_RE.search(combined) is None:
+        warnings.append({"file": "", "line": 0, "severity": "warning", "message": (
+            "No utilization or timing figures found in Vivado output; "
+            "the report format may be unsupported — check raw_output."
+        )})
+
     return {
         "tool": "vivado",
         "target": part,
