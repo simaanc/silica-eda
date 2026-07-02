@@ -1,8 +1,6 @@
 """eqy adapter — equivalence checking for Yosys."""
 
-import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
