@@ -89,6 +89,7 @@ def register(mcp: "FastMCP") -> None:
             "output": None,
             "workdir": "",
             "warnings": [],
-            "errors": [{"message": f"Unknown place-and-route tool '{tool}'. Supported: auto, nextpnr."}],
+            "errors": [{"message": f"Unknown place-and-route tool '{tool}'. "
+                                   "Supported: auto, nextpnr."}],
             "raw_output": "",
         }

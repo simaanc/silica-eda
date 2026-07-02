@@ -1,11 +1,11 @@
 """Tests for silica.tools.place_route (run_place_route MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import place_route
-
 
 PNR_SUCCESS = {
     "tool": "nextpnr-ice40", "target": "hx8k", "exit_code": 0,

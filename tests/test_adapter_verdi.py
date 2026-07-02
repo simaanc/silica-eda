@@ -1,9 +1,8 @@
 """Tests for silica.adapters.verdi."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from silica.adapters import verdi
-
 
 FAKE_BIN = "/tools/synopsys/verdi"
 

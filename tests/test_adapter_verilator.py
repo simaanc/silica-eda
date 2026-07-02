@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import verilator
-
 
 FAKE_BIN = "/usr/bin/verilator"
 
@@ -58,7 +58,8 @@ def test_warning_parsed(mock_run, mock_which, mock_env):
 
 @patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
-@patch("silica.adapters.verilator.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.verilator.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 def test_timeout_returns_error(mock_run, mock_which, mock_env):
     result = verilator.run("dut.sv", "tb.sv")
     assert result["exit_code"] == -1

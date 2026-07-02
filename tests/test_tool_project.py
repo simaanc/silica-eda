@@ -129,7 +129,8 @@ def test_write_rtl_diff_present(tools, in_project):
 
 def test_write_rtl_rejects_escape_outside_project(tools, in_project, tmp_path_factory):
     outside = tmp_path_factory.mktemp("outside") / "evil.sv"
-    result = tools["write_rtl"](file=str(outside), content="module evil(); endmodule", dry_run=False)
+    result = tools["write_rtl"](file=str(outside), content="module evil(); endmodule",
+                                dry_run=False)
     assert result["written"] is False
     assert "escapes the project directory" in result["error"]
     assert not outside.exists()

@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import dc_shell
-
 
 FAKE_BIN = "/tools/synopsys/dc_shell"
 
@@ -47,7 +47,8 @@ def test_failure(mock_resolve, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.dc_shell.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.dc_shell.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.dc_shell.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = dc_shell.run("top", ["dut.sv"])

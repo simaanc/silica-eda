@@ -1,9 +1,10 @@
 """RTL fixtures shared across integration tests."""
 
 import subprocess
-import pytest
-from silica import oss_cad_suite
 
+import pytest
+
+from silica import oss_cad_suite
 
 # ---------------------------------------------------------------------------
 # RTL fixtures — simple self-contained designs written to tmp_path

@@ -1,6 +1,7 @@
 """Integration tests for the SymbiYosys (sby) formal verification adapter."""
 
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import sby
 

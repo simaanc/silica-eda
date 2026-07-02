@@ -1,7 +1,8 @@
 """Tests for silica.tools.waveform (launch_waveform MCP tool)."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from conftest import MockMCP
 
 from silica.tools import waveform
@@ -39,7 +40,8 @@ def test_gtkwave_named(mock_resolve, mock_popen, launch_waveform, vcd_file):
     assert result["viewer"] == "gtkwave"
 
 
-@patch("silica.adapters.verdi.launch", return_value={"launched": True, "viewer": "verdi", "trace": "sim.vcd"})
+@patch("silica.adapters.verdi.launch",
+       return_value={"launched": True, "viewer": "verdi", "trace": "sim.vcd"})
 def test_verdi_named(mock_launch, launch_waveform, vcd_file):
     result = launch_waveform(vcd_file, viewer="verdi")
     assert result["launched"] is True

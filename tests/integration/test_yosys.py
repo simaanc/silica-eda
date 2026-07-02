@@ -1,6 +1,7 @@
 """Integration tests for the Yosys adapter (synthesis)."""
 
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import yosys
 

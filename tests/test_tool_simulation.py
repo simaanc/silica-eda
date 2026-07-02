@@ -1,7 +1,8 @@
 """Tests for silica.tools.simulation (run_simulation MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import simulation
