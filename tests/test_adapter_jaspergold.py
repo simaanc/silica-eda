@@ -35,7 +35,8 @@ def test_fail(mock_resolve, mock_run):
     assert result["status"] == "FAIL"
 
 
-@patch("silica.adapters.jaspergold.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.jaspergold.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.jaspergold.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = jaspergold.run(files=["dut.sv"], top="top")
@@ -46,7 +47,8 @@ def test_timeout_returns_error(mock_resolve, mock_run):
 def test_result_has_required_keys():
     with patch("silica.adapters.jaspergold.resolve", return_value=None):
         result = jaspergold.run(files=["dut.sv"], top="top")
-        for key in ("status", "rc", "failures", "traces", "warnings", "errors", "workdir", "raw_output"):
+        for key in ("status", "rc", "failures", "traces", "warnings",
+                    "errors", "workdir", "raw_output"):
             assert key in result
 
 

@@ -6,7 +6,8 @@ from silica import oss_cad_suite
 
 
 def test_bundled_contains_expected_tools():
-    for tool in ("verilator", "iverilog", "yosys", "sby", "ghdl", "eqy", "nextpnr", "openfpgaloader"):
+    for tool in ("verilator", "iverilog", "yosys", "sby", "ghdl",
+                 "eqy", "nextpnr", "openfpgaloader"):
         assert tool in oss_cad_suite.BUNDLED
 
 

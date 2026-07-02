@@ -228,7 +228,8 @@ def _client_items(existing_clients: list[str]) -> list[dict]:
     items = []
     for key, client in CLIENTS.items():
         detected = _detect_client(key)
-        label = hyperlink(client["name"], client["url"]) if supports_hyperlinks() else client["name"]
+        label = (hyperlink(client["name"], client["url"])
+                 if supports_hyperlinks() else client["name"])
         if detected:
             meta = f"detected   {detected}"
         else:

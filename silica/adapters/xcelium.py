@@ -63,7 +63,9 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
             vcd_path = str(Path(trace_dir) / "dump.vcd") if trace_dir else "dump.vcd"
             cmd += [
                 "-access", "+rw",
-                "-input", f"database -open -vcd {vcd_path} -timescale ns; probe -create -all -vcd -depth all",
+                "-input",
+                f"database -open -vcd {vcd_path} -timescale ns; "
+                "probe -create -all -vcd -depth all",
             ]
 
         cp = subprocess.run(

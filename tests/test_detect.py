@@ -17,7 +17,8 @@ def test_binaries_list_tool():
 
 def test_binaries_nextpnr_includes_all_arches():
     result = _binaries("nextpnr")
-    for binary in ("nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus", "nextpnr-machxo2", "nextpnr-generic"):
+    for binary in ("nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus",
+                   "nextpnr-machxo2", "nextpnr-generic"):
         assert binary in result
 
 
@@ -48,6 +49,7 @@ def test_resolve_returns_none_when_not_found():
 
 
 def test_resolve_nextpnr_finds_any_arch():
-    with patch("shutil.which", side_effect=lambda b: "/usr/bin/nextpnr-ecp5" if b == "nextpnr-ecp5" else None):
+    with patch("shutil.which",
+               side_effect=lambda b: "/usr/bin/nextpnr-ecp5" if b == "nextpnr-ecp5" else None):
         result = resolve("nextpnr")
         assert result == "/usr/bin/nextpnr-ecp5"

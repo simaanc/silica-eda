@@ -107,7 +107,8 @@ def run(
             warnings.append(entry)
 
     if cp.returncode != 0 and not errors and status == "ERROR":
-        errors.append({"file": "", "line": 0, "message": f"vc_formal exited with code {cp.returncode}"})
+        errors.append({"file": "", "line": 0,
+                       "message": f"vc_formal exited with code {cp.returncode}"})
 
     return {
         "status": status,

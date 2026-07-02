@@ -49,5 +49,6 @@ def test_tools_dict_is_not_empty():
 
 
 def test_known_tools_present():
-    for tool in ("verilator", "iverilog", "yosys", "sby", "nextpnr", "ghdl", "eqy", "openfpgaloader"):
+    for tool in ("verilator", "iverilog", "yosys", "sby", "nextpnr",
+                 "ghdl", "eqy", "openfpgaloader"):
         assert tool in TOOLS, f"{tool} not in TOOLS"

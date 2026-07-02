@@ -62,7 +62,8 @@ def test_spi_flash_flag(mock_run, mock_which, mock_env, bitstream_file):
 
 @patch("silica.adapters.openfpgaloader.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.openfpgaloader.oss_cad_suite.which", return_value=FAKE_BIN)
-@patch("silica.adapters.openfpgaloader.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.openfpgaloader.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=60))
 def test_timeout(mock_run, mock_which, mock_env, bitstream_file):
     result = openfpgaloader.run(bitstream_file)
     assert result["exit_code"] == -1

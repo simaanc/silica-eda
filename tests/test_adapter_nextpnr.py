@@ -68,7 +68,8 @@ def test_timing_fail(mock_run, mock_which, mock_env, netlist_file):
 
 @patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value="/usr/bin/nextpnr-ice40")
-@patch("silica.adapters.nextpnr.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=120))
+@patch("silica.adapters.nextpnr.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=120))
 def test_timeout(mock_run, mock_which, mock_env, netlist_file):
     result = nextpnr.run(netlist_file)
     assert result["exit_code"] == -1
