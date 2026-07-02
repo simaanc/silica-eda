@@ -1,5 +1,6 @@
 """MCP tool: run_formal."""
 
+import shutil
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -80,6 +81,11 @@ def register(mcp: "FastMCP") -> None:
             tmp_dir = Path(tempfile.mkdtemp(prefix="silica_sby_gen_"))
             sby_path = tmp_dir / f"{top}.sby"
             sby_path.write_text(sby_content, encoding="utf-8")
+            # generate_sby emits basenames in [files]; sby resolves them
+            # against the .sby file's directory, so the sources must sit
+            # next to the generated config.
+            for f in files:
+                shutil.copy2(f, tmp_dir / Path(f).name)
             result = sby_adapter.run(str(sby_path), timeout=timeout)
             result["generated_sby"] = sby_content
             return result
