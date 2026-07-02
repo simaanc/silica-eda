@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import vcs
-
 
 FAKE_BIN = "/tools/synopsys/vcs"
 
@@ -54,7 +54,8 @@ def test_sim_failure_generic_error(mock_resolve, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.vcs.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.vcs.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.vcs.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = vcs.run("dut.sv", "tb.sv")

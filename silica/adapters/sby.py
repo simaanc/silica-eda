@@ -144,7 +144,8 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
     # Parse warnings and errors from Yosys elaboration
     warnings = []
     for m in _WARNING_RE.finditer(raw):
-        warnings.append({"file": m.group(1), "line": int(m.group(2)), "message": m.group(3).strip()})
+        warnings.append({"file": m.group(1), "line": int(m.group(2)),
+                         "message": m.group(3).strip()})
 
     errors = []
     for m in _ERROR_RE.finditer(raw):

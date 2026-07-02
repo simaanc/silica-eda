@@ -1,12 +1,13 @@
 """Tests for silica.adapters.verible."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import verible
 
-
-VERIBLE_OUTPUT = "dut.sv:5:3: Remove trailing whitespace [whitespace/line-length]\ndut.sv:10:1: Line too long [line-length]\n"
+VERIBLE_OUTPUT = ("dut.sv:5:3: Remove trailing whitespace [whitespace/line-length]\n"
+                  "dut.sv:10:1: Line too long [line-length]\n")
 
 
 @patch("silica.adapters.verible.resolve", return_value=None)
@@ -59,7 +60,8 @@ def test_parse_warnings():
     assert warnings[0]["rule_id"] == "whitespace/line-length"
 
 
-@patch("silica.adapters.verible.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
+@patch("silica.adapters.verible.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
 @patch("silica.adapters.verible.resolve", return_value="/usr/bin/verible-verilog-lint")
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = verible.run("dut.sv")

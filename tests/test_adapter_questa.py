@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import questa
-
 
 FAKE_VSIM = "/tools/questasim/bin/vsim"
 
@@ -103,7 +103,8 @@ def test_vlib_gets_timeout(mock_resolve, mock_run):
     assert vlib_call.kwargs.get("timeout") == 17
 
 
-@patch("silica.adapters.questa.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.questa.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = questa.run("dut.sv", "tb.sv")

@@ -1,7 +1,9 @@
 """Integration tests for the GHDL adapter (VHDL simulation)."""
 
 import os
+
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import ghdl
 

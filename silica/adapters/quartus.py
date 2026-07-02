@@ -38,7 +38,8 @@ def _parse_report(text: str) -> dict:
 
 def _make_qsf(top: str, files: list[str], device: str) -> str:
     file_lines = "\n".join(
-        f'set_global_assignment -name {"SYSTEMVERILOG_FILE" if f.endswith((".sv", ".svh")) else "VERILOG_FILE"} "{f}"'
+        f'set_global_assignment -name '
+        f'{"SYSTEMVERILOG_FILE" if f.endswith((".sv", ".svh")) else "VERILOG_FILE"} "{f}"'
         for f in files
     )
     return f"""\
@@ -163,6 +164,7 @@ def _not_found(target: str = "generic") -> dict:
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
-                    "message": "quartus_sh/quartus_map not found. Quartus requires an Intel installation."}],
+                    "message": ("quartus_sh/quartus_map not found. "
+                                "Quartus requires an Intel installation.")}],
         "raw_output": "",
     }

@@ -43,7 +43,6 @@ def _make_tcl(top: str, files: list[str], target: str) -> str:
     read_cmds = "\n".join(
         f"read_file -format sverilog {{{f}}}" for f in files
     )
-    tech_line = f"link_library = {{{target}}}" if target not in ("generic", "") else ""
     return f"""\
 set_app_var link_library "* {target if target not in ("generic", "") else ""}"
 {read_cmds}

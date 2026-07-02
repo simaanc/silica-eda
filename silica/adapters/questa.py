@@ -167,7 +167,8 @@ def _timeout_result(file: str, timeout: int) -> dict:
 def _not_found() -> dict:
     return {
         "exit_code": -1,
-        "errors": [_generic_error("", "vsim/vlog not found. Questa requires a Siemens EDA license.")],
+        "errors": [_generic_error(
+            "", "vsim/vlog not found. Questa requires a Siemens EDA license.")],
         "warnings": [],
         "raw_stdout": "",
         "raw_stderr": "",

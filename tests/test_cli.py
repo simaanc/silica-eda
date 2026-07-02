@@ -1,8 +1,9 @@
 """Tests for silica.cli."""
 
 import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from silica import cli
 
