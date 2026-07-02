@@ -20,10 +20,11 @@ def test_every_tool_has_base_required_keys():
             assert key in tool, f"{name} missing key: {key}"
 
 
-def test_oss_tools_have_install_key():
+def test_oss_tools_have_required_keys():
     for name, tool in TOOLS.items():
         if name not in COMMERCIAL_TOOLS:
-            assert "install" in tool, f"OSS tool {name} missing install key"
+            for key in OSS_REQUIRED_KEYS:
+                assert key in tool, f"OSS tool {name} missing key: {key}"
 
 
 def test_every_tool_category_is_valid():
