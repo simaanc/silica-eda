@@ -1,8 +1,6 @@
 """Tests for silica.config."""
 
 import pytest
-from unittest.mock import patch
-from pathlib import Path
 
 import silica.config as cfg
 

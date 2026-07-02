@@ -1,7 +1,6 @@
 """Tests for silica.adapters.xcelium."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 

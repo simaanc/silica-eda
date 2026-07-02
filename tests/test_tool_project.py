@@ -1,7 +1,6 @@
 """Tests for silica.tools.project (project MCP tools)."""
 
 import pytest
-from unittest.mock import patch
 from conftest import MockMCP
 
 from silica.tools import project
