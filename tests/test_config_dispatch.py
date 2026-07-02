@@ -2,12 +2,13 @@
 
 from unittest.mock import patch
 
-from silica.tools._config_dispatch import check_enabled, pick, is_enabled
+from silica.tools._config_dispatch import check_enabled, is_enabled, pick
 
 
 def test_pick_uses_fallback_when_no_config():
     with patch("silica.config.load", return_value={}):
-        with patch("shutil.which", side_effect=lambda b: "/usr/bin/verilator" if b == "verilator" else None):
+        with patch("shutil.which",
+                   side_effect=lambda b: "/usr/bin/verilator" if b == "verilator" else None):
             result = pick("simulation")
             assert result == "verilator"
 

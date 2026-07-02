@@ -1,21 +1,23 @@
 """Tests for silica.tools.lint (lint MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import lint
 
-
 LINT_CLEAN = {"warnings": [], "tool": "verible-verilog-lint", "raw_output": ""}
 LINT_WARN = {
-    "warnings": [{"file": "dut.sv", "line": 5, "severity": "warning", "rule_id": "x", "message": "issue"}],
+    "warnings": [{"file": "dut.sv", "line": 5, "severity": "warning",
+                  "rule_id": "x", "message": "issue"}],
     "tool": "verible-verilog-lint", "raw_output": "dut.sv:5:1: issue [x]",
 }
 VERILATOR_LINT = {
     "exit_code": 0,
     "errors": [],
-    "warnings": [{"file": "dut.sv", "line": 3, "severity": "warning", "message": "%Warning-UNUSED: unused"}],
+    "warnings": [{"file": "dut.sv", "line": 3, "severity": "warning",
+                  "message": "%Warning-UNUSED: unused"}],
     "raw_stdout": "", "raw_stderr": "",
 }
 

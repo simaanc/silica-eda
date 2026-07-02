@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+from silica.adapters import eqy as eqy_adapter
+from silica.adapters import jaspergold, vc_formal
 from silica.adapters import sby as sby_adapter
-from silica.adapters import jaspergold, vc_formal, eqy as eqy_adapter
 from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import check_enabled, pick
 

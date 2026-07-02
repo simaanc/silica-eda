@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import icarus
-
 
 FAKE_BIN = "/usr/bin/iverilog"
 
@@ -17,7 +17,8 @@ ICARUS_WARNING = "dut.sv:3: warning: implicit wire\n"
 def test_not_found(mock_which):
     result = icarus.run("dut.sv", "tb.sv")
     assert result["exit_code"] == -1
-    assert any("iverilog" in e["message"].lower() or "vvp" in e["message"].lower() for e in result["errors"])
+    assert any("iverilog" in e["message"].lower() or "vvp" in e["message"].lower()
+               for e in result["errors"])
 
 
 @patch("silica.adapters.icarus.oss_cad_suite.env_with_suite", return_value={})
@@ -46,7 +47,8 @@ def test_compile_error(mock_run, mock_which, mock_env):
 
 @patch("silica.adapters.icarus.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.icarus.oss_cad_suite.which", return_value=FAKE_BIN)
-@patch("silica.adapters.icarus.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
+@patch("silica.adapters.icarus.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 def test_timeout_returns_error(mock_run, mock_which, mock_env):
     result = icarus.run("dut.sv", "tb.sv")
     assert result["exit_code"] == -1

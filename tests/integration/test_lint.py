@@ -1,9 +1,11 @@
 """Integration tests for lint adapters (verilator, verible, svlint)."""
 
 import shutil
+
 import pytest
+
 from silica import oss_cad_suite
-from silica.adapters import verilator, verible, svlint
+from silica.adapters import svlint, verible, verilator
 
 pytestmark = pytest.mark.integration
 

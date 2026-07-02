@@ -1,10 +1,10 @@
 """Tests for silica.adapters.svlint."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import svlint
-
 
 # svlint imports shutil inside run(), so mock at the shutil module level
 SVLINT_OUTPUT = "dut.sv:5:3: `always_comb` is not implemented [enum_with_type]\n"
@@ -56,7 +56,8 @@ def test_parse_fail_format():
     assert warnings[0]["line"] == 10
 
 
-@patch("silica.adapters.svlint.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
+@patch("silica.adapters.svlint.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
 @patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = svlint.run("dut.sv")

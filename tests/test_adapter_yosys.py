@@ -1,12 +1,12 @@
 """Tests for silica.adapters.yosys."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import make_proc
 
 from silica.adapters import yosys
-
 
 STAT_OUTPUT = """\
 === top ===
@@ -49,7 +49,8 @@ def test_failure(mock_which, mock_run):
     assert len(result["errors"]) > 0
 
 
-@patch("silica.adapters.yosys.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
+@patch("silica.adapters.yosys.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
 @patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
 def test_timeout_returns_error(mock_which, mock_run):
     result = yosys.run("top", ["dut.sv"])

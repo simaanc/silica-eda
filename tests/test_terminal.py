@@ -1,7 +1,8 @@
 """Tests for silica.terminal (OSC-8 hyperlink support detection)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from silica import terminal
 

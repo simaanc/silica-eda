@@ -1,7 +1,8 @@
 """Tests for silica.adapters._hints."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from silica.adapters._hints import install_hint
 

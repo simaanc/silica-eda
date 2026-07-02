@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
-from silica.adapters import icarus, verilator, ghdl
-from silica.adapters import vcs, questa, xcelium
+from silica.adapters import ghdl, icarus, questa, vcs, verilator, xcelium
 from silica.adapters._hints import install_hint
 from silica.tools._config_dispatch import check_enabled, pick
 
@@ -36,8 +35,9 @@ def register(mcp: "FastMCP") -> None:
         Args:
             file: Path to the DUT source file (.sv / .v for Verilog, .vhd for VHDL).
             testbench: Path to the testbench file.
-            simulator: "auto" | "verilator" | "icarus" | "iverilog" | "ghdl" | "vcs" | "questa" | "xcelium".
-                       "iverilog" is accepted as an alias for "icarus". Auto uses config priority order.
+            simulator: "auto" | "verilator" | "icarus" | "iverilog" | "ghdl" |
+                       "vcs" | "questa" | "xcelium". "iverilog" is accepted as
+                       an alias for "icarus". Auto uses config priority order.
             top: Top module/entity name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
             trace: When True, capture a VCD waveform trace. Returns trace_vcd path

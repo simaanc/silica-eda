@@ -19,10 +19,9 @@ else:
     import tty
 
 from silica import config as cfg
-from silica import oss_cad_suite
+from silica import detect, oss_cad_suite
 from silica.clients_registry import CLIENTS
 from silica.terminal import docs_link, hyperlink, supports_hyperlinks, tool_link
-from silica import detect
 from silica.tools_registry import CATEGORIES, TOOLS
 
 # ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -229,7 +228,8 @@ def _client_items(existing_clients: list[str]) -> list[dict]:
     items = []
     for key, client in CLIENTS.items():
         detected = _detect_client(key)
-        label = hyperlink(client["name"], client["url"]) if supports_hyperlinks() else client["name"]
+        label = (hyperlink(client["name"], client["url"])
+                 if supports_hyperlinks() else client["name"])
         if detected:
             meta = f"detected   {detected}"
         else:
@@ -574,16 +574,13 @@ def _step_summary(tool_selections: dict[str, list[str]], client_selections: list
     tools_str = ", ".join(all_tools) if all_tools else "(none)"
     clients_str = ", ".join(configured_clients) if configured_clients else "(none)"
 
-    serve_cmd = hyperlink("silica serve", "https://getsilica.dev")
-    config_cmd = _bold("silica config")
-
     print(_bold("Setup complete ✓\n"))
     print(f"  Tools enabled:      {tools_str}")
     print(f"  Clients configured: {clients_str}")
     print(f"  Config saved to:    {cfg.config_path()}\n")
-    print(f"  Start the server:")
+    print("  Start the server:")
     print(f"    {_cyan('silica serve')}\n")
-    print(f"  View current config anytime:")
+    print("  View current config anytime:")
     print(f"    {_cyan('silica config')}\n")
 
 
@@ -654,7 +651,7 @@ def print_config() -> None:
             if not supports_hyperlinks():
                 print(f"      {_cyan(url)}")
 
-    print(f"\n  Run 'silica setup' to change configuration.\n")
+    print("\n  Run 'silica setup' to change configuration.\n")
 
 
 # ── main entrypoint ───────────────────────────────────────────────────────────

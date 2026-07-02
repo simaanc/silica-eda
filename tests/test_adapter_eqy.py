@@ -1,10 +1,10 @@
 """Tests for silica.adapters.eqy."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import eqy
-
 
 EQY_PASS = "DONE (PASS, rc=0)\n"
 EQY_FAIL = "Mismatch in output 'q'\nDONE (FAIL, rc=2)\n"
@@ -46,7 +46,8 @@ def test_fail(mock_run, mock_which, mock_env, eqy_file):
 
 @patch("silica.adapters.eqy.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.eqy.oss_cad_suite.which", return_value="/usr/bin/eqy")
-@patch("silica.adapters.eqy.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=300))
+@patch("silica.adapters.eqy.subprocess.run",
+       side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=300))
 def test_timeout_returns_error(mock_run, mock_which, mock_env, eqy_file):
     result = eqy.run(eqy_file=eqy_file)
     assert result["status"] == "ERROR"

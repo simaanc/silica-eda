@@ -2,15 +2,16 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import spyglass
 
-
 FAKE_BIN = "/tools/synopsys/sg_shell"
 
 # Format: filename.sv line N Violation <RULE_ID> message
-SPYGLASS_OUTPUT = "dut.sv line 5 Violation <STARC0513> Multiple assignment to wire\ndut.sv line 10 Violation <STARC0514> Async reset\n"
+SPYGLASS_OUTPUT = ("dut.sv line 5 Violation <STARC0513> Multiple assignment to wire\n"
+                   "dut.sv line 10 Violation <STARC0514> Async reset\n")
 
 
 @patch("silica.adapters.spyglass.resolve", return_value=None)
@@ -38,7 +39,8 @@ def test_clean_file(mock_resolve, mock_run):
     assert "error" not in result
 
 
-@patch("silica.adapters.spyglass.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
+@patch("silica.adapters.spyglass.subprocess.run",
+       side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
 @patch("silica.adapters.spyglass.resolve", return_value=FAKE_BIN)
 def test_timeout_returns_error(mock_resolve, mock_run):
     result = spyglass.run("dut.sv")
