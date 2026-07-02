@@ -139,6 +139,28 @@ claude mcp add silica silica serve
 | `silica setup` | Interactive first-run configuration wizard. |
 | `silica config` | Show current configuration and live tool status (incl. detected OSS CAD Suite). |
 
+## Controlling tool selection
+
+By default every detected tool is available and `auto` picks the best one (open-source first). To control this per category, edit `~/.silica/config.toml`:
+
+```toml
+[tools.simulation]
+priority = ["verilator", "iverilog"]   # ordering for auto-selection
+enabled  = ["verilator", "iverilog"]   # allowlist — everything else is blocked
+```
+
+`priority` reorders what `auto` tries. `enabled` is an enforced allowlist: tools not on it can't be used **even when the model asks for one explicitly** — the request is rejected with an error naming the tool and what's enabled, so the model can retry with an allowed one. Useful when a machine has commercial tools installed that shouldn't be run (license pools, air-gapped flows). Leave `enabled` empty or unset for no restriction.
+
+Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `waveform`, `program`.
+
+## Guardrails
+
+Built for pointing an autonomous agent at a real repo:
+
+- **File access is confined to the project directory** — `read_rtl` / `write_rtl` / `get_constraints` reject absolute or `..` paths that escape the directory the server was started in.
+- **Writes are diff-first** — `write_rtl` defaults to a dry run that returns a unified diff; nothing touches disk until explicitly confirmed.
+- **A hung tool never kills the server** — every tool call has a timeout and returns a structured error instead of crashing the session.
+
 ## MCP Tools
 
 | Tool | Description |
@@ -230,10 +252,14 @@ silica/
 ```bash
 git clone https://github.com/simaanc/silica-eda
 cd silica-eda
-pip install -e ".[dev]"
+uv sync                  # installs silica-eda editable + dev deps (pytest, ruff)
+
+# Run the test suite and linter
+uv run pytest tests/ -q
+uv run ruff check silica/ tests/
 
 # Run the server locally (for debugging)
-silica serve
+uv run silica serve
 
 # Run the UART end-to-end test
 iverilog -g2012 -o /tmp/uart_sim examples/uart/uart_tx_tb.sv examples/uart/uart_tx.sv
