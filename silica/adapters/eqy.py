@@ -8,6 +8,7 @@ from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
+from silica.adapters._script_paths import unsafe_script_value
 
 
 def _eqy_cmd() -> list[str] | None:
@@ -54,6 +55,11 @@ def run(
         traces: [] (eqy does not produce VCD counterexamples)
         warnings, errors, workdir, raw_output
     """
+    if not eqy_file:
+        bad = unsafe_script_value(gold_files, gate_files, top)
+        if bad:
+            return _error_result(bad, "")
+
     # On Windows, eqy's bash+make pipeline cannot run yosys due to MSYS2 pipe
     # incompatibility with native Windows binaries. When called in auto-generate
     # mode, bypass eqy entirely and run yosys equiv_* commands directly.

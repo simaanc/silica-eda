@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from silica.adapters import sby as sby_adapter
 from silica.adapters import jaspergold, vc_formal, eqy as eqy_adapter
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import pick
 
 _FORMAL_ADAPTERS = {
@@ -73,6 +74,10 @@ def register(mcp: "FastMCP") -> None:
 
             if not files or not top:
                 return _error_result("Provide either sby_file or both files + top.")
+
+            bad = unsafe_script_value(files, top, mode, engine)
+            if bad:
+                return _error_result(bad)
 
             sby_content = sby_adapter.generate_sby(
                 files=files, top=top, mode=mode, depth=depth, engine=engine,

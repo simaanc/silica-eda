@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # DC Shell report_area output
@@ -66,6 +67,10 @@ def run(
 
     target: technology library path, or "generic" for no tech binding.
     """
+    bad = unsafe_script_value(files, top, target)
+    if bad:
+        return _script_error(bad, target)
+
     binary = resolve("dc_shell")
     if not binary:
         return _not_found(target)
@@ -108,6 +113,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "dc_shell",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 
