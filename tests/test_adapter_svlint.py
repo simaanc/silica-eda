@@ -1,10 +1,10 @@
 """Tests for silica.adapters.svlint."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import svlint
-
 
 # svlint imports shutil inside run(), so mock at the shutil module level
 SVLINT_OUTPUT = "dut.sv:5:3: `always_comb` is not implemented [enum_with_type]\n"

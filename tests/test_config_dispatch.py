@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from silica.tools._config_dispatch import check_enabled, pick, is_enabled
+from silica.tools._config_dispatch import check_enabled, is_enabled, pick
 
 
 def test_pick_uses_fallback_when_no_config():

@@ -1,11 +1,11 @@
 """Tests for silica.adapters.nextpnr."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import make_proc
 
 from silica.adapters import nextpnr
-
 
 NEXTPNR_OUTPUT = """\
 Info: Max frequency for clock 'clk': 72.45 MHz (PASS)

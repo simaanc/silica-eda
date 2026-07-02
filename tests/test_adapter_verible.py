@@ -1,10 +1,10 @@
 """Tests for silica.adapters.verible."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import verible
-
 
 VERIBLE_OUTPUT = "dut.sv:5:3: Remove trailing whitespace [whitespace/line-length]\ndut.sv:10:1: Line too long [line-length]\n"
 

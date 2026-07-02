@@ -1,15 +1,22 @@
 """Tests for script-metacharacter rejection in generated tool scripts."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.adapters import (
-    dc_shell, eqy, jaspergold, quartus, spyglass, vc_formal, vivado, yosys,
+    dc_shell,
+    eqy,
+    jaspergold,
+    quartus,
+    spyglass,
+    vc_formal,
+    vivado,
+    yosys,
 )
 from silica.adapters._script_paths import unsafe_script_value
 from silica.tools import formal
-
 
 # --- helper ---
 

@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
-from silica.adapters import yosys
-from silica.adapters import vivado, quartus, dc_shell
+from silica.adapters import dc_shell, quartus, vivado, yosys
 from silica.tools._config_dispatch import check_enabled, pick
 
 
