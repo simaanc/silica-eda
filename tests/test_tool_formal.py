@@ -47,6 +47,20 @@ def test_sby_auto_generate(mock_gen, mock_run, run_formal, sv_file):
     assert "generated_sby" in result
 
 
+@patch("silica.adapters.sby.run", return_value=FORMAL_PASS)
+def test_sby_auto_generate_copies_sources_next_to_config(mock_run, run_formal, tmp_path):
+    # generate_sby emits basenames in [files], which sby resolves against the
+    # .sby's directory — the sources must be copied into the generated dir.
+    from pathlib import Path
+    src = tmp_path / "dut.sv"
+    src.write_text("module dut(); endmodule\n")
+    run_formal(files=[str(src)], top="dut", tool="sby")
+    sby_path = Path(mock_run.call_args.args[0])
+    assert sby_path.name == "dut.sby"
+    assert (sby_path.parent / "dut.sv").exists()
+    assert (sby_path.parent / "dut.sv").read_text() == src.read_text()
+
+
 @patch("silica.adapters.eqy.run", return_value={**FORMAL_PASS, "traces": []})
 def test_eqy_with_file(mock_run, run_formal, eqy_file):
     result = run_formal(sby_file=eqy_file, tool="eqy")
