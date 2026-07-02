@@ -2,7 +2,6 @@
 
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 from tempfile import mkdtemp
 
