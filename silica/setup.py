@@ -573,9 +573,6 @@ def _step_summary(tool_selections: dict[str, list[str]], client_selections: list
     tools_str = ", ".join(all_tools) if all_tools else "(none)"
     clients_str = ", ".join(configured_clients) if configured_clients else "(none)"
 
-    serve_cmd = hyperlink("silica serve", "https://getsilica.dev")
-    config_cmd = _bold("silica config")
-
     print(_bold("Setup complete ✓\n"))
     print(f"  Tools enabled:      {tools_str}")
     print(f"  Clients configured: {clients_str}")
