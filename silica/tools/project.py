@@ -1,7 +1,6 @@
 """MCP tools: file and project operations."""
 
 import difflib
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 

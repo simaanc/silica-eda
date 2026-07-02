@@ -1,8 +1,7 @@
 """Tests for silica.adapters.questa."""
 
 import subprocess
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from conftest import make_proc
 
 from silica.adapters import questa

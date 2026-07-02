@@ -1,6 +1,5 @@
 """Tests for silica.adapters.svlint."""
 
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
