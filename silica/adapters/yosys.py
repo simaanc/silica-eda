@@ -1,20 +1,19 @@
 """Yosys adapter — synthesis and utilization reporting."""
 
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
+from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
-# FF cells in generic/abstract synthesis
-_FF_CELLS = {
-    "$dff", "$dffe", "$sdff", "$sdffe", "$adff", "$adffe",
-    "$dffsr", "$dffsre",
-    "$_DFF_P_", "$_DFF_N_", "$_DFFE_PP_", "$_DFFE_PN_",
-    "$_DFFE_NP_", "$_DFFE_NN_",
+# Abstract FF cells produced by yosys before technology mapping
+_FF_CELL_ABSTRACT = {
+    "$dff", "$dffe", "$sdff", "$sdffe", "$adff", "$adffe", "$dffsr", "$dffsre",
 }
+# Tech-mapped single-bit DFF variants (any $_DFF*_ or $_DFFE*_ cell is a FF)
+_FF_CELL_MAPPED_RE = re.compile(r"^\$_DFF(E|SR|SRE)?_")
 _LUT_CELLS = {
     "$lut", "$pmux",
     "$_LUT1_", "$_LUT2_", "$_LUT3_", "$_LUT4_", "$_LUT5_", "$_LUT6_",
@@ -22,16 +21,20 @@ _LUT_CELLS = {
 _MEM_CELLS = {"$mem", "$mem_v2", "$memrd", "$memrd_v2", "$memwr", "$memwr_v2"}
 _DSP_CELLS = {"$mul", "$div", "$mod", "$pow"}
 
-_CELL_RE = re.compile(r"^\s+(\$[\w:]+|\w+)\s+(\d+)\s*$", re.MULTILINE)
+# Abstract cell format:   "  $cell_name    COUNT"  (cell then count, right-aligned)
+# Tech-mapped cell format: "    COUNT   $cell_name" (count then cell)
+# Both must be matched.
+_CELL_RE_ABSTRACT = re.compile(r"^\s+(\$[\w:]+)\s+(\d+)\s*$", re.MULTILINE)
+_CELL_RE_MAPPED = re.compile(r"^\s+(\d+)\s+(\$[\w:]+|\w[\w:]*)\s*$", re.MULTILINE)
 _WARNING_RE = re.compile(r"^Warning:\s*(.+)$", re.MULTILINE)
 
 
 def _count_cells(stat_output: str) -> dict:
     luts = ffs = bram = dsp = 0
-    for m in _CELL_RE.finditer(stat_output):
-        cell, count_str = m.group(1), m.group(2)
-        count = int(count_str)
-        if cell in _FF_CELLS:
+
+    def _tally(cell: str, count: int) -> None:
+        nonlocal luts, ffs, bram, dsp
+        if cell in _FF_CELL_ABSTRACT or _FF_CELL_MAPPED_RE.match(cell):
             ffs += count
         elif cell in _LUT_CELLS:
             luts += count
@@ -39,6 +42,12 @@ def _count_cells(stat_output: str) -> dict:
             bram += count
         elif cell in _DSP_CELLS:
             dsp += count
+
+    for m in _CELL_RE_ABSTRACT.finditer(stat_output):
+        _tally(m.group(1), int(m.group(2)))
+    for m in _CELL_RE_MAPPED.finditer(stat_output):
+        _tally(m.group(2), int(m.group(1)))
+
     return {"luts": luts, "ffs": ffs, "bram": bram, "dsp": dsp,
             "lut_pct": 0.0, "ff_pct": 0.0}
 
@@ -65,16 +74,16 @@ def run(
 
     target: "generic" | "ice40" | "ecp5" | "xilinx" | "gowin"
     """
-    binary = shutil.which("yosys")
+    binary = oss_cad_suite.which("yosys")
     if not binary:
         return _not_found()
 
     read_cmds = []
     for f in files:
         if f.endswith(".sv") or f.endswith(".svh"):
-            read_cmds.append(f"read_verilog -sv {f}")
+            read_cmds.append(f'read_verilog -sv "{f}"')
         else:
-            read_cmds.append(f"read_verilog {f}")
+            read_cmds.append(f'read_verilog "{f}"')
 
     synth_cmd = {
         "generic": f"synth -top {top}",
@@ -93,6 +102,7 @@ def run(
             text=True,
             timeout=timeout,
             cwd=tmpdir,
+            env=oss_cad_suite.env_with_suite(),
         )
 
     combined = cp.stdout + cp.stderr
