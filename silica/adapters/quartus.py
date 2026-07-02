@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # Quartus report parser — resource utilization from map/fit reports
@@ -67,6 +68,12 @@ def run(
 
     target: device family string e.g. "cyclone5", "arria10", "stratix10".
     """
+    device = _DEVICE_MAP.get(target, target)
+
+    bad = unsafe_script_value(files, top, device)
+    if bad:
+        return _script_error(bad, device)
+
     binary = resolve("quartus")  # resolves quartus_sh
     if not binary:
         return _not_found(target)
@@ -76,8 +83,6 @@ def run(
     quartus_map = str(quartus_dir / "quartus_map")
     if not Path(quartus_map).exists():
         quartus_map = "quartus_map"
-
-    device = _DEVICE_MAP.get(target, target)
 
     with tempfile.TemporaryDirectory(prefix="silica_quartus_") as tmpdir:
         qsf_path = Path(tmpdir) / f"{top}.qsf"
@@ -121,6 +126,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "quartus",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 
