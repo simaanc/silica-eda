@@ -1,8 +1,6 @@
 """eqy adapter — equivalence checking for Yosys."""
 
-import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,6 +8,7 @@ from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
+from silica.adapters._script_paths import unsafe_script_value
 
 
 def _eqy_cmd() -> list[str] | None:
@@ -42,12 +41,17 @@ def run(
     gate_files: list[str] | None = None,
     top: str | None = None,
     timeout: int = 300,
+    depth: int = 20,
 ) -> dict:
     """Run equivalence checking with eqy.
 
     Two usage modes:
       1. Pass eqy_file — run an existing .eqy config file directly.
       2. Pass gold_files + gate_files + top — auto-generate a config.
+
+    depth bounds the induction proof in the yosys-direct Windows fallback;
+    that path reports it back as induction_depth (UNKNOWN there may just
+    mean the bound was too shallow).
 
     Returns a FormalResult dict:
         status: "PASS" | "FAIL" | "ERROR" | "UNKNOWN"
@@ -56,13 +60,18 @@ def run(
         traces: [] (eqy does not produce VCD counterexamples)
         warnings, errors, workdir, raw_output
     """
+    if not eqy_file:
+        bad = unsafe_script_value(gold_files, gate_files, top)
+        if bad:
+            return _error_result(bad, "")
+
     # On Windows, eqy's bash+make pipeline cannot run yosys due to MSYS2 pipe
     # incompatibility with native Windows binaries. When called in auto-generate
     # mode, bypass eqy entirely and run yosys equiv_* commands directly.
     if sys.platform == "win32" and not eqy_file and gold_files and gate_files and top:
         if not oss_cad_suite.which("yosys"):
             return _not_found()
-        return _run_yosys_equiv(gold_files, gate_files, top, timeout)
+        return _run_yosys_equiv(gold_files, gate_files, top, timeout, depth)
 
     cmd_prefix = _eqy_cmd()
     if not cmd_prefix:
@@ -127,7 +136,8 @@ def run(
 
 
 def _run_yosys_equiv(
-    gold_files: list[str], gate_files: list[str], top: str, timeout: int
+    gold_files: list[str], gate_files: list[str], top: str, timeout: int,
+    depth: int = 20,
 ) -> dict:
     """Windows fallback: equivalence check via yosys equiv_* commands (no bash needed)."""
     workdir = Path(tempfile.mkdtemp(prefix="silica_eqy_"))
@@ -157,7 +167,7 @@ design -copy-from __gate_ds__ -as __gate__ {top}
 
 equiv_make __gold__ __gate__ __equiv__
 equiv_simple __equiv__
-equiv_induct -seq 20 __equiv__
+equiv_induct -seq {depth} __equiv__
 equiv_status __equiv__
 """
 
@@ -209,6 +219,8 @@ equiv_status __equiv__
         "errors": errors,
         "workdir": str(workdir),
         "raw_output": raw,
+        # Bounded induction: UNKNOWN can mean the proof needs a deeper bound.
+        "induction_depth": depth,
     }
 
 

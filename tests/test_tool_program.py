@@ -82,3 +82,34 @@ def test_passes_spi_flash(mock_run, program_device, bitstream_file):
     program_device(bitstream_file, spi_flash=True, tool="openfpgaloader")
     call_kwargs = mock_run.call_args[1]
     assert call_kwargs.get("spi_flash") is True
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_tool_rejected(program_device, bitstream_file):
+    config = {"tools": {"program": {"enabled": ["some_other_programmer"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = program_device(bitstream=bitstream_file, tool="openfpgaloader")
+    assert result["success"] is False
+    assert result["errors"][0]["message"] == (
+        '"openfpgaloader" is disabled by config for category "program"; '
+        'enabled: ["some_other_programmer"]'
+    )
+
+
+@patch("silica.adapters.openfpgaloader.run", return_value=PROG_SUCCESS)
+def test_explicit_enabled_tool_allowed_via_alias(mock_run, program_device, bitstream_file):
+    # Config lists the lowercase registry name; the override uses the binary casing.
+    config = {"tools": {"program": {"enabled": ["openfpgaloader"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = program_device(bitstream=bitstream_file, tool="openFPGALoader")
+    assert result["success"] is True
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.openfpgaloader.run", return_value=PROG_SUCCESS)
+def test_no_enabled_config_is_unrestricted(mock_run, program_device, bitstream_file):
+    with patch("silica.config.load", return_value={}):
+        result = program_device(bitstream=bitstream_file, tool="openfpgaloader")
+    assert result["success"] is True
+    mock_run.assert_called_once()

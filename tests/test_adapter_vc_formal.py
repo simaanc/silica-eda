@@ -1,7 +1,6 @@
 """Tests for silica.adapters.vc_formal."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -38,9 +37,10 @@ def test_fail(mock_resolve, mock_run):
 
 @patch("silica.adapters.vc_formal.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.vc_formal.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        vc_formal.run(files=["dut.sv"], top="top")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = vc_formal.run(files=["dut.sv"], top="top")
+    assert result["status"] == "ERROR"
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_result_has_required_keys():

@@ -2,11 +2,11 @@
 
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 from tempfile import mkdtemp
 
-from silica.tools._config_dispatch import resolve
+from silica.adapters._script_paths import unsafe_script_value
+from silica.detect import resolve
 
 # JasperGold output patterns
 # FV Status : Proven / Falsified / Inconclusive
@@ -56,6 +56,11 @@ def run(
     When sby_file is provided, run it directly (as a TCL script path).
     Otherwise, generate a minimal TCL from files/top/mode.
     """
+    if not sby_file:
+        bad = unsafe_script_value(files, top, clock, reset)
+        if bad:
+            return _error_result(bad)
+
     jg = resolve("jaspergold")
     if not jg:
         return _not_found()
@@ -74,13 +79,17 @@ def run(
         )
         work_cwd = tmpdir
 
-    cp = subprocess.run(
-        [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        cwd=work_cwd,
-    )
+    try:
+        cp = subprocess.run(
+            [jg, "-batch", "-tcl", tcl_path, "-proj", str(Path(tmpdir) / "proj")],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=work_cwd,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _error_result(f"jaspergold timed out after {timeout}s")
 
     raw = cp.stdout + cp.stderr
 

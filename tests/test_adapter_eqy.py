@@ -1,6 +1,5 @@
 """Tests for silica.adapters.eqy."""
 
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
 from silica.adapters import openfpgaloader
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 
 def register(mcp: "FastMCP") -> None:
@@ -41,6 +41,17 @@ def register(mcp: "FastMCP") -> None:
         if tool == "auto":
             chosen = pick("program")
             tool = chosen or "openfpgaloader"
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("program", tool)
+            if disabled:
+                return {
+                    "tool": tool,
+                    "exit_code": -1,
+                    "success": False,
+                    "errors": [{"message": disabled}],
+                    "raw_output": "",
+                }
 
         if tool in ("openfpgaloader", "openFPGALoader"):
             return openfpgaloader.run(

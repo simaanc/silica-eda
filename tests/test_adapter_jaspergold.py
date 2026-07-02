@@ -1,7 +1,6 @@
 """Tests for silica.adapters.jaspergold."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -38,9 +37,10 @@ def test_fail(mock_resolve, mock_run):
 
 @patch("silica.adapters.jaspergold.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.jaspergold.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        jaspergold.run(files=["dut.sv"], top="top")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = jaspergold.run(files=["dut.sv"], top="top")
+    assert result["status"] == "ERROR"
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_result_has_required_keys():

@@ -135,3 +135,13 @@ def test_all_arches(mock_run, mock_which, mock_env, arch, netlist_file):
     mock_run.return_value = make_proc(returncode=0)
     result = nextpnr.run(netlist_file, arch=arch)
     assert result["exit_code"] == 0
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value="/usr/bin/nextpnr-ice40")
+@patch("silica.adapters.nextpnr.subprocess.run")
+def test_unparseable_report_flagged(mock_run, mock_which, mock_env, netlist_file):
+    mock_run.return_value = make_proc(stdout="some unrecognized output format", returncode=0)
+    result = nextpnr.run(netlist_file)
+    assert result["exit_code"] == 0
+    assert any("raw_output" in w["message"] for w in result["warnings"])

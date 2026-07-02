@@ -1,7 +1,6 @@
 """MCP tools: file and project operations."""
 
 import difflib
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,6 +9,24 @@ if TYPE_CHECKING:
 
 _RTL_EXTENSIONS = {".sv", ".svh", ".v", ".vh", ".vhd", ".vhdl"}
 _CONSTRAINT_EXTENSIONS = {".xdc", ".lpf", ".sdc", ".upf", ".pdc"}
+
+
+def _confine(file: str) -> tuple[Path | None, str | None]:
+    """Resolve a path and require it to stay inside the project directory.
+
+    The project root is the server's working directory. Absolute paths and
+    ``..`` traversal that escape it are rejected so MCP callers cannot read
+    or write arbitrary files. Returns (path, None) on success or
+    (None, error message) on escape.
+    """
+    root = Path.cwd().resolve()
+    path = Path(file).resolve()
+    if path == root or path.is_relative_to(root):
+        return path, None
+    return None, (
+        f"Path escapes the project directory: {file} "
+        f"(resolved to {path}; project root is {root})"
+    )
 
 
 def register(mcp: "FastMCP") -> None:
@@ -47,14 +64,16 @@ def register(mcp: "FastMCP") -> None:
         """Read an RTL file, optionally restricted to a line range.
 
         Args:
-            file: Absolute or relative path to the file.
+            file: Path to the file; must stay inside the project directory.
             start_line: First line to return (1-indexed, inclusive).
             end_line: Last line to return (1-indexed, inclusive).
 
         Returns:
             content: file text with line numbers, path, total_lines
         """
-        path = Path(file).resolve()
+        path, escape = _confine(file)
+        if path is None:
+            return {"error": escape, "content": "", "path": file, "total_lines": 0}
         if not path.exists():
             return {"error": f"File not found: {file} (resolved to {path}) — use an absolute path", "content": "", "path": str(path), "total_lines": 0}
 
@@ -82,7 +101,7 @@ def register(mcp: "FastMCP") -> None:
         Always call with dry_run=True first to review the unified diff before committing.
 
         Args:
-            file: Absolute or relative path to the target file.
+            file: Path to the target file; must stay inside the project directory.
             content: Complete new file content.
             dry_run: If True (default), return a unified diff without writing. If False, write.
 
@@ -91,7 +110,16 @@ def register(mcp: "FastMCP") -> None:
             lines_changed: number of changed lines
             written: True if file was actually written
         """
-        path = Path(file).resolve()
+        path, escape = _confine(file)
+        if path is None:
+            return {
+                "dry_run": dry_run,
+                "written": False,
+                "diff": "",
+                "lines_changed": 0,
+                "path": file,
+                "error": escape,
+            }
 
         if path.exists():
             original_lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
@@ -141,7 +169,9 @@ def register(mcp: "FastMCP") -> None:
             scope: "all" | "sv" | "v" — filter by file extension.
 
         Returns:
-            matches: [{file, line, context}]
+            matches: [{file, line, context}] — capped at 50 entries
+            match_count: total matches found (may exceed len(matches))
+            truncated: True when matches were dropped by the 50-entry cap
         """
         root_path = Path(root).resolve()
         ext_filter = {
@@ -174,19 +204,26 @@ def register(mcp: "FastMCP") -> None:
                         "context": context,
                     })
 
-        return {"query": query, "match_count": len(matches), "matches": matches[:50]}
+        return {
+            "query": query,
+            "match_count": len(matches),
+            "matches": matches[:50],
+            "truncated": len(matches) > 50,
+        }
 
     @mcp.tool()
     def get_constraints(file: str) -> dict:
         """Read and return the content of a constraint file (.xdc / .sdc / .lpf / .upf).
 
         Args:
-            file: Path to the constraint file.
+            file: Path to the constraint file; must stay inside the project directory.
 
         Returns:
             content: raw file text, path, format (inferred from extension)
         """
-        path = Path(file).resolve()
+        path, escape = _confine(file)
+        if path is None:
+            return {"error": escape, "content": "", "format": "unknown"}
         if not path.exists():
             return {"error": f"File not found: {file}", "content": "", "format": "unknown"}
 

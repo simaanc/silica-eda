@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 from silica.adapters import yosys
 from silica.adapters import vivado, quartus, dc_shell
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 
 def register(mcp: "FastMCP") -> None:
@@ -60,6 +60,22 @@ def register(mcp: "FastMCP") -> None:
                     "raw_output": "",
                 }
             tool = chosen
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("synthesis", tool)
+            if disabled:
+                return {
+                    "tool": tool,
+                    "target": target,
+                    "exit_code": -1,
+                    "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
+                                    "lut_pct": 0.0, "ff_pct": 0.0},
+                    "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                    "warnings": [],
+                    "errors": [{"file": "", "line": 0, "severity": "error",
+                                "message": disabled}],
+                    "raw_output": "",
+                }
 
         if tool == "yosys":
             return yosys.run(top_module, files, target=target, timeout=timeout)

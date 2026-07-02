@@ -69,3 +69,34 @@ def test_unknown_tool_returns_error(lint_tool):
 def test_auto_no_tool_returns_error(mock_pick, lint_tool):
     result = lint_tool("dut.sv", tool="auto")
     assert "error" in result
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_tool_rejected(lint_tool):
+    config = {"tools": {"lint": {"enabled": ["verible-verilog-lint"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = lint_tool("dut.sv", tool="spyglass")
+    assert result["error"] == (
+        '"spyglass" is disabled by config for category "lint"; '
+        'enabled: ["verible-verilog-lint"]'
+    )
+    assert result["warnings"] == []
+
+
+@patch("silica.adapters.verible.run", return_value=LINT_CLEAN)
+def test_explicit_enabled_tool_allowed_via_alias(mock_run, lint_tool):
+    # Config lists the registry name; the override uses the adapter alias.
+    config = {"tools": {"lint": {"enabled": ["verible-verilog-lint"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = lint_tool("dut.sv", tool="verible")
+    assert "error" not in result
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.spyglass.run", return_value={**LINT_CLEAN, "tool": "spyglass"})
+def test_no_enabled_config_is_unrestricted(mock_run, lint_tool):
+    with patch("silica.config.load", return_value={}):
+        result = lint_tool("dut.sv", tool="spyglass")
+    assert "error" not in result
+    mock_run.assert_called_once()
