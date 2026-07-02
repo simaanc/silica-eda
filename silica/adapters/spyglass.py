@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # SpyGlass violation format:
@@ -64,6 +65,10 @@ def run(
     timeout: int = 120,
 ) -> dict:
     """Lint a file with SpyGlass in batch mode."""
+    bad = unsafe_script_value(file, ruleset)
+    if bad:
+        return {"warnings": [], "tool": "spyglass", "raw_output": "", "error": bad}
+
     binary = resolve("spyglass")
     if not binary:
         return _not_found()

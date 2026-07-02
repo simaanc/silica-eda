@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from tempfile import mkdtemp
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # JasperGold output patterns
@@ -55,6 +56,11 @@ def run(
     When sby_file is provided, run it directly (as a TCL script path).
     Otherwise, generate a minimal TCL from files/top/mode.
     """
+    if not sby_file:
+        bad = unsafe_script_value(files, top, clock, reset)
+        if bad:
+            return _error_result(bad)
+
     jg = resolve("jaspergold")
     if not jg:
         return _not_found()

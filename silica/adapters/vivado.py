@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # Vivado utilization report patterns
@@ -76,10 +77,6 @@ def run(
     target: FPGA part string e.g. "xc7a35tcsg324-1" (default) or
             shorthand "artix7" / "ultrascale" / "ultrascale+".
     """
-    binary = resolve("vivado")
-    if not binary:
-        return _not_found(target)
-
     part_map = {
         "generic":     "xc7a35tcsg324-1",
         "artix7":      "xc7a35tcsg324-1",
@@ -90,6 +87,14 @@ def run(
         "zynq":        "xc7z020clg484-1",
     }
     part = part_map.get(target, target)
+
+    bad = unsafe_script_value(files, top, part)
+    if bad:
+        return _script_error(bad, part)
+
+    binary = resolve("vivado")
+    if not binary:
+        return _not_found(target)
 
     with tempfile.TemporaryDirectory(prefix="silica_vivado_") as tmpdir:
         tcl_path = Path(tmpdir) / "synth.tcl"
@@ -130,6 +135,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "vivado",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 

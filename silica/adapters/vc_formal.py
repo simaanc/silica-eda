@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from tempfile import mkdtemp
 
+from silica.adapters._script_paths import unsafe_script_value
 from silica.tools._config_dispatch import resolve
 
 # VC Formal output
@@ -44,6 +45,11 @@ def run(
     **kwargs,
 ) -> dict:
     """Run VC Formal in batch mode via a generated or supplied TCL script."""
+    if not sby_file:
+        bad = unsafe_script_value(files, top)
+        if bad:
+            return _error_result(bad)
+
     binary = resolve("vc_formal")
     if not binary:
         return _not_found()

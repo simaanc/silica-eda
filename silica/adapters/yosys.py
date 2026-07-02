@@ -7,6 +7,7 @@ from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
+from silica.adapters._script_paths import unsafe_script_value
 
 # Abstract FF cells produced by yosys before technology mapping
 _FF_CELL_ABSTRACT = {
@@ -74,6 +75,20 @@ def run(
 
     target: "generic" | "ice40" | "ecp5" | "xilinx" | "gowin"
     """
+    bad = unsafe_script_value(files, top)
+    if bad:
+        return {
+            "tool": "yosys",
+            "target": target,
+            "exit_code": -1,
+            "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
+                            "lut_pct": 0.0, "ff_pct": 0.0},
+            "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+            "warnings": [],
+            "errors": [{"file": "", "line": 0, "severity": "error", "message": bad}],
+            "raw_output": "",
+        }
+
     binary = oss_cad_suite.which("yosys")
     if not binary:
         return _not_found()
