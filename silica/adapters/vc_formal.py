@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 from silica.adapters._script_paths import unsafe_script_value
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # VC Formal output
 # Assertion PASS/FAIL summary lines

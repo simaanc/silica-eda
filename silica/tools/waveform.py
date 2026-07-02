@@ -9,7 +9,8 @@ if TYPE_CHECKING:
 
 from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
-from silica.tools._config_dispatch import pick, resolve
+from silica.detect import resolve
+from silica.tools._config_dispatch import pick
 
 _OSS_VIEWERS = {"surfer", "gtkwave"}
 _ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}

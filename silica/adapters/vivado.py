@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from silica.adapters._script_paths import unsafe_script_value
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # Vivado utilization report patterns
 # | Slice LUTs*              |   1234 |     0 |    20800 |   5.93 |
