@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
 from silica.detect import resolve
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 _OSS_VIEWERS = {"surfer", "gtkwave"}
 _ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}
@@ -47,6 +47,11 @@ def register(mcp: "FastMCP") -> None:
                         f"GTKWave: {install_hint('gtkwave')}"
                     ),
                 }
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("waveform", viewer)
+            if disabled:
+                return {"launched": False, "error": disabled}
 
         if viewer == "verdi":
             return verdi_adapter.launch(trace_file)
