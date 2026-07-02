@@ -187,6 +187,7 @@ Silica ships reasoning scripts that teach the model how to interpret tool output
 - `write_testbench` — generate a complete testbench from a module interface
 - `generate_assertions` — write SVA assertions from design intent
 - `close_timing` — work through timing violations with synthesis feedback
+- `debug_formal_failure` — triage a formal FAIL/UNKNOWN from the counterexample trace to a verified fix
 
 ## Architecture
 
