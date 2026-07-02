@@ -11,7 +11,7 @@ from silica.adapters import svlint
 SVLINT_OUTPUT = "dut.sv:5:3: `always_comb` is not implemented [enum_with_type]\n"
 
 
-@patch("shutil.which", return_value=None)
+@patch("silica.adapters.svlint.resolve", return_value=None)
 def test_not_found(mock_which):
     result = svlint.run("dut.sv")
     assert "error" in result
@@ -19,7 +19,7 @@ def test_not_found(mock_which):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_success_with_warnings(mock_which, mock_run):
     mock_run.return_value = make_proc(stdout=SVLINT_OUTPUT, returncode=1)
     result = svlint.run("dut.sv")
@@ -28,7 +28,7 @@ def test_success_with_warnings(mock_which, mock_run):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_clean_file(mock_which, mock_run):
     mock_run.return_value = make_proc(returncode=0)
     result = svlint.run("dut.sv")
@@ -36,7 +36,7 @@ def test_clean_file(mock_which, mock_run):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_custom_ruleset(mock_which, mock_run):
     mock_run.return_value = make_proc(returncode=0)
     svlint.run("dut.sv", ruleset="/path/to/rules.toml")
