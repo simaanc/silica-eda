@@ -1,6 +1,5 @@
 """RTL fixtures shared across integration tests."""
 
-import shutil
 import subprocess
 import pytest
 from silica import oss_cad_suite

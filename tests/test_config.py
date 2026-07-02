@@ -1,8 +1,6 @@
 """Tests for silica.config."""
 
 import pytest
-from unittest.mock import patch
-from pathlib import Path
 
 import silica.config as cfg
 
@@ -28,6 +26,22 @@ def test_load_returns_defaults_on_invalid_toml(isolated_config):
     assert "tools" in result
 
 
+def test_load_warns_on_invalid_toml(isolated_config, caplog):
+    import logging
+    isolated_config.write_text("this is not valid toml ::::")
+    with caplog.at_level(logging.WARNING, logger="silica.config"):
+        cfg.load()
+    assert any("config" in rec.message.lower() for rec in caplog.records)
+
+
+def test_load_returns_independent_copy_of_defaults():
+    first = cfg.load()
+    first["tools"]["simulation"]["priority"].append("mutated")
+    second = cfg.load()
+    assert second["tools"]["simulation"]["priority"] == []
+    assert cfg._DEFAULTS["tools"]["simulation"]["priority"] == []
+
+
 def test_save_creates_file(isolated_config):
     cfg.save({"tools": {}, "clients": {}})
     assert isolated_config.exists()
@@ -47,5 +61,6 @@ def test_config_path_is_toml():
 def test_load_defaults_have_expected_tool_categories():
     result = cfg.load()
     tools = result.get("tools", {})
-    for category in ("simulation", "synthesis", "formal", "lint"):
+    for category in ("simulation", "synthesis", "place_route", "formal",
+                     "lint", "waveform", "program"):
         assert category in tools, f"Missing category: {category}"

@@ -1,9 +1,6 @@
 """Tests for silica.oss_cad_suite."""
 
-import os
-import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 
 from silica import oss_cad_suite
 

@@ -10,7 +10,8 @@ if TYPE_CHECKING:
 
 from silica.adapters import sby as sby_adapter
 from silica.adapters import jaspergold, vc_formal, eqy as eqy_adapter
-from silica.tools._config_dispatch import pick
+from silica.adapters._script_paths import unsafe_script_value
+from silica.tools._config_dispatch import check_enabled, pick
 
 _FORMAL_ADAPTERS = {
     "sby":        "sby",
@@ -67,6 +68,11 @@ def register(mcp: "FastMCP") -> None:
         if tool == "auto":
             chosen = pick("formal")
             tool = _FORMAL_ADAPTERS.get(chosen, "sby") if chosen else "sby"
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("formal", tool)
+            if disabled:
+                return _error_result(disabled)
 
         if tool == "sby":
             if sby_file:
@@ -74,6 +80,10 @@ def register(mcp: "FastMCP") -> None:
 
             if not files or not top:
                 return _error_result("Provide either sby_file or both files + top.")
+
+            bad = unsafe_script_value(files, top, mode, engine)
+            if bad:
+                return _error_result(bad)
 
             sby_content = sby_adapter.generate_sby(
                 files=files, top=top, mode=mode, depth=depth, engine=engine,
@@ -97,6 +107,7 @@ def register(mcp: "FastMCP") -> None:
                 gate_files=gate_files,
                 top=top,
                 timeout=timeout,
+                depth=depth,
             )
 
         elif tool == "jaspergold":

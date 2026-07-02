@@ -1,7 +1,6 @@
 """Tests for silica.adapters.dc_shell."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -50,9 +49,10 @@ def test_failure(mock_resolve, mock_run):
 
 @patch("silica.adapters.dc_shell.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.dc_shell.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        dc_shell.run("top", ["dut.sv"])
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = dc_shell.run("top", ["dut.sv"])
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_area_combinational_and_sequential():

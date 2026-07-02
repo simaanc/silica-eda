@@ -1,13 +1,19 @@
+import logging
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
 _SKILLS_DIR = Path(__file__).parent / "skills"
 
+logger = logging.getLogger(__name__)
+
 
 def _load_skill(relative: str) -> str:
     path = _SKILLS_DIR / relative
-    return path.read_text(encoding="utf-8") if path.exists() else ""
+    if not path.exists():
+        logger.warning("Registered skill file is missing: %s", path)
+        return ""
+    return path.read_text(encoding="utf-8")
 
 
 mcp = FastMCP(

@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.adapters._script_paths import unsafe_script_value
+from silica.detect import resolve
 
 # Quartus report parser — resource utilization from map/fit reports
 # Total logic elements            : 1234 / 39,600 ( 3 % )
@@ -67,6 +68,12 @@ def run(
 
     target: device family string e.g. "cyclone5", "arria10", "stratix10".
     """
+    device = _DEVICE_MAP.get(target, target)
+
+    bad = unsafe_script_value(files, top, device)
+    if bad:
+        return _script_error(bad, device)
+
     binary = resolve("quartus")  # resolves quartus_sh
     if not binary:
         return _not_found(target)
@@ -77,23 +84,25 @@ def run(
     if not Path(quartus_map).exists():
         quartus_map = "quartus_map"
 
-    device = _DEVICE_MAP.get(target, target)
-
     with tempfile.TemporaryDirectory(prefix="silica_quartus_") as tmpdir:
         qsf_path = Path(tmpdir) / f"{top}.qsf"
         qsf_path.write_text(_make_qsf(top, files, device), encoding="utf-8")
 
-        cp = subprocess.run(
-            [quartus_map,
-             "--read_settings_files=on",
-             "--write_settings_files=off",
-             top,
-             f"--settings={qsf_path}"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                [quartus_map,
+                 "--read_settings_files=on",
+                 "--write_settings_files=off",
+                 top,
+                 f"--settings={qsf_path}"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return _script_error(f"quartus_map timed out after {timeout}s", device)
 
     combined = cp.stdout + cp.stderr
     util = _parse_report(combined)
@@ -112,6 +121,14 @@ def run(
         errors.append({"file": "", "line": 0, "severity": "error",
                         "message": f"quartus_map exited with code {cp.returncode}"})
 
+    # rc==0 with nothing parsed is indistinguishable from an empty design;
+    # flag it so all-zero metrics aren't read as a real result.
+    if cp.returncode == 0 and not any(util.values()):
+        warnings.append({"file": "", "line": 0, "severity": "warning", "message": (
+            "No utilization figures found in Quartus output; "
+            "the report format may be unsupported — check raw_output."
+        )})
+
     return {
         "tool": "quartus",
         "target": device,
@@ -121,6 +138,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "quartus",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 

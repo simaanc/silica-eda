@@ -51,9 +51,10 @@ def test_failure(mock_which, mock_run):
 
 @patch("silica.adapters.yosys.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=120))
 @patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
-def test_timeout_propagates(mock_which, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        yosys.run("top", ["dut.sv"])
+def test_timeout_returns_error(mock_which, mock_run):
+    result = yosys.run("top", ["dut.sv"])
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_count_cells_dff_and_lut():

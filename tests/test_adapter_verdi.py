@@ -1,6 +1,5 @@
 """Tests for silica.adapters.verdi."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from silica.adapters import verdi

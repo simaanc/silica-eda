@@ -1,7 +1,6 @@
 """Tests for silica.adapters.vcs."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -57,9 +56,10 @@ def test_sim_failure_generic_error(mock_resolve, mock_run):
 
 @patch("silica.adapters.vcs.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
 @patch("silica.adapters.vcs.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        vcs.run("dut.sv", "tb.sv")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = vcs.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_output_error():
@@ -79,3 +79,13 @@ def test_parse_output_error_with_bracket_code():
     errors, warnings = vcs._parse_output(text)
     assert len(errors) == 1
     assert errors[0]["severity"] == "error"
+
+
+@patch("silica.adapters.vcs.tempfile.mkdtemp")
+@patch("silica.adapters.vcs.subprocess.run")
+@patch("silica.adapters.vcs.resolve", return_value=FAKE_BIN)
+def test_failed_traced_compile_leaves_no_trace_dir(mock_resolve, mock_run, mock_mkdtemp):
+    mock_run.return_value = make_proc(stderr=VCS_ERROR, returncode=1)
+    result = vcs.run("dut.sv", "tb.sv", trace=True)
+    assert result["exit_code"] == 1
+    assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)

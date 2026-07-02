@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.adapters._script_paths import unsafe_script_value
+from silica.detect import resolve
 
 # Vivado utilization report patterns
 # | Slice LUTs*              |   1234 |     0 |    20800 |   5.93 |
@@ -76,10 +77,6 @@ def run(
     target: FPGA part string e.g. "xc7a35tcsg324-1" (default) or
             shorthand "artix7" / "ultrascale" / "ultrascale+".
     """
-    binary = resolve("vivado")
-    if not binary:
-        return _not_found(target)
-
     part_map = {
         "generic":     "xc7a35tcsg324-1",
         "artix7":      "xc7a35tcsg324-1",
@@ -91,18 +88,30 @@ def run(
     }
     part = part_map.get(target, target)
 
+    bad = unsafe_script_value(files, top, part)
+    if bad:
+        return _script_error(bad, part)
+
+    binary = resolve("vivado")
+    if not binary:
+        return _not_found(target)
+
     with tempfile.TemporaryDirectory(prefix="silica_vivado_") as tmpdir:
         tcl_path = Path(tmpdir) / "synth.tcl"
         tcl_path.write_text(_make_tcl(top, files, part), encoding="utf-8")
 
-        cp = subprocess.run(
-            [binary, "-mode", "batch", "-source", str(tcl_path),
-             "-nojournal", "-nolog"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                [binary, "-mode", "batch", "-source", str(tcl_path),
+                 "-nojournal", "-nolog"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return _script_error(f"vivado timed out after {timeout}s", part)
 
     combined = cp.stdout + cp.stderr
     util = _parse_utilization(combined)
@@ -121,6 +130,14 @@ def run(
         errors.append({"file": "", "line": 0, "severity": "error",
                         "message": f"Vivado exited with code {cp.returncode}"})
 
+    # rc==0 with nothing parsed is indistinguishable from an empty design;
+    # flag it so all-zero metrics aren't read as a real result.
+    if cp.returncode == 0 and not any(util.values()) and _TIMING_RE.search(combined) is None:
+        warnings.append({"file": "", "line": 0, "severity": "warning", "message": (
+            "No utilization or timing figures found in Vivado output; "
+            "the report format may be unsupported — check raw_output."
+        )})
+
     return {
         "tool": "vivado",
         "target": part,
@@ -130,6 +147,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "vivado",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 

@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.adapters._script_paths import unsafe_script_value
+from silica.detect import resolve
 
 # DC Shell report_area output
 # Number of ports:           12
@@ -66,6 +67,10 @@ def run(
 
     target: technology library path, or "generic" for no tech binding.
     """
+    bad = unsafe_script_value(files, top, target)
+    if bad:
+        return _script_error(bad, target)
+
     binary = resolve("dc_shell")
     if not binary:
         return _not_found(target)
@@ -74,13 +79,17 @@ def run(
         tcl_path = Path(tmpdir) / "synth.tcl"
         tcl_path.write_text(_make_tcl(top, files, target), encoding="utf-8")
 
-        cp = subprocess.run(
-            [binary, "-f", str(tcl_path), "-no_init"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=tmpdir,
-        )
+        try:
+            cp = subprocess.run(
+                [binary, "-f", str(tcl_path), "-no_init"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=tmpdir,
+            )
+        except subprocess.TimeoutExpired:
+            # A hung tool must not crash the MCP server — report it structurally.
+            return _script_error(f"dc_shell timed out after {timeout}s", target)
 
     combined = cp.stdout + cp.stderr
     util = _parse_area(combined)
@@ -108,6 +117,19 @@ def run(
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
+    }
+
+
+def _script_error(message: str, target: str) -> dict:
+    return {
+        "tool": "dc_shell",
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
+        "raw_output": "",
     }
 
 

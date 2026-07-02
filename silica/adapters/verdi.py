@@ -2,7 +2,7 @@
 
 import subprocess
 
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 
 def launch(trace_file: str) -> dict:

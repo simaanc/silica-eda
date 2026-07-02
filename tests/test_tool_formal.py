@@ -114,3 +114,33 @@ def test_eqy_gold_gate_files(mock_run, run_formal, tmp_path):
     gate.write_text("module top(); endmodule")
     result = run_formal(gold_files=[str(gold)], gate_files=[str(gate)], top="top", tool="eqy")
     assert result["status"] == "PASS"
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_tool_rejected(run_formal, sby_file):
+    config = {"tools": {"formal": {"enabled": ["sby"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_formal(sby_file=sby_file, tool="jaspergold")
+    assert result["status"] == "ERROR"
+    assert result["errors"][0]["message"] == (
+        '"jaspergold" is disabled by config for category "formal"; '
+        'enabled: ["sby"]'
+    )
+
+
+@patch("silica.adapters.sby.run", return_value=FORMAL_PASS)
+def test_explicit_enabled_tool_allowed(mock_run, run_formal, sby_file):
+    config = {"tools": {"formal": {"enabled": ["sby"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_formal(sby_file=sby_file, tool="sby")
+    assert result["status"] == "PASS"
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.jaspergold.run", return_value=FORMAL_PASS)
+def test_no_enabled_config_is_unrestricted(mock_run, run_formal, sby_file):
+    with patch("silica.config.load", return_value={}):
+        result = run_formal(sby_file=sby_file, tool="jaspergold")
+    assert result["status"] == "PASS"
+    mock_run.assert_called_once()
