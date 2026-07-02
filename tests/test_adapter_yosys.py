@@ -1,6 +1,8 @@
 """Tests for silica.adapters.yosys."""
 
+import shutil
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -87,3 +89,62 @@ def test_target_selects_synth_command(mock_which, mock_run, target, expected_cmd
     call_args = mock_run.call_args[0][0]
     script = call_args[2]
     assert expected_cmd in script
+
+
+# --- netlist output (FPGA targets) ---
+
+def _run_writing_netlist(*args, **kwargs):
+    """Simulate yosys honoring -json: drop netlist.json in the run's cwd."""
+    (Path(kwargs["cwd"]) / "netlist.json").write_text("{}")
+    return make_proc(stdout=STAT_OUTPUT, returncode=0)
+
+
+@pytest.mark.parametrize("target", ["ice40", "ecp5", "xilinx", "gowin"])
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_fpga_target_requests_json_netlist(mock_which, mock_run, target):
+    mock_run.return_value = make_proc(returncode=0)
+    yosys.run("top", ["dut.sv"], target=target)
+    script = mock_run.call_args[0][0][2]
+    assert "-json netlist.json" in script
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_generic_target_has_no_json_flag(mock_which, mock_run):
+    mock_run.return_value = make_proc(stdout=STAT_OUTPUT, returncode=0)
+    result = yosys.run("top", ["dut.sv"], target="generic")
+    script = mock_run.call_args[0][0][2]
+    assert "-json" not in script
+    assert result["netlist"] is None
+
+
+@patch("silica.adapters.yosys.subprocess.run", side_effect=_run_writing_netlist)
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_fpga_success_returns_persistent_netlist(mock_which, mock_run):
+    result = yosys.run("top", ["dut.sv"], target="ice40")
+    assert result["exit_code"] == 0
+    assert result["netlist"] is not None
+    netlist = Path(result["netlist"])
+    assert netlist.exists()
+    assert "silica_synth_" in netlist.parent.name
+    shutil.rmtree(netlist.parent)
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_fpga_failure_returns_no_netlist(mock_which, mock_run):
+    mock_run.return_value = make_proc(stdout=YOSYS_ERROR, returncode=1)
+    result = yosys.run("top", ["dut.sv"], target="ice40")
+    assert result["exit_code"] == 1
+    assert result["netlist"] is None
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_fpga_success_without_json_file_returns_no_netlist(mock_which, mock_run):
+    # rc==0 but yosys wrote no netlist (e.g. empty design edge case)
+    mock_run.return_value = make_proc(stdout=STAT_OUTPUT, returncode=0)
+    result = yosys.run("top", ["dut.sv"], target="ice40")
+    assert result["exit_code"] == 0
+    assert result["netlist"] is None

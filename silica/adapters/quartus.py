@@ -136,6 +136,7 @@ def run(
         "exit_code": cp.returncode,
         "utilization": util,
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": None,
         "warnings": warnings,
         "errors": errors,
         "raw_output": combined,
@@ -149,6 +150,7 @@ def _script_error(message: str, target: str) -> dict:
         "exit_code": -1,
         "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": None,
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error", "message": message}],
         "raw_output": "",
@@ -162,6 +164,7 @@ def _not_found(target: str = "generic") -> dict:
         "exit_code": -1,
         "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": None,
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
                     "message": ("quartus_sh/quartus_map not found. "
