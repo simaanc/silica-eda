@@ -1,17 +1,39 @@
 """eqy adapter — equivalence checking for Yosys."""
 
+import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
+
+def _eqy_cmd() -> list[str] | None:
+    """Return the command prefix to invoke eqy, or None if not found."""
+    if not oss_cad_suite.which("eqy"):
+        return None
+    if sys.platform == "win32":
+        root = oss_cad_suite.find_root()
+        if root:
+            python3 = root / "lib" / "python3.exe"
+            eqy_script = root / "bin" / "eqy-script.py"
+            if python3.exists() and eqy_script.exists():
+                return [str(python3), oss_cad_suite._short_path(str(eqy_script))]
+    return [oss_cad_suite.which("eqy")]  # type: ignore[list-item]
+
+
 _DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN), rc=(\d+)\)")
 _MISMATCH_RE = re.compile(r"Mismatch in output '(\S+)'")
 _WARNING_RE = re.compile(r"Warning:\s*(.+)")
 _ERROR_RE = re.compile(r"ERROR:\s*(.+)")
+
+# Patterns for the yosys-direct equiv_* path (Windows fallback)
+_EQUIV_PROVEN_RE = re.compile(r"Equivalence successfully proven!")
+_EQUIV_UNPROVEN_RE = re.compile(r"Unproven \$equiv.*?: \\(\S+)")
 
 
 def run(
@@ -34,8 +56,16 @@ def run(
         traces: [] (eqy does not produce VCD counterexamples)
         warnings, errors, workdir, raw_output
     """
-    binary = oss_cad_suite.which("eqy")
-    if not binary:
+    # On Windows, eqy's bash+make pipeline cannot run yosys due to MSYS2 pipe
+    # incompatibility with native Windows binaries. When called in auto-generate
+    # mode, bypass eqy entirely and run yosys equiv_* commands directly.
+    if sys.platform == "win32" and not eqy_file and gold_files and gate_files and top:
+        if not oss_cad_suite.which("yosys"):
+            return _not_found()
+        return _run_yosys_equiv(gold_files, gate_files, top, timeout)
+
+    cmd_prefix = _eqy_cmd()
+    if not cmd_prefix:
         return _not_found()
 
     workdir = Path(tempfile.mkdtemp(prefix="silica_eqy_"))
@@ -51,16 +81,18 @@ def run(
                 str(workdir),
             )
         eqy_path = workdir / f"{top}.eqy"
-        eqy_path.write_text(_generate_eqy(gold_files, gate_files, top), encoding="utf-8")
+        eqy_path.write_text(generate_eqy(gold_files, gate_files, top), encoding="utf-8")
+
+    env = oss_cad_suite.env_with_suite()
 
     try:
         cp = subprocess.run(
-            [binary, "-f", str(eqy_path)],
+            cmd_prefix + ["-f", str(eqy_path)],
             capture_output=True,
             text=True,
             timeout=timeout,
             cwd=str(workdir),
-            env=oss_cad_suite.env_with_suite(),
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return _error_result(f"eqy timed out after {timeout}s", str(workdir))
@@ -94,9 +126,95 @@ def run(
     }
 
 
-def _generate_eqy(gold_files: list[str], gate_files: list[str], top: str) -> str:
-    gold_reads = "\n".join(f"read -formal {Path(f).resolve()}" for f in gold_files)
-    gate_reads = "\n".join(f"read -formal {Path(f).resolve()}" for f in gate_files)
+def _run_yosys_equiv(
+    gold_files: list[str], gate_files: list[str], top: str, timeout: int
+) -> dict:
+    """Windows fallback: equivalence check via yosys equiv_* commands (no bash needed)."""
+    workdir = Path(tempfile.mkdtemp(prefix="silica_eqy_"))
+
+    gold_reads = "\n".join(
+        f'read_verilog -formal "{Path(f).resolve()}"' for f in gold_files
+    )
+    gate_reads = "\n".join(
+        f'read_verilog -formal "{Path(f).resolve()}"' for f in gate_files
+    )
+
+    script = f"""\
+{gold_reads}
+hierarchy -top {top}
+proc; async2sync; opt
+design -save __gold_ds__
+
+design -reset
+{gate_reads}
+hierarchy -top {top}
+proc; async2sync; opt
+design -save __gate_ds__
+
+design -reset
+design -copy-from __gold_ds__ -as __gold__ {top}
+design -copy-from __gate_ds__ -as __gate__ {top}
+
+equiv_make __gold__ __gate__ __equiv__
+equiv_simple __equiv__
+equiv_induct -seq 20 __equiv__
+equiv_status __equiv__
+"""
+
+    script_path = workdir / "equiv_check.ys"
+    log_path = workdir / "equiv_check.log"
+    script_path.write_text(script, encoding="utf-8")
+
+    yosys_bin = oss_cad_suite.which("yosys")
+    env = oss_cad_suite.env_with_suite()
+
+    try:
+        cp = subprocess.run(
+            [yosys_bin, "-ql", str(log_path), str(script_path)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(workdir),
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        return _error_result(f"eqy timed out after {timeout}s", str(workdir))
+
+    raw = log_path.read_text(encoding="utf-8") if log_path.exists() else cp.stdout + cp.stderr
+
+    if _EQUIV_PROVEN_RE.search(raw):
+        status = "PASS"
+        failures = []
+    elif "unproven $equiv" in raw.lower():
+        status = "FAIL"
+        failures = [
+            {"property": m.group(1), "file": "", "line": 0}
+            for m in _EQUIV_UNPROVEN_RE.finditer(raw)
+        ]
+    else:
+        status = "UNKNOWN"
+        failures = []
+
+    warnings = [{"file": "", "line": 0, "message": m.group(1).strip()}
+                for m in _WARNING_RE.finditer(raw)]
+    errors = [{"file": "", "line": 0, "message": m.group(1).strip()}
+              for m in _ERROR_RE.finditer(raw)]
+
+    return {
+        "status": status,
+        "rc": cp.returncode,
+        "failures": failures,
+        "traces": [],
+        "warnings": warnings,
+        "errors": errors,
+        "workdir": str(workdir),
+        "raw_output": raw,
+    }
+
+
+def generate_eqy(gold_files: list[str], gate_files: list[str], top: str) -> str:
+    gold_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gold_files)
+    gate_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gate_files)
     return f"""\
 [options]
 
@@ -107,6 +225,10 @@ prep -top {top}
 [gate]
 {gate_reads}
 prep -top {top}
+
+[strategy sat]
+use sat
+depth 10
 """
 
 

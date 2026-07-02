@@ -1,7 +1,9 @@
 """Verilator adapter — compile-and-simulate using --binary (Verilator 5+)."""
 
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -9,11 +11,33 @@ from typing import Any
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
+
+def _find_make() -> str | None:
+    """Return the first available make-compatible tool, searching the OSS CAD Suite PATH too."""
+    suite_path = oss_cad_suite.env_with_suite().get("PATH", "")
+    for tool in ("make", "gmake", "mingw32-make"):
+        if shutil.which(tool) or shutil.which(tool, path=suite_path):
+            return tool
+    return None
+
+
+def _find_verilator() -> str | None:
+    """Find the verilator binary, preferring verilator_bin.exe on Windows.
+
+    On Windows, the OSS CAD Suite ships verilator as a Perl wrapper script
+    (not directly executable). verilator_bin.exe is the actual Win32 binary.
+    """
+    if sys.platform == "win32":
+        return oss_cad_suite.which("verilator_bin") or oss_cad_suite.which("verilator")
+    return oss_cad_suite.which("verilator")
+
 # %Error-PARSE: path/to/file.sv:10:5: message
 # %Warning-UNUSED: path/to/file.sv:20:3: message
 # %Error: path/to/file.sv:10: message   (no column)
+# On Windows paths start with a drive letter (C:\...) so [^:]+ stops at the colon —
+# use an optional drive-letter prefix to handle both Unix and Windows paths.
 _DIAG_RE = re.compile(
-    r"^%(Error|Warning)(?:-\w+)?:\s*([^:]+):(\d+)(?::\d+)?:\s*(.+)$",
+    r"^%(Error|Warning)(?:-\w+)?:\s*((?:[A-Za-z]:)?[^:]+):(\d+)(?::\d+)?:\s*(.+)$",
     re.MULTILINE,
 )
 # Summary lines like "%Error: Exiting due to 1 error(s)" have no file — skip them.
@@ -51,11 +75,12 @@ def run(
     When trace=True, writes dump.vcd to a persistent temp directory and
     returns its path as trace_vcd in the result.
     """
-    binary = oss_cad_suite.which("verilator")
+    binary = _find_verilator()
     if not binary:
         return _not_found()
 
     env = oss_cad_suite.env_with_suite()
+    make_tool = _find_make()
 
     if top is None:
         # Infer top from testbench filename stem
@@ -75,12 +100,15 @@ def run(
             "-Wall",
             "-Wno-TIMESCALEMOD",
             "-Wno-STMTDLY",
+            "-Wno-PROCASSINIT",
             "--top-module", top,
             "--Mdir", str(obj_dir),
             "-o", str(sim_bin),
             dut,
             testbench,
         ]
+        if make_tool and make_tool != "make":
+            compile_cmd.extend(["--make", make_tool])
         if trace:
             compile_cmd.append("--trace")
 
@@ -146,7 +174,7 @@ def run(
 
 def lint_only(file: str, timeout: int = 30) -> dict:
     """Run verilator --lint-only for a quick syntax/semantic check."""
-    binary = oss_cad_suite.which("verilator")
+    binary = _find_verilator()
     if not binary:
         return _not_found()
 

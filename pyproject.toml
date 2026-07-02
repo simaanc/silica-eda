@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "silica-eda"
-version = "0.1.3"
+version = "0.1.4"
 description = "AI-native EDA environment — MCP server for hardware design and verification"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,9 +37,21 @@ silica = "silica.cli:main"
 packages = ["silica"]
 artifacts = ["silica/skills/**/*.md"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires real EDA tool binaries on PATH or in OSS CAD Suite",
+]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]

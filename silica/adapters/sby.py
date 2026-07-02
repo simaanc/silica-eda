@@ -2,6 +2,7 @@
 
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -24,6 +25,24 @@ _WARNING_RE = re.compile(
 _ERROR_RE = re.compile(
     r"(?:base|prep): (\S+):(\d+): ERROR: (.+)"
 )
+
+
+def _sby_cmd() -> list[str] | None:
+    """Return the command prefix to invoke sby.
+
+    On Windows, sby.exe is a Python launcher that may fail to locate the
+    bundled python3.exe. We detect this case and fall back to calling
+    python3.exe + sby-script.py directly from the suite root."""
+    if not oss_cad_suite.which("sby"):
+        return None
+    if sys.platform == "win32":
+        root = oss_cad_suite.find_root()
+        if root:
+            python3 = root / "lib" / "python3.exe"
+            sby_script = root / "bin" / "sby-script.py"
+            if python3.exists() and sby_script.exists():
+                return [str(python3), str(sby_script)]
+    return [oss_cad_suite.which("sby")]  # type: ignore[list-item]
 
 
 def _detect_solver() -> str:
@@ -51,8 +70,8 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
         workdir: path to sby work directory (persists for trace viewing)
         raw_output: full combined log
     """
-    binary = oss_cad_suite.which("sby")
-    if not binary:
+    cmd_prefix = _sby_cmd()
+    if not cmd_prefix:
         return _not_found()
 
     sby_path = Path(sby_file).resolve()
@@ -71,7 +90,7 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
     # Don't pre-create the dir — sby creates it itself. We just provide the path.
     workdir = str(Path(tempfile.gettempdir()) / f"silica_sby_{sby_path.stem}")
 
-    cmd = [binary, "-f", "-d", workdir, str(sby_path)]
+    cmd = cmd_prefix + ["-f", "-d", workdir, str(sby_path)]
     if task:
         cmd.append(task)
 
@@ -164,7 +183,10 @@ def generate_sby(
         engine = f"smtbmc {solver}" if solver else "smtbmc"
 
     read_cmds = "\n".join(f"read -formal {Path(f).name}" for f in files)
-    file_list = "\n".join(str(Path(f).resolve()) for f in files)
+    # sby copies [files] entries into the workdir using the basename as destination.
+    # Absolute paths with drive letters (C:\...) break on Windows, so use basenames.
+    # This assumes sby is invoked with cwd set to the directory containing the source files.
+    file_list = "\n".join(Path(f).name for f in files)
 
     return f"""\
 [options]
