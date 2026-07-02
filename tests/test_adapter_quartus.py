@@ -1,7 +1,6 @@
 """Tests for silica.adapters.quartus."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 

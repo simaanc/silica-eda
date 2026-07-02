@@ -3,7 +3,6 @@
 import re
 import subprocess
 import tempfile
-from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint

@@ -1,7 +1,6 @@
 """Tests for silica.adapters.vc_formal."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
