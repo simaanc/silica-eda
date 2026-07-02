@@ -65,7 +65,6 @@ def run(
     if dut == testbench:
         files = [str(Path(dut).resolve())]
 
-    trace_dir = tempfile.mkdtemp(prefix="silica_ghdl_trace_") if trace else None
     env = oss_cad_suite.env_with_suite()
 
     with tempfile.TemporaryDirectory(prefix="silica_ghdl_") as workdir:
@@ -112,6 +111,9 @@ def run(
             }
 
         # Step 3: run
+        # Persistent trace dir, created only once analysis and elaboration have
+        # succeeded so failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_ghdl_trace_") if trace else None
         trace_path = str(Path(trace_dir) / "trace.vcd") if trace_dir else None
         run_cmd = [binary, "-r", std_flag, top_entity]
         if trace_path:

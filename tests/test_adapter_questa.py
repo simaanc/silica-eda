@@ -64,3 +64,16 @@ def test_parse_output_fatal_is_error():
     errors, warnings = questa._parse_output(text)
     assert len(errors) == 1
     assert errors[0]["severity"] == "error"
+
+
+@patch("silica.adapters.questa.tempfile.mkdtemp")
+@patch("silica.adapters.questa.subprocess.run")
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_failed_traced_compile_leaves_no_trace_dir(mock_resolve, mock_run, mock_mkdtemp):
+    mock_run.side_effect = [
+        make_proc(returncode=0),  # vlib work
+        make_proc(stderr=QUESTA_ERROR, returncode=1),  # vlog fails
+    ]
+    result = questa.run("dut.sv", "tb.sv", trace=True)
+    assert result["exit_code"] == 1
+    assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)

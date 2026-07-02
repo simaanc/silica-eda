@@ -65,9 +65,6 @@ def run(
 
     env = oss_cad_suite.env_with_suite()
 
-    # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
-
     with tempfile.TemporaryDirectory(prefix="silica_icarus_") as tmpdir:
         sim_out = Path(tmpdir) / "sim.out"
 
@@ -99,6 +96,10 @@ def run(
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
             }
+
+        # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
+        # Created only after a successful compile so failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         # If tracing, run vvp in trace_dir so $dumpfile relative paths land there.
         sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)

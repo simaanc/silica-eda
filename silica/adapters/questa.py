@@ -54,7 +54,6 @@ def run(
         return _not_found()
 
     top_mod = top or Path(testbench).stem
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
     with tempfile.TemporaryDirectory(prefix="silica_questa_") as tmpdir:
         # Create work library
@@ -85,6 +84,10 @@ def run(
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
             }
+
+        # Persistent trace dir, created only after a successful compile so
+        # failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         do_cmds = []
         if trace:
