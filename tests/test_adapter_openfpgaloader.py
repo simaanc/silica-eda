@@ -1,10 +1,10 @@
 """Tests for silica.adapters.openfpgaloader."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import openfpgaloader
-
 
 FAKE_BIN = "/usr/bin/openFPGALoader"
 

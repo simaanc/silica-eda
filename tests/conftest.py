@@ -1,7 +1,8 @@
 """Shared fixtures and helpers for silica-eda tests."""
 
-import pytest
 from subprocess import CompletedProcess
+
+import pytest
 
 
 def make_proc(stdout="", stderr="", returncode=0):

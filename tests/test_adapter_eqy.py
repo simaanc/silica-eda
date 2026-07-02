@@ -1,10 +1,10 @@
 """Tests for silica.adapters.eqy."""
 
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import eqy
-
 
 EQY_PASS = "DONE (PASS, rc=0)\n"
 EQY_FAIL = "Mismatch in output 'q'\nDONE (FAIL, rc=2)\n"

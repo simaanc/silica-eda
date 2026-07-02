@@ -2,10 +2,10 @@
 
 import subprocess
 from unittest.mock import patch
+
 from conftest import make_proc
 
 from silica.adapters import spyglass
-
 
 FAKE_BIN = "/tools/synopsys/sg_shell"
 

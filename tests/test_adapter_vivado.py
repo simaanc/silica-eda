@@ -1,12 +1,12 @@
 """Tests for silica.adapters.vivado."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import make_proc
 
 from silica.adapters import vivado
-
 
 FAKE_BIN = "/tools/xilinx/vivado"
 

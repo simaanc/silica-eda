@@ -1,11 +1,11 @@
 """Tests for silica.tools.program (program_device MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import program
-
 
 PROG_SUCCESS = {
     "tool": "openFPGALoader", "exit_code": 0,

@@ -1,6 +1,7 @@
 """Integration tests for the Icarus Verilog adapter (iverilog + vvp)."""
 
 import pytest
+
 from silica import oss_cad_suite
 from silica.adapters import icarus
 

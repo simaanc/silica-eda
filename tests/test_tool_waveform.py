@@ -1,7 +1,8 @@
 """Tests for silica.tools.waveform (launch_waveform MCP tool)."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from conftest import MockMCP
 
 from silica.tools import waveform

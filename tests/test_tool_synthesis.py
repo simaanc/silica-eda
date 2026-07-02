@@ -1,11 +1,11 @@
 """Tests for silica.tools.synthesis (synthesize MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import synthesis
-
 
 SYNTH_SUCCESS = {
     "tool": "yosys", "target": "generic", "exit_code": 0,

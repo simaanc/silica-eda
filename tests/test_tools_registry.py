@@ -1,6 +1,6 @@
 """Tests for silica.tools_registry."""
 
-from silica.tools_registry import TOOLS, CATEGORIES
+from silica.tools_registry import CATEGORIES, TOOLS
 
 COMMERCIAL_TOOLS = {"vcs", "questa", "xcelium", "vivado", "quartus", "dc_shell",
                     "jaspergold", "vc_formal", "spyglass", "verdi"}

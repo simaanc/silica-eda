@@ -1,11 +1,11 @@
 """Tests for silica.tools.lint (lint MCP tool)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from conftest import MockMCP
 
 from silica.tools import lint
-
 
 LINT_CLEAN = {"warnings": [], "tool": "verible-verilog-lint", "raw_output": ""}
 LINT_WARN = {
