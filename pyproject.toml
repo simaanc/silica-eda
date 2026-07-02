@@ -20,14 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.9.0,<2.0.0",
-    "tomli-w>=1.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "ruff>=0.4",
+    "tomli-w>=1.0.0,<2.0.0",
 ]
 
 [project.scripts]
@@ -54,4 +47,5 @@ select = ["E", "F", "I", "UP"]
 dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "ruff>=0.4",
 ]

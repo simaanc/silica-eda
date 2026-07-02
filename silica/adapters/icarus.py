@@ -58,15 +58,20 @@ def run(
     any $dumpfile VCD written by the testbench survives. Returns trace_vcd
     pointing to the first .vcd found in that directory.
     """
+    try:
+        return _run(dut, testbench, top, timeout, trace)
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _timeout_result(dut, timeout)
+
+
+def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
     iverilog = oss_cad_suite.which("iverilog")
     vvp = oss_cad_suite.which("vvp")
     if not iverilog or not vvp:
         return _not_found()
 
     env = oss_cad_suite.env_with_suite()
-
-    # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
     with tempfile.TemporaryDirectory(prefix="silica_icarus_") as tmpdir:
         sim_out = Path(tmpdir) / "sim.out"
@@ -99,6 +104,10 @@ def run(
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
             }
+
+        # Persistent dir for trace output; not auto-cleaned so caller can open the VCD.
+        # Created only after a successful compile so failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         # If tracing, run vvp in trace_dir so $dumpfile relative paths land there.
         sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
@@ -136,6 +145,18 @@ def run(
             "raw_stderr": cp.stderr + rp.stderr,
             "trace_vcd": trace_vcd,
         }
+
+
+def _timeout_result(file: str, timeout: int) -> dict:
+    return {
+        "exit_code": -1,
+        "errors": [{"file": file, "line": 0, "severity": "error",
+                    "message": f"iverilog/vvp timed out after {timeout}s"}],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
+    }
 
 
 def _not_found() -> dict:

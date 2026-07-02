@@ -3,7 +3,6 @@
 """
 
 import json
-import platform
 import shutil
 import subprocess
 import sys
@@ -23,7 +22,7 @@ from silica import config as cfg
 from silica import oss_cad_suite
 from silica.clients_registry import CLIENTS
 from silica.terminal import docs_link, hyperlink, supports_hyperlinks, tool_link
-from silica.tools import _config_dispatch as dispatch
+from silica import detect
 from silica.tools_registry import CATEGORIES, TOOLS
 
 # ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -187,7 +186,7 @@ def _os_availability(tool: dict) -> str | None:
 
 def _detect_tool(name: str) -> str | None:
     # Maps registry name (e.g. "questa") to its real binary ("vsim") before probing.
-    return dispatch.resolve(name)
+    return detect.resolve(name)
 
 
 def _detect_client(key: str) -> str | None:
@@ -454,7 +453,7 @@ def _collect_missing_hints(tool_names: list[str]) -> list[str]:
         tool = TOOLS.get(name)
         if not tool or tool["license"] != "open_source":
             continue
-        if dispatch.resolve(name):
+        if detect.resolve(name):
             continue
         install = tool.get("install", {})
         hint = install.get(pm) or install.get(plat) or next(iter(install.values()), None)
@@ -486,7 +485,7 @@ def _collect_vendor_links(tool_names: list[str]) -> list[tuple[str, str]]:
         tool = TOOLS.get(name)
         if not tool or tool["license"] != "commercial":
             continue
-        if dispatch.resolve(name):
+        if detect.resolve(name):
             continue
         vendor = tool.get("vendor", "commercial")
         url = tool.get("url", "")
@@ -502,7 +501,7 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
 
     missing_bundled = [
         n for n in all_names
-        if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
+        if n in oss_cad_suite.BUNDLED and not detect.resolve(n)
     ]
 
     if oss_cad_suite.is_installed():
@@ -539,7 +538,7 @@ def _step_install_hints(tool_selections: dict[str, list[str]]) -> None:
         # Tip: the tools the suite bundles can be installed together.
         still_missing = [
             n for n in all_names
-            if n in oss_cad_suite.BUNDLED and not dispatch.resolve(n)
+            if n in oss_cad_suite.BUNDLED and not detect.resolve(n)
         ]
         if still_missing:
             joined = ", ".join(still_missing)
@@ -609,7 +608,7 @@ def print_config() -> None:
             continue
         parts = []
         for name in enabled:
-            live = dispatch.resolve(name)
+            live = detect.resolve(name)
             mark = "✓" if live else "✗ (not installed)"
             parts.append(f"{name} {mark}")
         print(f"  {category.capitalize():<14} {'  '.join(parts)}")

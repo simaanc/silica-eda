@@ -66,3 +66,33 @@ def test_not_found_propagated(mock_run, run_place_route, netlist_file):
     result = run_place_route(netlist_file, tool="nextpnr")
     assert result["exit_code"] == -1
     assert len(result["errors"]) > 0
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_tool_rejected(run_place_route, netlist_file):
+    config = {"tools": {"place_route": {"enabled": ["some_other_pnr"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_place_route(netlist=netlist_file, tool="nextpnr")
+    assert result["exit_code"] == -1
+    assert result["errors"][0]["message"] == (
+        '"nextpnr" is disabled by config for category "place_route"; '
+        'enabled: ["some_other_pnr"]'
+    )
+
+
+@patch("silica.adapters.nextpnr.run", return_value=PNR_SUCCESS)
+def test_explicit_enabled_tool_allowed(mock_run, run_place_route, netlist_file):
+    config = {"tools": {"place_route": {"enabled": ["nextpnr"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_place_route(netlist=netlist_file, tool="nextpnr")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.nextpnr.run", return_value=PNR_SUCCESS)
+def test_no_enabled_config_is_unrestricted(mock_run, run_place_route, netlist_file):
+    with patch("silica.config.load", return_value={}):
+        result = run_place_route(netlist=netlist_file, tool="nextpnr")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()

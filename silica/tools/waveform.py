@@ -9,7 +9,8 @@ if TYPE_CHECKING:
 
 from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
-from silica.tools._config_dispatch import pick, resolve
+from silica.detect import resolve
+from silica.tools._config_dispatch import check_enabled, pick
 
 _OSS_VIEWERS = {"surfer", "gtkwave"}
 _ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}
@@ -46,10 +47,19 @@ def register(mcp: "FastMCP") -> None:
                         f"GTKWave: {install_hint('gtkwave')}"
                     ),
                 }
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("waveform", viewer)
+            if disabled:
+                return {"launched": False, "error": disabled}
 
         if viewer == "verdi":
             return verdi_adapter.launch(trace_file)
 
+        # Deliberate asymmetry: surfer/gtkwave have no adapter modules.
+        # Launching them is a one-line fire-and-forget Popen with no output
+        # to parse, so an adapter would only add indirection. verdi goes
+        # through an adapter because it needs license/env handling.
         # OSS viewers — look up via resolve() so OSS CAD Suite path is checked
         binary = resolve(viewer) or shutil.which(viewer)
         if not binary:

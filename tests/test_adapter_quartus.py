@@ -1,7 +1,6 @@
 """Tests for silica.adapters.quartus."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -47,9 +46,10 @@ def test_failure(mock_resolve, mock_run):
 
 @patch("silica.adapters.quartus.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=300))
 @patch("silica.adapters.quartus.resolve", return_value=FAKE_BIN)
-def test_timeout_propagates(mock_resolve, mock_run):
-    with pytest.raises(subprocess.TimeoutExpired):
-        quartus.run("top", ["dut.sv"])
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = quartus.run("top", ["dut.sv"])
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 def test_parse_report_luts_and_ffs():
@@ -57,3 +57,12 @@ def test_parse_report_luts_and_ffs():
     assert result["luts"] == 100
     assert result["ffs"] == 50
     assert result["dsp"] == 2
+
+
+@patch("silica.adapters.quartus.subprocess.run")
+@patch("silica.adapters.quartus.resolve", return_value=FAKE_BIN)
+def test_unparseable_report_flagged(mock_resolve, mock_run):
+    mock_run.return_value = make_proc(stdout="some unrecognized output format", returncode=0)
+    result = quartus.run("top", ["dut.sv"])
+    assert result["exit_code"] == 0
+    assert any("raw_output" in w["message"] for w in result["warnings"])

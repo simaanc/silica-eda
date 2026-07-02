@@ -1,7 +1,6 @@
 """Tests for silica.adapters.verilator."""
 
 import subprocess
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -60,9 +59,10 @@ def test_warning_parsed(mock_run, mock_which, mock_env):
 @patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
 @patch("silica.adapters.verilator.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=[], timeout=60))
-def test_timeout_propagates(mock_run, mock_which, mock_env):
-    with pytest.raises(subprocess.TimeoutExpired):
-        verilator.run("dut.sv", "tb.sv")
+def test_timeout_returns_error(mock_run, mock_which, mock_env):
+    result = verilator.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == -1
+    assert any("timed out" in e["message"] for e in result["errors"])
 
 
 @patch("silica.adapters.verilator.oss_cad_suite.which", return_value=None)
@@ -91,3 +91,14 @@ def test_parse_output_warning():
     errors, warnings = verilator._parse_output(VERILATOR_WARNING)
     assert len(warnings) == 1
     assert warnings[0]["severity"] == "warning"
+
+
+@patch("silica.adapters.verilator.tempfile.mkdtemp")
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
+def test_failed_traced_compile_leaves_no_trace_dir(mock_run, mock_which, mock_env, mock_mkdtemp):
+    mock_run.return_value = make_proc(stderr=VERILATOR_ERROR, returncode=1)
+    result = verilator.run("dut.sv", "tb.sv", trace=True)
+    assert result["exit_code"] == 1
+    assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)

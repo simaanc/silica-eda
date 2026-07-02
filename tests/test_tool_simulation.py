@@ -1,7 +1,7 @@
 """Tests for silica.tools.simulation (run_simulation MCP tool)."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from conftest import MockMCP
 
 from silica.tools import simulation
@@ -90,3 +90,33 @@ def test_auto_propagates_failure(mock_pick, mock_run, run_simulation):
     result = run_simulation("dut.sv", "tb.sv", simulator="auto")
     assert result["exit_code"] == 1
     assert len(result["errors"]) > 0
+
+
+# --- config enabled-list enforcement ---
+
+def test_explicit_disabled_simulator_rejected(run_simulation):
+    config = {"tools": {"simulation": {"enabled": ["icarus", "verilator"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_simulation("dut.sv", "tb.sv", simulator="vcs")
+    assert result["exit_code"] == -1
+    assert result["errors"][0]["message"] == (
+        '"vcs" is disabled by config for category "simulation"; '
+        'enabled: ["icarus", "verilator"]'
+    )
+
+
+@patch("silica.adapters.verilator.run", return_value=SIM_SUCCESS)
+def test_explicit_enabled_simulator_allowed(mock_run, run_simulation):
+    config = {"tools": {"simulation": {"enabled": ["verilator"]}}}
+    with patch("silica.config.load", return_value=config):
+        result = run_simulation("dut.sv", "tb.sv", simulator="verilator")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()
+
+
+@patch("silica.adapters.vcs.run", return_value=SIM_SUCCESS)
+def test_no_enabled_config_is_unrestricted(mock_run, run_simulation):
+    with patch("silica.config.load", return_value={}):
+        result = run_simulation("dut.sv", "tb.sv", simulator="vcs")
+    assert result["exit_code"] == 0
+    mock_run.assert_called_once()

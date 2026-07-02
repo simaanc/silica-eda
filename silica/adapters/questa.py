@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # vlog: ** Error: filename.sv(10): message
 # vsim: ** Fatal: filename.sv(10): message at time Ns
@@ -42,6 +42,14 @@ def run(
     trace: bool = False,
 ) -> dict:
     """Compile with vlog -sv, simulate with vsim -c."""
+    try:
+        return _run(dut, testbench, top, timeout, trace)
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return _timeout_result(dut, timeout)
+
+
+def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
     vlog = resolve("questa")  # binary resolved via _BINARY map: questa → vsim
     # resolve("questa") gives vsim path; derive vlog from same dir
     vsim = vlog
@@ -54,16 +62,26 @@ def run(
         return _not_found()
 
     top_mod = top or Path(testbench).stem
-    trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
     with tempfile.TemporaryDirectory(prefix="silica_questa_") as tmpdir:
         # Create work library
-        subprocess.run(
+        lp = subprocess.run(
             ["vlib", "work"],
             capture_output=True,
             text=True,
+            timeout=timeout,
             cwd=tmpdir,
         )
+        if lp.returncode != 0:
+            detail = (lp.stderr or lp.stdout).strip()
+            return {
+                "exit_code": lp.returncode,
+                "errors": [_generic_error(dut, f"vlib failed to create work library: {detail}")],
+                "warnings": [],
+                "raw_stdout": lp.stdout,
+                "raw_stderr": lp.stderr,
+                "trace_vcd": None,
+            }
 
         compile_cmd = [vlog_bin, "-sv", testbench, dut]
         cp = subprocess.run(
@@ -85,6 +103,10 @@ def run(
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
             }
+
+        # Persistent trace dir, created only after a successful compile so
+        # failed runs don't leak dirs.
+        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
         do_cmds = []
         if trace:
@@ -129,6 +151,17 @@ def run(
 
 def _generic_error(file: str, message: str) -> dict:
     return {"file": file, "line": 0, "severity": "error", "message": message}
+
+
+def _timeout_result(file: str, timeout: int) -> dict:
+    return {
+        "exit_code": -1,
+        "errors": [_generic_error(file, f"questa timed out after {timeout}s")],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
+    }
 
 
 def _not_found() -> dict:

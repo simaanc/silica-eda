@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 from silica.adapters import verible, verilator
 from silica.adapters import svlint, spyglass
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 _LINT_TOOL_MAP = {
     "verible-verilog-lint": "verible",
@@ -49,6 +49,16 @@ def register(mcp: "FastMCP") -> None:
                         "No linter found. Install Verible: "
                         "https://github.com/chipsalliance/verible/releases"
                     ),
+                }
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("lint", tool)
+            if disabled:
+                return {
+                    "warnings": [],
+                    "tool": tool,
+                    "raw_output": "",
+                    "error": disabled,
                 }
 
         if tool == "verible":

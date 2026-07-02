@@ -1,6 +1,5 @@
 """Tests for silica.adapters.svlint."""
 
-import pytest
 from unittest.mock import patch
 from conftest import make_proc
 
@@ -11,7 +10,7 @@ from silica.adapters import svlint
 SVLINT_OUTPUT = "dut.sv:5:3: `always_comb` is not implemented [enum_with_type]\n"
 
 
-@patch("shutil.which", return_value=None)
+@patch("silica.adapters.svlint.resolve", return_value=None)
 def test_not_found(mock_which):
     result = svlint.run("dut.sv")
     assert "error" in result
@@ -19,7 +18,7 @@ def test_not_found(mock_which):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_success_with_warnings(mock_which, mock_run):
     mock_run.return_value = make_proc(stdout=SVLINT_OUTPUT, returncode=1)
     result = svlint.run("dut.sv")
@@ -28,7 +27,7 @@ def test_success_with_warnings(mock_which, mock_run):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_clean_file(mock_which, mock_run):
     mock_run.return_value = make_proc(returncode=0)
     result = svlint.run("dut.sv")
@@ -36,7 +35,7 @@ def test_clean_file(mock_which, mock_run):
 
 
 @patch("silica.adapters.svlint.subprocess.run")
-@patch("shutil.which", return_value="/usr/bin/svlint")
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
 def test_custom_ruleset(mock_which, mock_run):
     mock_run.return_value = make_proc(returncode=0)
     svlint.run("dut.sv", ruleset="/path/to/rules.toml")
@@ -55,3 +54,10 @@ def test_parse_fail_format():
     warnings = svlint._parse(text)
     assert len(warnings) >= 1
     assert warnings[0]["line"] == 10
+
+
+@patch("silica.adapters.svlint.subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
+@patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")
+def test_timeout_returns_error(mock_resolve, mock_run):
+    result = svlint.run("dut.sv")
+    assert "timed out" in result["error"]

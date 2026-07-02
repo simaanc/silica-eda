@@ -1,11 +1,11 @@
 """Verible adapter — SystemVerilog linting via verible-verilog-lint."""
 
 import re
-import shutil
 import subprocess
 from typing import Any
 
 from silica.adapters._hints import install_hint
+from silica.detect import resolve
 
 # filename.sv:10:5: message [rule-id]
 # filename.sv:10:5: message  (no rule-id)
@@ -32,7 +32,7 @@ def _parse(output: str, file: str) -> list[dict]:
 
 def run(file: str, ruleset: str = "default", timeout: int = 30) -> dict:
     """Lint a SystemVerilog file with verible-verilog-lint."""
-    binary = shutil.which("verible-verilog-lint")
+    binary = resolve("verible-verilog-lint")
     if not binary:
         return _not_found()
 
@@ -43,12 +43,21 @@ def run(file: str, ruleset: str = "default", timeout: int = 30) -> dict:
         cmd += [f"--rules={ruleset}"]
     cmd.append(file)
 
-    cp = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    try:
+        cp = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung tool must not crash the MCP server — report it structurally.
+        return {
+            "warnings": [],
+            "tool": "verible-verilog-lint",
+            "raw_output": "",
+            "error": f"verible-verilog-lint timed out after {timeout}s",
+        }
 
     combined = cp.stdout + cp.stderr
     warnings = _parse(combined, file)

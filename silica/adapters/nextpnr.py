@@ -126,6 +126,14 @@ def run(
     if cp.returncode != 0 and not errors:
         errors.append({"message": "nextpnr place-and-route failed — see raw_output"})
 
+    # rc==0 with nothing parsed is indistinguishable from an empty design;
+    # flag it so all-zero metrics aren't read as a real result.
+    if cp.returncode == 0 and not util and not timing["clocks"]:
+        warnings.append({"message": (
+            "No utilization or timing figures found in nextpnr output; "
+            "the report format may be unsupported — check raw_output."
+        )})
+
     return {
         "tool": _ARCH_BINARY.get(arch, f"nextpnr-{arch}"),
         "target": f"{device}-{package}" if package else device,
