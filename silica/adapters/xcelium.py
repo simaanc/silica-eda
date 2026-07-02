@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # xmvlog: *E,SYNTAX (filename.sv,10|0): message
 # xmelab: *W,DSEM2009 (filename.sv,10|0): message

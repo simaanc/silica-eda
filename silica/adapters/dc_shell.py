@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from silica.adapters._script_paths import unsafe_script_value
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # DC Shell report_area output
 # Number of ports:           12
