@@ -1,0 +1,57 @@
+name: Integration
+
+# Real-binary integration tests against OSS CAD Suite. The suite is ~1.5 GB
+# extracted, so this runs weekly and on demand rather than on every PR; its
+# job is catching output-parser regressions against tool-version drift.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve latest OSS CAD Suite release
+        id: suite
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api repos/YosysHQ/oss-cad-suite-build/releases/latest -q .tag_name)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Cache OSS CAD Suite
+        id: cache-suite
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-${{ runner.os }}-${{ steps.suite.outputs.tag }}
+
+      - name: Download and extract OSS CAD Suite
+        if: steps.cache-suite.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ steps.suite.outputs.tag }}" \
+            -R YosysHQ/oss-cad-suite-build \
+            -p "oss-cad-suite-linux-x64-*.tgz" \
+            -O suite.tgz
+          tar -xzf suite.tgz -C "$HOME"
+          rm suite.tgz
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - run: uv sync
+
+      # Tools absent from the suite (verible, svlint, commercial) self-skip;
+      # -rs surfaces the skip reasons in the log.
+      - run: uv run pytest tests/integration/ -q -rs
+        env:
+          SILICA_OSS_CAD_SUITE: ~/oss-cad-suite
