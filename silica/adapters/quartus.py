@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from silica.adapters._script_paths import unsafe_script_value
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # Quartus report parser — resource utilization from map/fit reports
 # Total logic elements            : 1234 / 39,600 ( 3 % )

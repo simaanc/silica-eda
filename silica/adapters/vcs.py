@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # VCS compile diagnostics — simple line-based pass for severity
 # Error-[SE] Syntax error ...

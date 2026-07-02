@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from silica.tools._config_dispatch import resolve
+from silica.detect import resolve
 
 # vlog: ** Error: filename.sv(10): message
 # vsim: ** Fatal: filename.sv(10): message at time Ns
