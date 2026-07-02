@@ -19,6 +19,24 @@ jobs:
         with:
           enable-cache: true
 
-      - run: uv build
+      # Publish only when pyproject.toml's version isn't on PyPI yet, so
+      # pushes that don't bump the version stay green instead of failing
+      # the re-upload check.
+      - name: Check whether this version is already published
+        id: version
+        run: |
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if curl -fsS "https://pypi.org/pypi/silica-eda/$VERSION/json" > /dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "silica-eda $VERSION is already on PyPI — skipping publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "silica-eda $VERSION is new — publishing."
+          fi
 
-      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/silica-eda/
+      - if: steps.version.outputs.publish == 'true'
+        run: uv build
+
+      - if: steps.version.outputs.publish == 'true'
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/silica-eda/
