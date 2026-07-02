@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 from silica.adapters import icarus, verilator, ghdl
 from silica.adapters import vcs, questa, xcelium
 from silica.adapters._hints import install_hint
-from silica.tools._config_dispatch import pick
+from silica.tools._config_dispatch import check_enabled, pick
 
 # Maps registry name → adapter identifier used below
 _SIM_ADAPTERS = {
@@ -65,6 +65,19 @@ def register(mcp: "FastMCP") -> None:
                             f"GHDL:      {install_hint('ghdl')}"
                         ),
                     }],
+                    "warnings": [],
+                    "raw_stdout": "",
+                    "raw_stderr": "",
+                    "trace_vcd": None,
+                }
+        else:
+            # Explicit override — respect the user's configured enabled list.
+            disabled = check_enabled("simulation", simulator)
+            if disabled:
+                return {
+                    "exit_code": -1,
+                    "errors": [{"file": "", "line": 0, "severity": "error",
+                                "message": disabled}],
                     "warnings": [],
                     "raw_stdout": "",
                     "raw_stderr": "",
