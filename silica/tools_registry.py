@@ -257,3 +257,16 @@ TOOLS = {
 }
 
 CATEGORIES = ["simulation", "synthesis", "place_route", "formal", "lint", "waveform", "program"]
+
+# Human-friendly names for `silica config` output. Registry keys are the
+# canonical binary/config names (what config files and enabled lists use);
+# these are what a person recognizes. Keys not listed display unchanged.
+DISPLAY_NAMES: dict[str, str] = {
+    "verible-verilog-lint": "verible",
+    "openfpgaloader": "openFPGALoader",
+}
+
+
+def display_name(name: str) -> str:
+    """Return the friendly display name for a registry key (itself if none)."""
+    return DISPLAY_NAMES.get(name, name)

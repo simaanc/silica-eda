@@ -1,8 +1,10 @@
 """Yosys adapter — synthesis and utilization reporting."""
 
 import re
+import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
@@ -27,6 +29,10 @@ _DSP_CELLS = {"$mul", "$div", "$mod", "$pow"}
 _CELL_RE_ABSTRACT = re.compile(r"^\s+(\$[\w:]+)\s+(\d+)\s*$", re.MULTILINE)
 _CELL_RE_MAPPED = re.compile(r"^\s+(\d+)\s+(\$[\w:]+|\w[\w:]*)\s*$", re.MULTILINE)
 _WARNING_RE = re.compile(r"^Warning:\s*(.+)$", re.MULTILINE)
+
+# Targets whose synth_<arch> command supports -json and whose netlist
+# nextpnr (or a vendor P&R flow) can consume.
+_FPGA_TARGETS = {"ice40", "ecp5", "xilinx", "gowin"}
 
 
 def _count_cells(stat_output: str) -> dict:
@@ -73,6 +79,10 @@ def run(
     """Synthesize with Yosys and return structured utilization.
 
     target: "generic" | "ice40" | "ecp5" | "xilinx" | "gowin"
+
+    For FPGA targets a JSON netlist is written and its path returned under
+    "netlist" — pass it to run_place_route. "netlist" is None for the
+    generic target and on any failure.
     """
     bad = unsafe_script_value(files, top)
     if bad:
@@ -83,6 +93,7 @@ def run(
             "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
                             "lut_pct": 0.0, "ff_pct": 0.0},
             "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+            "netlist": None,
             "warnings": [],
             "errors": [{"file": "", "line": 0, "severity": "error", "message": bad}],
             "raw_output": "",
@@ -107,8 +118,15 @@ def run(
         "gowin":   f"synth_gowin -top {top}",
     }.get(target, f"synth -top {top}")
 
+    # FPGA netlist is written to a fixed name inside the run's cwd, so no
+    # user-controlled value reaches the script — the injection guard above
+    # only had to vet files/top.
+    if target in _FPGA_TARGETS:
+        synth_cmd += " -json netlist.json"
+
     script = "; ".join(read_cmds + [synth_cmd, "stat"])
 
+    netlist_out = None
     with tempfile.TemporaryDirectory(prefix="silica_yosys_") as tmpdir:
         try:
             cp = subprocess.run(
@@ -128,11 +146,20 @@ def run(
                 "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
                                 "lut_pct": 0.0, "ff_pct": 0.0},
                 "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                "netlist": None,
                 "warnings": [],
                 "errors": [{"file": "", "line": 0, "severity": "error",
                             "message": f"yosys timed out after {timeout}s"}],
                 "raw_output": "",
             }
+
+        tmp_netlist = Path(tmpdir) / "netlist.json"
+        if cp.returncode == 0 and tmp_netlist.exists():
+            # Persistent dir only after success — mkdtemp, never
+            # TemporaryDirectory (it would auto-delete under the caller).
+            outdir = tempfile.mkdtemp(prefix="silica_synth_")
+            netlist_out = str(Path(outdir) / "netlist.json")
+            shutil.move(str(tmp_netlist), netlist_out)
 
     combined = cp.stdout + cp.stderr
     util = _count_cells(combined)
@@ -146,6 +173,7 @@ def run(
             "exit_code": cp.returncode,
             "utilization": util,
             "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+            "netlist": None,
             "warnings": warnings,
             "errors": [{"file": "", "line": 0, "severity": "error", "message": error_msg}],
             "raw_output": combined,
@@ -158,6 +186,7 @@ def run(
         "utilization": util,
         # Yosys generic synth has no timing; nextpnr would provide this
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": netlist_out,
         "warnings": warnings,
         "errors": [],
         "raw_output": combined,
@@ -178,6 +207,7 @@ def _not_found() -> dict:
         "exit_code": -1,
         "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": None,
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
                     "message": f"yosys not found.\n{install_hint('yosys')}"}],
