@@ -1,5 +1,6 @@
 """Tests for silica.tools.waveform (launch_waveform, read_waveform MCP tools)."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -181,12 +182,12 @@ def test_missing_file_returns_error(read_waveform):
     assert "error" in result
 
 
-def test_binary_formats_rejected(read_waveform, tmp_path):
-    f = tmp_path / "sim.fst"
+def test_fsdb_rejected(read_waveform, tmp_path):
+    f = tmp_path / "sim.fsdb"
     f.write_bytes(b"\x00\x01")
     result = read_waveform(str(f))
     assert "error" in result
-    assert "VCD" in result["error"]
+    assert "FSDB" in result["error"]
 
 
 def test_malformed_vcd_returns_error(read_waveform, tmp_path):
@@ -194,3 +195,70 @@ def test_malformed_vcd_returns_error(read_waveform, tmp_path):
     f.write_text("not a vcd\n")
     result = read_waveform(str(f))
     assert "error" in result
+
+
+# --- FST support (via fst2vcd) ---
+
+def test_fst_without_converter_errors(read_waveform, tmp_path):
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    with patch("silica.tools.waveform.oss_cad_suite.which", return_value=None):
+        result = read_waveform(str(f))
+    assert "error" in result
+    assert "fst2vcd" in result["error"]
+
+
+def test_fst_converted_then_parsed(read_waveform, tmp_path):
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+
+    def fake_run(cmd, *args, **kwargs):
+        # fst2vcd is invoked as [tool, "-f", <in>, "-o", <out>]; emit VCD there.
+        out = cmd[cmd.index("-o") + 1]
+        Path(out).write_text(COUNTER_VCD)
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("silica.tools.waveform.oss_cad_suite.which",
+               return_value="/opt/oss/bin/fst2vcd"), \
+         patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
+               return_value={}), \
+         patch("silica.tools.waveform.subprocess.run", side_effect=fake_run):
+        result = read_waveform(str(f), signals=["dut.count"])
+    assert result["not_found"] == []
+    assert result["signals"][0]["name"] == "tb.dut.count"
+    assert {"time": 15, "value": "0010"} in result["signals"][0]["transitions"]
+
+
+def test_fst_conversion_failure_surfaced(read_waveform, tmp_path):
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    failed = MagicMock(returncode=1, stdout="", stderr="not an FST file")
+    with patch("silica.tools.waveform.oss_cad_suite.which",
+               return_value="/opt/oss/bin/fst2vcd"), \
+         patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
+               return_value={}), \
+         patch("silica.tools.waveform.subprocess.run", return_value=failed):
+        result = read_waveform(str(f))
+    assert "error" in result
+    assert "fst2vcd could not convert" in result["error"]
+
+
+def test_fst_conversion_cleans_up_temp_vcd(read_waveform, tmp_path):
+    """The throwaway VCD from fst2vcd must not linger after the read."""
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    created: list[str] = []
+
+    def fake_run(cmd, *args, **kwargs):
+        out = cmd[cmd.index("-o") + 1]
+        created.append(out)
+        Path(out).write_text(COUNTER_VCD)
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("silica.tools.waveform.oss_cad_suite.which",
+               return_value="/opt/oss/bin/fst2vcd"), \
+         patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
+               return_value={}), \
+         patch("silica.tools.waveform.subprocess.run", side_effect=fake_run):
+        read_waveform(str(f))
+    assert created and not Path(created[0]).exists()
