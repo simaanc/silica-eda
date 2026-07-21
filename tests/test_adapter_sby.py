@@ -72,6 +72,24 @@ def test_timeout(mock_run, mock_which, mock_env, sby_file):
     assert "timed out" in result["errors"][0]["message"]
 
 
+@patch("silica.adapters.sby.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.sby.oss_cad_suite.which", return_value="/usr/bin/sby")
+@patch("silica.adapters.sby.subprocess.run")
+def test_workdir_unique_across_same_stem_runs(mock_run, mock_which, mock_env, sby_file):
+    # Two runs of the same .sby must not share a workdir, or the second
+    # clobbers the first's traces. Workdir is the arg right after "-d".
+    mock_run.return_value = make_proc(stdout=SBY_PASS_OUTPUT, returncode=0)
+
+    def _workdir_of(call):
+        cmd = call.args[0]
+        return cmd[cmd.index("-d") + 1]
+
+    sby.run(sby_file)
+    sby.run(sby_file)
+    workdirs = [_workdir_of(c) for c in mock_run.call_args_list]
+    assert workdirs[0] != workdirs[1]
+
+
 def test_generate_sby_contains_sections():
     content = sby.generate_sby(["dut.sv"], "top", mode="bmc", depth=10)
     assert "[options]" in content
