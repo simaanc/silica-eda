@@ -1,9 +1,11 @@
 """MCP tools: launch_waveform, read_waveform."""
 
+import atexit
 import os
 import shutil
 import subprocess
 import tempfile
+from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,15 +27,72 @@ _MAX_LISTED_SIGNALS = 1000
 # Seconds before giving up on the FST→VCD conversion.
 _FST_CONVERT_TIMEOUT = 120
 
+# --- FST→VCD conversion cache ------------------------------------------------
+# fst2vcd decodes the *whole* trace, so the usual debug pattern — one discovery
+# read to list signals, then several windowed reads of the same trace — would
+# otherwise reconvert it on every call. Cache the converted VCD per trace path,
+# keyed by the FST's (mtime_ns, size) so a rerun that overwrites the trace
+# invalidates the stale VCD. The cache is bounded (LRU) and its files live in a
+# single temp dir removed at process exit.
+_MAX_FST_CACHE = 8
+# resolved FST path -> ((mtime_ns, size), converted VCD path)
+_fst_cache: "OrderedDict[str, tuple[tuple[int, int], Path]]" = OrderedDict()
+_fst_cache_dir: str | None = None
+
+
+def _cache_dir() -> str:
+    """Lazily create the shared cache dir, cleaned up at interpreter exit."""
+    global _fst_cache_dir
+    if _fst_cache_dir is None:
+        _fst_cache_dir = tempfile.mkdtemp(prefix="silica_fst_cache_")
+        atexit.register(shutil.rmtree, _fst_cache_dir, True)
+    return _fst_cache_dir
+
+
+def _drop_fst_cache_entry(key: str) -> None:
+    entry = _fst_cache.pop(key, None)
+    if entry is not None:
+        try:
+            entry[1].unlink()
+        except OSError:
+            pass
+
+
+def _evict_fst_cache() -> None:
+    while len(_fst_cache) > _MAX_FST_CACHE:
+        _, (_, vcd_path) = _fst_cache.popitem(last=False)
+        try:
+            vcd_path.unlink()
+        except OSError:
+            pass
+
 
 def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
-    """Convert an FST trace to a temporary VCD using the bundled fst2vcd.
+    """Convert an FST trace to a VCD (cached) using the bundled fst2vcd.
 
     FST is GTKWave's compressed binary trace format; rather than decode it in
     Python we shell out to fst2vcd (shipped in the OSS CAD Suite) and reuse the
-    VCD parser. Returns (vcd_path, None) on success or (None, error); the
-    caller owns the returned temp file and must delete it.
+    VCD parser. The converted VCD is cached per trace path and reused until the
+    FST changes on disk, so repeated reads of one trace convert it only once.
+    Returns (vcd_path, None) on success or (None, error); the returned path is
+    owned by the module cache and must NOT be deleted by the caller.
     """
+    key = str(fst_path.resolve())
+    try:
+        st = fst_path.stat()
+    except OSError as exc:
+        return None, f"Cannot read {fst_path.name}: {exc}"
+    stamp = (st.st_mtime_ns, st.st_size)
+
+    cached = _fst_cache.get(key)
+    if cached is not None:
+        cached_stamp, cached_vcd = cached
+        if cached_stamp == stamp and cached_vcd.is_file():
+            _fst_cache.move_to_end(key)  # mark most-recently-used
+            return cached_vcd, None
+        # Trace changed on disk (or the VCD vanished) — reconvert.
+        _drop_fst_cache_entry(key)
+
     tool = oss_cad_suite.which("fst2vcd")
     if not tool:
         return None, (
@@ -41,7 +100,7 @@ def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
             "OSS CAD Suite but was not found. Install the OSS CAD Suite, or "
             "re-run the simulation with a $dumpfile VCD."
         )
-    fd, tmp = tempfile.mkstemp(prefix="silica_fst_", suffix=".vcd")
+    fd, tmp = tempfile.mkstemp(prefix="silica_fst_", suffix=".vcd", dir=_cache_dir())
     os.close(fd)
     try:
         cp = subprocess.run(
@@ -58,7 +117,12 @@ def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
         os.unlink(tmp)
         detail = (cp.stderr or cp.stdout).strip()
         return None, f"fst2vcd could not convert {fst_path.name}: {detail}"
-    return Path(tmp), None
+
+    vcd_path = Path(tmp)
+    _fst_cache[key] = (stamp, vcd_path)
+    _fst_cache.move_to_end(key)
+    _evict_fst_cache()
+    return vcd_path, None
 
 
 def register(mcp: "FastMCP") -> None:
@@ -173,13 +237,12 @@ def register(mcp: "FastMCP") -> None:
                 "launch_waveform with the verdi viewer."
             )}
 
-        # FST is binary — convert to a throwaway VCD, then parse as usual.
-        tmp_vcd: Path | None = None
+        # FST is binary — convert to a VCD (cached per trace), then parse as
+        # usual. The VCD is owned by the cache, so we must not delete it here.
         if suffix == ".fst":
-            tmp_vcd, err = _fst_to_vcd(path)
+            parse_target, err = _fst_to_vcd(path)
             if err:
                 return {"error": err}
-            parse_target = tmp_vcd
         else:
             parse_target = path
 
@@ -193,12 +256,6 @@ def register(mcp: "FastMCP") -> None:
             )
         except (ValueError, OSError) as exc:
             return {"error": f"Failed to parse VCD: {exc}"}
-        finally:
-            if tmp_vcd is not None:
-                try:
-                    os.unlink(tmp_vcd)
-                except OSError:
-                    pass
 
         if not signals:
             available = parsed["all_signals"]
