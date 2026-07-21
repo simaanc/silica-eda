@@ -68,21 +68,32 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Compile and simulate with Verilator (--binary mode, Verilator 5+).
 
     Falls back to lint-only mode if --binary is unsupported.
     When trace=True, writes dump.vcd to a persistent temp directory and
     returns its path as trace_vcd in the result.
+
+    extra_sources: additional design files (submodules, packages) compiled
+    alongside dut and testbench.
     """
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+) -> dict:
     binary = _find_verilator()
     if not binary:
         return _not_found()
@@ -111,6 +122,7 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
             "-o", str(sim_bin),
             dut,
             testbench,
+            *extra_sources,
         ]
         if make_tool and make_tool != "make":
             compile_cmd.extend(["--make", make_tool])

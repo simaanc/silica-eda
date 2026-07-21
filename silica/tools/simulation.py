@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from silica.adapters import ghdl, icarus, questa, vcs, verilator, xcelium
 from silica.adapters._hints import install_hint
 from silica.tools._config_dispatch import check_enabled, pick
+from silica.tools._sources import expand_sources
 
 # Maps registry name → adapter identifier used below
 _SIM_ADAPTERS = {
@@ -20,6 +21,19 @@ _SIM_ADAPTERS = {
 }
 
 
+def _error_result(file: str, message: str) -> dict:
+    """A SimulationResult-shaped dict carrying a single tool-level error."""
+    return {
+        "exit_code": -1,
+        "errors": [{"file": file, "line": 0, "severity": "error",
+                    "message": message}],
+        "warnings": [],
+        "raw_stdout": "",
+        "raw_stderr": "",
+        "trace_vcd": None,
+    }
+
+
 def register(mcp: "FastMCP") -> None:
     @mcp.tool()
     def run_simulation(
@@ -29,11 +43,14 @@ def register(mcp: "FastMCP") -> None:
         top: str | None = None,
         timeout: int = 60,
         trace: bool = False,
+        extra_sources: list[str] | None = None,
     ) -> dict:
         """Run RTL simulation and return structured diagnostics.
 
         Args:
-            file: Path to the DUT source file (.sv / .v for Verilog, .vhd for VHDL).
+            file: Path to the DUT source file (.sv / .v for Verilog, .vhd for
+                  VHDL). May instead be a ``.f`` filelist (one source path per
+                  line); its entries become the design sources.
             testbench: Path to the testbench file.
             simulator: "auto" | "verilator" | "icarus" | "iverilog" | "ghdl" |
                        "vcs" | "questa" | "xcelium". "iverilog" is accepted as
@@ -42,11 +59,22 @@ def register(mcp: "FastMCP") -> None:
             timeout: Seconds before killing the simulator process.
             trace: When True, capture a VCD waveform trace. Returns trace_vcd path
                    in the result dict. Pass that path to launch_waveform to open it.
+            extra_sources: Additional design files (submodules, packages)
+                   compiled alongside the DUT. Each entry may itself be a ``.f``
+                   filelist, which is expanded in place.
 
         Returns a SimulationResult dict:
             exit_code, errors [{file, line, severity, message}], warnings,
             raw_stdout, raw_stderr, trace_vcd (str path or None)
         """
+        # Expand any .f filelists and split into a DUT + additional sources.
+        try:
+            design = expand_sources([file, *(extra_sources or [])])
+        except OSError as exc:
+            return _error_result(file, f"Could not read filelist: {exc}")
+        if not design:
+            return _error_result(file, "No source files provided.")
+        dut, extra = design[0], design[1:]
         if simulator == "auto":
             chosen = pick("simulation")
             if chosen in _SIM_ADAPTERS:
@@ -85,17 +113,23 @@ def register(mcp: "FastMCP") -> None:
                 }
 
         if simulator == "verilator":
-            return verilator.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return verilator.run(dut, testbench, top=top, timeout=timeout,
+                                 trace=trace, extra_sources=extra)
         elif simulator in ("icarus", "iverilog"):
-            return icarus.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return icarus.run(dut, testbench, top=top, timeout=timeout,
+                              trace=trace, extra_sources=extra)
         elif simulator == "ghdl":
-            return ghdl.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return ghdl.run(dut, testbench, top=top, timeout=timeout,
+                            trace=trace, extra_sources=extra)
         elif simulator == "vcs":
-            return vcs.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return vcs.run(dut, testbench, top=top, timeout=timeout,
+                           trace=trace, extra_sources=extra)
         elif simulator == "questa":
-            return questa.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return questa.run(dut, testbench, top=top, timeout=timeout,
+                              trace=trace, extra_sources=extra)
         elif simulator == "xcelium":
-            return xcelium.run(file, testbench, top=top, timeout=timeout, trace=trace)
+            return xcelium.run(dut, testbench, top=top, timeout=timeout,
+                               trace=trace, extra_sources=extra)
         else:
             return {
                 "exit_code": -1,
