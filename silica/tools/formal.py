@@ -86,9 +86,12 @@ def register(mcp: "FastMCP") -> None:
             if bad:
                 return _error_result(bad)
 
-            sby_content = sby_adapter.generate_sby(
-                files=files, top=top, mode=mode, depth=depth, engine=engine,
-            )
+            try:
+                sby_content = sby_adapter.generate_sby(
+                    files=files, top=top, mode=mode, depth=depth, engine=engine,
+                )
+            except ValueError as exc:
+                return _error_result(str(exc))
             tmp_dir = Path(tempfile.mkdtemp(prefix="silica_sby_gen_"))
             sby_path = tmp_dir / f"{top}.sby"
             sby_path.write_text(sby_content, encoding="utf-8")

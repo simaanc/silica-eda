@@ -35,7 +35,12 @@ def register(mcp: "FastMCP") -> None:
 
         Returns a SynthesisResult dict:
             tool, target, exit_code, utilization {luts, ffs, bram, dsp, lut_pct, ff_pct},
-            timing_summary {wns, tns, failing_endpoints}, warnings, errors, raw_output
+            timing_summary {wns, tns, failing_endpoints}, netlist, warnings, errors,
+            raw_output
+
+            netlist: path to a JSON netlist ready for run_place_route. Written by
+            yosys for FPGA targets ("ice40" | "ecp5" | "xilinx" | "gowin");
+            None for generic/commercial-tool runs and on failure.
         """
         if tool == "auto":
             chosen = pick("synthesis")
@@ -47,6 +52,7 @@ def register(mcp: "FastMCP") -> None:
                     "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
                                     "lut_pct": 0.0, "ff_pct": 0.0},
                     "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                    "netlist": None,
                     "warnings": [],
                     "errors": [{
                         "file": "", "line": 0, "severity": "error",
@@ -70,6 +76,7 @@ def register(mcp: "FastMCP") -> None:
                     "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
                                     "lut_pct": 0.0, "ff_pct": 0.0},
                     "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                    "netlist": None,
                     "warnings": [],
                     "errors": [{"file": "", "line": 0, "severity": "error",
                                 "message": disabled}],
@@ -92,6 +99,7 @@ def register(mcp: "FastMCP") -> None:
                 "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
                                 "lut_pct": 0.0, "ff_pct": 0.0},
                 "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+                "netlist": None,
                 "warnings": [],
                 "errors": [{
                     "file": "", "line": 0, "severity": "error",

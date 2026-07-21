@@ -1,5 +1,7 @@
 """Tests for silica.tools.project (project MCP tools)."""
 
+from unittest.mock import patch
+
 import pytest
 from conftest import MockMCP
 
@@ -214,3 +216,59 @@ def test_get_constraints_format_detection(tools, in_project, ext, expected_fmt):
     f.write_text("# constraints\n")
     result = tools["get_constraints"](file=str(f))
     assert result["format"] == expected_fmt
+
+
+# --- project_root resolution ---
+
+def test_project_root_defaults_to_cwd(tmp_path, monkeypatch):
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    monkeypatch.chdir(tmp_path)
+    with patch("silica.config.load", return_value={}):
+        assert project.project_root() == tmp_path.resolve()
+
+
+def test_project_root_from_config(tmp_path, monkeypatch):
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    monkeypatch.chdir(tmp_path)  # CWD is elsewhere; config must win
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    config = {"project": {"root": str(proj)}}
+    with patch("silica.config.load", return_value=config):
+        assert project.project_root() == proj.resolve()
+
+
+def test_project_root_env_overrides_config(tmp_path, monkeypatch):
+    env_root = tmp_path / "env_root"
+    env_root.mkdir()
+    cfg_root = tmp_path / "cfg_root"
+    cfg_root.mkdir()
+    monkeypatch.setenv("SILICA_PROJECT_ROOT", str(env_root))
+    config = {"project": {"root": str(cfg_root)}}
+    with patch("silica.config.load", return_value=config):
+        assert project.project_root() == env_root.resolve()
+
+
+def test_project_root_ignores_nonexistent_config_root(tmp_path, monkeypatch):
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    monkeypatch.chdir(tmp_path)
+    config = {"project": {"root": str(tmp_path / "does_not_exist")}}
+    with patch("silica.config.load", return_value=config):
+        assert project.project_root() == tmp_path.resolve()
+
+
+def test_confine_root_follows_configured_project_root(tools, tmp_path, monkeypatch):
+    """A file inside the configured project root is allowed even when CWD is elsewhere."""
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "dut.sv").write_text("module dut(); endmodule\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    config = {"project": {"root": str(proj)}}
+    with patch("silica.config.load", return_value=config):
+        result = tools["read_rtl"](file=str(proj / "dut.sv"))
+        assert "module dut" in result["content"]
+        # A file under the old CWD now escapes the configured root.
+        escape = tools["read_rtl"](file=str(elsewhere / "x.sv"))
+        assert "escapes the project directory" in escape["error"]
