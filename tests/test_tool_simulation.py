@@ -77,6 +77,30 @@ def test_missing_filelist_returns_structured_error(run_simulation, tmp_path):
     assert "filelist" in result["errors"][0]["message"].lower()
 
 
+# --- coverage flag ---
+
+@patch("silica.adapters.verilator.run", return_value=SIM_SUCCESS)
+def test_coverage_threaded_to_verilator(mock_run, run_simulation):
+    run_simulation("dut.sv", "tb.sv", simulator="verilator", coverage=True)
+    _args, kwargs = mock_run.call_args
+    assert kwargs["coverage"] is True
+
+
+def test_coverage_rejected_for_non_verilator(run_simulation):
+    result = run_simulation("dut.sv", "tb.sv", simulator="icarus", coverage=True)
+    assert result["exit_code"] == -1
+    assert "verilator" in result["errors"][0]["message"].lower()
+
+
+@patch("silica.adapters.icarus.run", return_value=SIM_SUCCESS)
+@patch("silica.tools.simulation.pick", return_value="iverilog")
+def test_coverage_rejected_when_auto_resolves_non_verilator(mock_pick, mock_run,
+                                                            run_simulation):
+    result = run_simulation("dut.sv", "tb.sv", simulator="auto", coverage=True)
+    assert result["exit_code"] == -1
+    assert "verilator" in result["errors"][0]["message"].lower()
+
+
 @patch("silica.adapters.ghdl.run", return_value=SIM_SUCCESS)
 def test_ghdl_named(mock_run, run_simulation):
     result = run_simulation("dut.sv", "tb.sv", simulator="ghdl")

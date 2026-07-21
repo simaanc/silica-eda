@@ -88,6 +88,58 @@ def test_parse_output_error():
     assert errors[0]["severity"] == "error"
 
 
+# --- coverage ---
+
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
+def test_coverage_flag_and_dat_captured(mock_run, mock_which, mock_env, tmp_path):
+    from pathlib import Path
+
+    calls = {"n": 0}
+
+    def side_effect(cmd, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 2:  # the simulation run — write coverage.dat into cwd
+            Path(k["cwd"], "coverage.dat").write_text("SP\n")
+        return make_proc(returncode=0)
+
+    mock_run.side_effect = side_effect
+    with patch("silica.adapters.verilator.tempfile.mkdtemp",
+               return_value=str(tmp_path)):
+        result = verilator.run("dut.sv", "tb.sv", coverage=True)
+
+    compile_cmd = mock_run.call_args_list[0].args[0]
+    assert "--coverage" in compile_cmd
+    assert result["coverage_dat"] == str(tmp_path / "coverage.dat")
+
+
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=None)
+@patch("silica.adapters.verilator.shutil.which", return_value=None)
+def test_coverage_info_tool_missing(mock_sw, mock_ow):
+    result = verilator.coverage_info("coverage.dat")
+    assert "error" in result
+    assert "verilator_coverage" in result["error"]
+
+
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which",
+       return_value="/usr/bin/verilator_coverage")
+@patch("silica.adapters.verilator.subprocess.run")
+def test_coverage_info_writes_and_reads_info(mock_run, mock_which, mock_env):
+    from pathlib import Path
+
+    def side_effect(cmd, *a, **k):
+        out = cmd[cmd.index("--write-info") + 1]
+        Path(out).write_text("SF:/x.sv\nDA:1,1\nend_of_record\n")
+        return make_proc(returncode=0)
+
+    mock_run.side_effect = side_effect
+    result = verilator.coverage_info("coverage.dat")
+    assert "info" in result
+    assert "SF:/x.sv" in result["info"]
+
+
 def test_parse_output_warning():
     errors, warnings = verilator._parse_output(VERILATOR_WARNING)
     assert len(warnings) == 1
