@@ -1,14 +1,16 @@
 """MCP tools: launch_waveform, read_waveform."""
 
+import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
-from silica import vcd
+from silica import oss_cad_suite, vcd
 from silica.adapters import verdi as verdi_adapter
 from silica.adapters._hints import install_hint
 from silica.detect import resolve
@@ -19,6 +21,44 @@ _ALL_VIEWERS = {"surfer", "gtkwave", "verdi"}
 
 # Discovery mode lists at most this many signals.
 _MAX_LISTED_SIGNALS = 1000
+
+# Seconds before giving up on the FST→VCD conversion.
+_FST_CONVERT_TIMEOUT = 120
+
+
+def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
+    """Convert an FST trace to a temporary VCD using the bundled fst2vcd.
+
+    FST is GTKWave's compressed binary trace format; rather than decode it in
+    Python we shell out to fst2vcd (shipped in the OSS CAD Suite) and reuse the
+    VCD parser. Returns (vcd_path, None) on success or (None, error); the
+    caller owns the returned temp file and must delete it.
+    """
+    tool = oss_cad_suite.which("fst2vcd")
+    if not tool:
+        return None, (
+            "Reading .fst needs the fst2vcd converter, which ships with the "
+            "OSS CAD Suite but was not found. Install the OSS CAD Suite, or "
+            "re-run the simulation with a $dumpfile VCD."
+        )
+    fd, tmp = tempfile.mkstemp(prefix="silica_fst_", suffix=".vcd")
+    os.close(fd)
+    try:
+        cp = subprocess.run(
+            [tool, "-f", str(fst_path), "-o", tmp],
+            capture_output=True,
+            text=True,
+            timeout=_FST_CONVERT_TIMEOUT,
+            env=oss_cad_suite.env_with_suite(),
+        )
+    except subprocess.TimeoutExpired:
+        os.unlink(tmp)
+        return None, f"fst2vcd timed out after {_FST_CONVERT_TIMEOUT}s"
+    if cp.returncode != 0:
+        os.unlink(tmp)
+        detail = (cp.stderr or cp.stdout).strip()
+        return None, f"fst2vcd could not convert {fst_path.name}: {detail}"
+    return Path(tmp), None
 
 
 def register(mcp: "FastMCP") -> None:
@@ -88,7 +128,7 @@ def register(mcp: "FastMCP") -> None:
         time_end: int | None = None,
         max_transitions: int = 200,
     ) -> dict:
-        """Read signal values from a VCD trace — no waveform viewer needed.
+        """Read signal values from a VCD or FST trace — no viewer needed.
 
         Typical debug flow:
             1. result = run_simulation(..., trace=True)   # note failure time T
@@ -98,7 +138,8 @@ def register(mcp: "FastMCP") -> None:
                              time_start=T-100, time_end=T+10)
 
         Args:
-            trace_file: Path to the .vcd trace (from run_simulation's trace_vcd).
+            trace_file: Path to the trace. VCD is read directly; .fst is
+                        converted via the OSS CAD Suite's fst2vcd first.
             signals: Signal names to read. A name matches on the full
                      hierarchical path ("tb.dut.count") or any trailing
                      component ("count", "dut.count"). Omit to list the
@@ -123,16 +164,28 @@ def register(mcp: "FastMCP") -> None:
         path = Path(trace_file)
         if not path.is_file():
             return {"error": f"Trace file not found: {trace_file}"}
-        if path.suffix.lower() in (".fst", ".fsdb"):
+
+        suffix = path.suffix.lower()
+        if suffix == ".fsdb":
             return {"error": (
-                f"Only VCD traces can be read directly; {path.suffix} is a "
-                "binary format. Re-run the simulation with a $dumpfile VCD, "
-                "or use launch_waveform for a viewer."
+                "FSDB is a proprietary Synopsys format; read_waveform cannot "
+                "parse it. Re-run the simulation with a $dumpfile VCD, or use "
+                "launch_waveform with the verdi viewer."
             )}
+
+        # FST is binary — convert to a throwaway VCD, then parse as usual.
+        tmp_vcd: Path | None = None
+        if suffix == ".fst":
+            tmp_vcd, err = _fst_to_vcd(path)
+            if err:
+                return {"error": err}
+            parse_target = tmp_vcd
+        else:
+            parse_target = path
 
         try:
             parsed = vcd.parse(
-                str(path),
+                str(parse_target),
                 signals=signals,
                 time_start=time_start,
                 time_end=time_end,
@@ -140,6 +193,12 @@ def register(mcp: "FastMCP") -> None:
             )
         except (ValueError, OSError) as exc:
             return {"error": f"Failed to parse VCD: {exc}"}
+        finally:
+            if tmp_vcd is not None:
+                try:
+                    os.unlink(tmp_vcd)
+                except OSError:
+                    pass
 
         if not signals:
             available = parsed["all_signals"]
