@@ -178,7 +178,24 @@ def generate_sby(
         mode: "prove" | "bmc" | "cover" | "live".
         depth: Bound depth for bmc/prove.
         engine: "auto" (detect solver) | explicit engine string e.g. "smtbmc z3".
+
+    Raises:
+        ValueError: if two source files share a basename. The [files] section
+            uses basenames (drive letters break sby), so same-named files from
+            different directories would clobber each other in the workdir — one
+            silently shadowing the other. Fail loudly instead.
     """
+    seen: dict[str, str] = {}
+    for f in files:
+        name = Path(f).name
+        if name in seen and seen[name] != f:
+            raise ValueError(
+                f"Duplicate source basename {name!r}: {seen[name]!r} and {f!r}. "
+                "sby's [files] section keys on basenames, so these would "
+                "collide in the workdir — rename one or pass distinct names."
+            )
+        seen[name] = f
+
     if engine == "auto":
         solver = _detect_solver()
         engine = f"smtbmc {solver}" if solver else "smtbmc"
