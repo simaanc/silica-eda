@@ -151,7 +151,7 @@ enabled  = ["verilator", "iverilog"]   # allowlist — everything else is blocke
 
 `priority` reorders what `auto` tries. `enabled` is an enforced allowlist: tools not on it can't be used **even when the model asks for one explicitly** — the request is rejected with an error naming the tool and what's enabled, so the model can retry with an allowed one. Useful when a machine has commercial tools installed that shouldn't be run (license pools, air-gapped flows). Leave `enabled` empty or unset for no restriction.
 
-Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `waveform`, `program`.
+Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `format`, `waveform`, `program`.
 
 ## Guardrails
 
@@ -165,14 +165,17 @@ Built for pointing an autonomous agent at a real repo:
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Returns structured errors and optional VCD trace path. |
-| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Returns utilization and timing summary. |
+| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Accepts multiple design files / a `.f` filelist via `extra_sources`. Returns structured errors, optional VCD trace, and optional coverage (`coverage=True`, Verilator). |
+| `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. |
+| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary. |
 | `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
 | `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
-| `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Returns structured warnings. |
+| `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Lints multiple files / a `.f` filelist. Returns structured warnings. |
+| `format_rtl` | Auto-format SystemVerilog/Verilog with verible-verilog-format. Diff-first (dry_run) like `write_rtl`; refuses to mangle on syntax errors. |
 | `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
 | `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
-| `read_waveform` | Read signal values straight out of a VCD trace (pure Python, no viewer). List available signals, then fetch transitions for chosen signals in a time window — lets the model inspect waveforms autonomously. |
+| `read_waveform` | Read signal values straight out of a VCD/FST trace (pure Python, no viewer). List available signals, then fetch transitions for chosen signals in a time window — lets the model inspect waveforms autonomously. |
+| `read_coverage` | Summarize a Verilator `coverage.dat` as per-file and overall line coverage, with uncovered line numbers. |
 | `read_rtl` | Read source file with line numbers. |
 | `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
 | `get_project_structure` | Scan for RTL and constraint files. |
@@ -205,17 +208,22 @@ silica/
 │   ├── setup.py               # interactive setup wizard + config viewer
 │   ├── tools/                 # MCP tool definitions
 │   │   ├── _config_dispatch.py  # config-aware auto tool selection
+│   │   ├── _sources.py        # .f filelist / multi-file expansion
 │   │   ├── simulation.py      # run_simulation()
+│   │   ├── cocotb.py          # run_cocotb()
+│   │   ├── coverage.py        # read_coverage()
 │   │   ├── synthesis.py       # synthesize()
 │   │   ├── place_route.py     # run_place_route()
 │   │   ├── program.py         # program_device()
 │   │   ├── lint.py            # lint()
+│   │   ├── format.py          # format_rtl()
 │   │   ├── formal.py          # run_formal()
 │   │   ├── waveform.py        # launch_waveform(), read_waveform()
 │   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
 │   └── adapters/              # per-tool CLI wrappers + output parsers
 │       ├── _hints.py          # platform-aware install hint strings
 │       ├── verilator.py       # open source
+│       ├── cocotb_runner.py
 │       ├── icarus.py
 │       ├── ghdl.py
 │       ├── yosys.py
@@ -243,10 +251,13 @@ silica/
 | Category | Open source | Commercial (detected if on PATH) |
 |---|---|---|
 | Simulation | Verilator, Icarus Verilog, GHDL | VCS (Synopsys), Questa (Siemens), Xcelium (Cadence) |
+| Python TB | cocotb (Icarus/Verilator/…) | — |
 | Synthesis | Yosys | Vivado (AMD/Xilinx), Quartus (Intel), DC Shell (Synopsys) |
 | Place & Route | nextpnr (ice40, ECP5, Nexus, MachXO2) | — |
 | Formal | SymbiYosys, eqy | JasperGold (Cadence), VC Formal (Synopsys) |
 | Lint | Verible, svlint | SpyGlass (Synopsys) |
+| Format | verible-verilog-format | — |
+| Coverage | Verilator | — |
 | Waveform | GTKWave, Surfer | Verdi (Synopsys) |
 | Program | openFPGALoader | — |
 
