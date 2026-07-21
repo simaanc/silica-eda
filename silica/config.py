@@ -22,6 +22,7 @@ _DEFAULTS: dict = {
     },
     "clients": {"configured": []},
     "oss_cad_suite": {"path": ""},
+    "project": {"root": ""},
 }
 
 

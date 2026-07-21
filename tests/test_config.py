@@ -64,3 +64,8 @@ def test_load_defaults_have_expected_tool_categories():
     for category in ("simulation", "synthesis", "place_route", "formal",
                      "lint", "waveform", "program"):
         assert category in tools, f"Missing category: {category}"
+
+
+def test_defaults_include_empty_project_root():
+    result = cfg.load()
+    assert result.get("project", {}).get("root") == ""
