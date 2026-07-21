@@ -1,25 +1,55 @@
 """MCP tools: file and project operations."""
 
 import difflib
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
+from silica import config as cfg
+
 _RTL_EXTENSIONS = {".sv", ".svh", ".v", ".vh", ".vhd", ".vhdl"}
 _CONSTRAINT_EXTENSIONS = {".xdc", ".lpf", ".sdc", ".upf", ".pdc"}
+
+
+def project_root() -> Path:
+    """Resolve the project directory the file tools are confined to.
+
+    When Claude Desktop (and other file-based clients) launch the server, its
+    CWD is not the user's project, which makes the default confinement root
+    useless. So the root is resolved in precedence order:
+
+    1. the ``SILICA_PROJECT_ROOT`` env var,
+    2. the ``project.root`` key in ``~/.silica/config.toml``,
+    3. the server's current working directory (the historical default).
+
+    A configured root that doesn't exist is ignored so a stale setting can't
+    silently disable every file tool.
+    """
+    env = os.environ.get("SILICA_PROJECT_ROOT")
+    if env:
+        p = Path(env).expanduser()
+        if p.is_dir():
+            return p.resolve()
+    recorded = cfg.load().get("project", {}).get("root", "")
+    if recorded:
+        p = Path(recorded).expanduser()
+        if p.is_dir():
+            return p.resolve()
+    return Path.cwd().resolve()
 
 
 def _confine(file: str) -> tuple[Path | None, str | None]:
     """Resolve a path and require it to stay inside the project directory.
 
-    The project root is the server's working directory. Absolute paths and
-    ``..`` traversal that escape it are rejected so MCP callers cannot read
+    The project root is :func:`project_root` (env/config/CWD). Absolute paths
+    and ``..`` traversal that escape it are rejected so MCP callers cannot read
     or write arbitrary files. Returns (path, None) on success or
     (None, error message) on escape.
     """
-    root = Path.cwd().resolve()
+    root = project_root()
     path = Path(file).resolve()
     if path == root or path.is_relative_to(root):
         return path, None
@@ -41,7 +71,7 @@ def register(mcp: "FastMCP") -> None:
             files: list of relative paths to RTL/constraint files
             top_candidates: module names that are instantiated but not instances
         """
-        root_path = Path(root).resolve()
+        root_path = project_root() if root == "." else Path(root).resolve()
         rtl_files = []
         constraint_files = []
 
@@ -182,7 +212,7 @@ def register(mcp: "FastMCP") -> None:
             match_count: total matches found (may exceed len(matches))
             truncated: True when matches were dropped by the 50-entry cap
         """
-        root_path = Path(root).resolve()
+        root_path = project_root() if root == "." else Path(root).resolve()
         ext_filter = {
             "sv": {".sv", ".svh"},
             "v": {".v", ".vh"},
