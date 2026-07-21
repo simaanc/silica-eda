@@ -87,8 +87,11 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
             "raw_output": "",
         }
 
-    # Don't pre-create the dir — sby creates it itself. We just provide the path.
-    workdir = str(Path(tempfile.gettempdir()) / f"silica_sby_{sby_path.stem}")
+    # Unique parent dir so two runs sharing a .sby stem can't clobber each
+    # other's workdir (and traces). mkdtemp creates only the parent; the leaf
+    # workdir stays uncreated so sby makes it itself (it dies on a pre-made -d).
+    parent = tempfile.mkdtemp(prefix="silica_sby_")
+    workdir = str(Path(parent) / sby_path.stem)
 
     cmd = cmd_prefix + ["-f", "-d", workdir, str(sby_path)]
     if task:
