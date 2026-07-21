@@ -243,22 +243,64 @@ def test_fst_conversion_failure_surfaced(read_waveform, tmp_path):
     assert "fst2vcd could not convert" in result["error"]
 
 
-def test_fst_conversion_cleans_up_temp_vcd(read_waveform, tmp_path):
-    """The throwaway VCD from fst2vcd must not linger after the read."""
-    f = tmp_path / "sim.fst"
-    f.write_bytes(b"\x00\x01")
-    created: list[str] = []
+@pytest.fixture(autouse=True)
+def _clear_fst_cache():
+    """Keep the module-global FST cache from leaking between tests."""
+    waveform._fst_cache.clear()
+    yield
+    for _stamp, vcd_path in waveform._fst_cache.values():
+        try:
+            vcd_path.unlink()
+        except OSError:
+            pass
+    waveform._fst_cache.clear()
 
+
+def _fst_run_counter(created):
+    """subprocess.run stub that writes COUNTER_VCD and records each conversion."""
     def fake_run(cmd, *args, **kwargs):
         out = cmd[cmd.index("-o") + 1]
         created.append(out)
         Path(out).write_text(COUNTER_VCD)
         return MagicMock(returncode=0, stdout="", stderr="")
+    return fake_run
+
+
+def test_fst_conversion_is_cached_across_reads(read_waveform, tmp_path):
+    """Repeated reads of one FST convert it once and reuse the cached VCD."""
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    created: list[str] = []
 
     with patch("silica.tools.waveform.oss_cad_suite.which",
                return_value="/opt/oss/bin/fst2vcd"), \
          patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
                return_value={}), \
-         patch("silica.tools.waveform.subprocess.run", side_effect=fake_run):
+         patch("silica.tools.waveform.subprocess.run",
+               side_effect=_fst_run_counter(created)):
+        read_waveform(str(f))                       # discovery
+        read_waveform(str(f), signals=["dut.count"])  # windowed read
+
+    assert len(created) == 1, "fst2vcd should run only once for an unchanged FST"
+    # The cached VCD persists for reuse rather than being deleted per call.
+    assert Path(created[0]).exists()
+
+
+def test_fst_cache_invalidated_when_trace_changes(read_waveform, tmp_path):
+    """A trace overwritten on disk is reconverted, not served stale."""
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    created: list[str] = []
+
+    with patch("silica.tools.waveform.oss_cad_suite.which",
+               return_value="/opt/oss/bin/fst2vcd"), \
+         patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
+               return_value={}), \
+         patch("silica.tools.waveform.subprocess.run",
+               side_effect=_fst_run_counter(created)):
         read_waveform(str(f))
-    assert created and not Path(created[0]).exists()
+        # Rewrite the trace: different size bumps the (mtime_ns, size) stamp.
+        f.write_bytes(b"\x00\x01\x02\x03")
+        read_waveform(str(f))
+
+    assert len(created) == 2, "changed FST must be reconverted"
