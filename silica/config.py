@@ -17,6 +17,7 @@ _DEFAULTS: dict = {
         "place_route": {"enabled": [], "priority": []},
         "formal": {"enabled": [], "priority": []},
         "lint": {"enabled": [], "priority": []},
+        "format": {"enabled": [], "priority": []},
         "waveform": {"enabled": [], "priority": []},
         "program": {"enabled": [], "priority": []},
     },

@@ -13,6 +13,7 @@ _FALLBACK: dict[str, list[str]] = {
     "place_route": ["nextpnr"],
     "formal":      ["sby", "eqy", "jaspergold", "vc_formal"],
     "lint":        ["verible-verilog-lint", "verilator", "svlint", "spyglass"],
+    "format":      ["verible-verilog-format"],
     "waveform":    ["surfer", "gtkwave", "verdi"],
     "program":     ["openfpgaloader"],
 }
@@ -25,6 +26,8 @@ _ALIASES: dict[str, set[str]] = {
     "iverilog": {"icarus", "iverilog"},
     "verible": {"verible", "verible-verilog-lint"},
     "verible-verilog-lint": {"verible", "verible-verilog-lint"},
+    "verible-format": {"verible-format", "verible-verilog-format"},
+    "verible-verilog-format": {"verible-format", "verible-verilog-format"},
     "openfpgaloader": {"openfpgaloader", "openFPGALoader"},
     "openFPGALoader": {"openfpgaloader", "openFPGALoader"},
 }

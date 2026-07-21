@@ -141,6 +141,20 @@ TOOLS = {
         "url": "https://chipsalliance.github.io/verible/",
         "docs": "https://chipsalliance.github.io/verible/installation.html",
     },
+    "verible-verilog-format": {
+        "category": "format",
+        "license": "open_source",
+        "os_support": ["darwin", "linux", "windows"],
+        "install": {
+            "brew":    "brew tap chipsalliance/verible && brew install verible",
+            "apt":     "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "dnf":     "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "pacman":  "# Download static binary from https://github.com/chipsalliance/verible/releases",
+            "windows": "# Download win64.zip from https://github.com/chipsalliance/verible/releases",
+        },
+        "url": "https://chipsalliance.github.io/verible/",
+        "docs": "https://chipsalliance.github.io/verible/verilog_format.html",
+    },
     "svlint": {
         "category": "lint",
         "license": "open_source",
@@ -256,13 +270,15 @@ TOOLS = {
     },
 }
 
-CATEGORIES = ["simulation", "synthesis", "place_route", "formal", "lint", "waveform", "program"]
+CATEGORIES = ["simulation", "synthesis", "place_route", "formal", "lint",
+              "format", "waveform", "program"]
 
 # Human-friendly names for `silica config` output. Registry keys are the
 # canonical binary/config names (what config files and enabled lists use);
 # these are what a person recognizes. Keys not listed display unchanged.
 DISPLAY_NAMES: dict[str, str] = {
     "verible-verilog-lint": "verible",
+    "verible-verilog-format": "verible-format",
     "openfpgaloader": "openFPGALoader",
 }
 
