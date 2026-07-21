@@ -28,13 +28,30 @@ Run `lint(file)` even if simulation already errored. Verible and Verilator lint 
 
 If lint is clean, proceed to Step 3.
 
-### Step 3 — Extract failure context
+### Step 3 — Extract failure context and read the waveform
 
 From the simulation stdout, find:
-- The simulation time at failure (e.g., `$time`, assertion failure timestamp)
+- The simulation time at failure (e.g., `$time`, assertion failure timestamp) — call it **T**
 - Which signals or assertions were involved
 
-If the testbench generates a VCD (`$dumpfile`/`$dumpvars`), note the path for waveform analysis.
+If `run_simulation()` returned a `trace_vcd` path (the testbench had
+`$dumpfile`/`$dumpvars`), inspect it directly — do **not** ask the user to open
+a viewer:
+
+1. `read_waveform(trace_vcd)` — discovery mode. Lists the available signal
+   names and `end_time` so you use the exact hierarchical names the trace holds.
+2. `read_waveform(trace_vcd, signals=[...], time_start=T-window, time_end=T+window)`
+   — read the signals implicated by the failure across a tight window around T.
+   Include the clock, reset, the state register, and any signal named in the
+   assertion. The value just before the window is always included, so the state
+   entering the window is known.
+
+Reading the actual values at T usually distinguishes the competing hypotheses
+before you ever open the RTL — e.g. a counter that is one tick behind, a state
+machine stuck in a state, or an X propagating from an unreset register.
+
+`read_waveform` accepts `.fst` traces too (converted automatically); `.fsdb`
+does not parse — re-run with a `$dumpfile` VCD if that is all you have.
 
 ### Step 4 — Read the RTL
 
@@ -182,6 +199,57 @@ Call `read_rtl("examples/uart/uart_tx.sv")` and look for the baud counter compar
 Apply the same fix to START and STOP state comparisons if they have the same bug.
 
 **Verification**: Re-run `run_simulation()` → `exit_code: 0`, `[TB] PASS`.
+
+---
+
+### Example 3 — Reading the waveform to localize a functional bug
+
+**Context**: An FSM-driven arbiter compiles and runs, but the testbench reports
+the wrong grant at time 2450. No assertion names the cause.
+
+**`run_simulation()` output:**
+```json
+{
+  "exit_code": 1,
+  "trace_vcd": "/tmp/silica_trace_ab12/dump.vcd",
+  "errors": [
+    {"file": "arbiter_tb.sv", "line": 61, "severity": "error",
+     "message": "ASSERTION FAILED: expected grant=01, got grant=00 at time 2450ns"}
+  ],
+  "raw_stdout": "[TB] req=11 at 2400ns\n[TB] MISMATCH at 2450ns: grant=00\n[TB] FAIL"
+}
+```
+
+**Correct reasoning**:
+
+1. Functional failure at **T = 2450**, involving `grant` and `req`. A `trace_vcd`
+   is present — read it instead of guessing.
+2. `read_waveform("/tmp/silica_trace_ab12/dump.vcd")` → discover the names:
+   `arbiter_tb.dut.state`, `.grant`, `.req`, `.clk`, `.rst_n`.
+3. `read_waveform(trace_vcd, signals=["dut.state", "dut.req", "dut.grant", "dut.clk"], time_start=2350, time_end=2470)`:
+
+```json
+{"signals": [
+  {"name": "arbiter_tb.dut.state", "transitions": [
+     {"time": 2350, "value": "01"}, {"time": 2410, "value": "11"}]},
+  {"name": "arbiter_tb.dut.grant", "transitions": [
+     {"time": 2350, "value": "10"}, {"time": 2410, "value": "00"}]},
+  {"name": "arbiter_tb.dut.req",  "transitions": [
+     {"time": 2350, "value": "10"}, {"time": 2400, "value": "11"}]}
+]}
+```
+
+4. **Reading the values**: `state` entered `11` (an unlisted/default encoding)
+   right when `req` went to `11`, and `grant` collapsed to `00`. The FSM has no
+   case arm for `state == 2'b11`, so it falls through to a default that drives
+   `grant = 0`. This is a missing `default:`/incomplete case — not an off-by-one.
+5. Hypothesis (high confidence): the arbiter's `case (state)` lacks the
+   both-requesting arm. Confirm with `read_rtl()` on the FSM's `always_comb`.
+
+**Fix**: add the missing case arm (or a `default:` that holds the last grant).
+
+**Verification**: Re-run `run_simulation()` → `exit_code: 0`, and
+`read_waveform(...)` now shows `grant=01` at 2450.
 
 ---
 
