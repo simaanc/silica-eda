@@ -106,6 +106,20 @@ def test_generate_sby_fail_propagates(mock_gen, mock_run, run_formal, sv_file):
     assert len(result["failures"]) > 0
 
 
+def test_duplicate_basenames_return_structured_error(run_formal, tmp_path):
+    # Two same-named sources from different dirs would clobber in sby's workdir;
+    # run_formal must surface a clean ERROR dict, not raise.
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    (a / "dut.sv").write_text("module dut(); endmodule\n")
+    (b / "dut.sv").write_text("module dut(); endmodule\n")
+    result = run_formal(files=[str(a / "dut.sv"), str(b / "dut.sv")], top="dut", tool="sby")
+    assert result["status"] == "ERROR"
+    assert "Duplicate source basename" in result["errors"][0]["message"]
+
+
 @patch("silica.adapters.eqy.run", return_value=FORMAL_PASS)
 def test_eqy_gold_gate_files(mock_run, run_formal, tmp_path):
     gold = tmp_path / "gold.sv"

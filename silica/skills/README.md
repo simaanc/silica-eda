@@ -13,6 +13,8 @@ skills/
     └── write_testbench.md            # Loaded when generating testbenches
     └── generate_assertions.md        # Loaded when writing SVA
     └── close_timing.md               # Loaded when working timing closure
+    └── debug_formal_failure.md       # Loaded when triaging formal FAIL/UNKNOWN
+    └── cdc_review.md                 # Loaded when reviewing clock domain crossings
 ```
 
 ## How loading works

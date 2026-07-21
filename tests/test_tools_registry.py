@@ -1,6 +1,6 @@
 """Tests for silica.tools_registry."""
 
-from silica.tools_registry import CATEGORIES, TOOLS
+from silica.tools_registry import CATEGORIES, DISPLAY_NAMES, TOOLS, display_name
 
 COMMERCIAL_TOOLS = {"vcs", "questa", "xcelium", "vivado", "quartus", "dc_shell",
                     "jaspergold", "vc_formal", "spyglass", "verdi"}
@@ -52,3 +52,17 @@ def test_known_tools_present():
     for tool in ("verilator", "iverilog", "yosys", "sby", "nextpnr",
                  "ghdl", "eqy", "openfpgaloader"):
         assert tool in TOOLS, f"{tool} not in TOOLS"
+
+
+def test_display_name_friendlier_than_registry_key():
+    assert display_name("verible-verilog-lint") == "verible"
+    assert display_name("openfpgaloader") == "openFPGALoader"
+
+
+def test_display_name_passes_through_unmapped():
+    assert display_name("verilator") == "verilator"
+
+
+def test_display_name_keys_are_real_registry_keys():
+    for key in DISPLAY_NAMES:
+        assert key in TOOLS, f"DISPLAY_NAMES key {key!r} is not a registry tool"

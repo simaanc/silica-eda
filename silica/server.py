@@ -47,6 +47,18 @@ def close_timing() -> str:
     return _load_skill("workflows/close_timing.md")
 
 
+@mcp.prompt()
+def debug_formal_failure() -> str:
+    """Reasoning script for triaging a formal FAIL/UNKNOWN via its counterexample."""
+    return _load_skill("workflows/debug_formal_failure.md")
+
+
+@mcp.prompt()
+def cdc_review() -> str:
+    """Reasoning script for reviewing clock domain crossings structurally."""
+    return _load_skill("workflows/cdc_review.md")
+
+
 # --- register MCP tools ---
 
 from silica.tools import (  # noqa: E402

@@ -22,7 +22,7 @@ from silica import config as cfg
 from silica import detect, oss_cad_suite
 from silica.clients_registry import CLIENTS
 from silica.terminal import docs_link, hyperlink, supports_hyperlinks, tool_link
-from silica.tools_registry import CATEGORIES, TOOLS
+from silica.tools_registry import CATEGORIES, TOOLS, display_name
 
 # ── ANSI helpers ─────────────────────────────────────────────────────────────
 
@@ -607,7 +607,7 @@ def print_config() -> None:
         for name in enabled:
             live = detect.resolve(name)
             mark = "✓" if live else "✗ (not installed)"
-            parts.append(f"{name} {mark}")
+            parts.append(f"{display_name(name)} {mark}")
         print(f"  {category.capitalize():<14} {'  '.join(parts)}")
 
     clients_section = data.get("clients", {})
@@ -631,6 +631,12 @@ def print_config() -> None:
         hint = _dim("not detected — install it and silica will find it automatically")
         print(f"\n  {'OSS CAD Suite':<14} {hint}")
 
+    configured_root = data.get("project", {}).get("root", "")
+    if configured_root:
+        print(f"  {'Project root':<14} {configured_root}")
+    else:
+        print(f"  {'Project root':<14} {_dim('server working directory (default)')}")
+
     all_enabled = [
         name
         for cat in CATEGORIES
@@ -645,8 +651,8 @@ def print_config() -> None:
     vendor_links = _collect_vendor_links(all_enabled)
     if vendor_links:
         print(f"\n  {_bold('Commercial tools not found — contact vendor:')}")
-        for display_name, url in vendor_links:
-            link = hyperlink(display_name, url) if supports_hyperlinks() else f"{display_name}:"
+        for vendor_label, url in vendor_links:
+            link = hyperlink(vendor_label, url) if supports_hyperlinks() else f"{vendor_label}:"
             print(f"    {link}")
             if not supports_hyperlinks():
                 print(f"      {_cyan(url)}")
