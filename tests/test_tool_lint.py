@@ -73,6 +73,32 @@ def test_auto_no_tool_returns_error(mock_pick, lint_tool):
     assert "error" in result
 
 
+# --- multi-file / filelist support ---
+
+@patch("silica.adapters.verible.run", return_value=LINT_WARN)
+def test_extra_files_lints_each_and_merges(mock_run, lint_tool):
+    result = lint_tool("a.sv", tool="verible", extra_files=["b.sv", "c.sv"])
+    assert mock_run.call_count == 3                       # one call per file
+    assert len(result["warnings"]) == 3                   # merged
+    assert result["tool"] == "verible-verilog-lint"
+
+
+@patch("silica.adapters.verible.run", return_value=LINT_CLEAN)
+def test_filelist_expands_and_lints_each(mock_run, lint_tool, tmp_path):
+    (tmp_path / "x.sv").write_text("module x; endmodule\n")
+    (tmp_path / "y.sv").write_text("module y; endmodule\n")
+    fl = tmp_path / "files.f"
+    fl.write_text("x.sv\ny.sv\n")
+    lint_tool(str(fl), tool="verible")
+    assert mock_run.call_count == 2
+
+
+def test_lint_missing_filelist_returns_error(lint_tool, tmp_path):
+    result = lint_tool(str(tmp_path / "nope.f"), tool="verible")
+    assert "error" in result
+    assert "filelist" in result["error"].lower()
+
+
 # --- config enabled-list enforcement ---
 
 def test_explicit_disabled_tool_rejected(lint_tool):

@@ -47,6 +47,36 @@ def test_iverilog_alias_routes_to_icarus(mock_run, run_simulation):
     mock_run.assert_called_once()
 
 
+# --- multi-file / filelist support ---
+
+@patch("silica.adapters.icarus.run", return_value=SIM_SUCCESS)
+def test_extra_sources_threaded_to_adapter(mock_run, run_simulation):
+    run_simulation("dut.sv", "tb.sv", simulator="icarus",
+                   extra_sources=["a.sv", "b.sv"])
+    _args, kwargs = mock_run.call_args
+    assert _args[0] == "dut.sv"          # dut
+    assert kwargs["extra_sources"] == ["a.sv", "b.sv"]
+
+
+@patch("silica.adapters.icarus.run", return_value=SIM_SUCCESS)
+def test_filelist_dut_splits_into_dut_plus_extra(mock_run, run_simulation, tmp_path):
+    (tmp_path / "sub.sv").write_text("module sub; endmodule\n")
+    (tmp_path / "top.sv").write_text("module top; endmodule\n")
+    fl = tmp_path / "design.f"
+    fl.write_text("sub.sv\ntop.sv\n")
+
+    run_simulation(str(fl), "tb.sv", simulator="icarus")
+    args, kwargs = mock_run.call_args
+    assert args[0] == str(tmp_path / "sub.sv")             # first listed = dut
+    assert kwargs["extra_sources"] == [str(tmp_path / "top.sv")]
+
+
+def test_missing_filelist_returns_structured_error(run_simulation, tmp_path):
+    result = run_simulation(str(tmp_path / "nope.f"), "tb.sv", simulator="icarus")
+    assert result["exit_code"] == -1
+    assert "filelist" in result["errors"][0]["message"].lower()
+
+
 @patch("silica.adapters.ghdl.run", return_value=SIM_SUCCESS)
 def test_ghdl_named(mock_run, run_simulation):
     result = run_simulation("dut.sv", "tb.sv", simulator="ghdl")
