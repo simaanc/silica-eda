@@ -44,6 +44,7 @@ def register(mcp: "FastMCP") -> None:
         timeout: int = 60,
         trace: bool = False,
         extra_sources: list[str] | None = None,
+        coverage: bool = False,
     ) -> dict:
         """Run RTL simulation and return structured diagnostics.
 
@@ -62,11 +63,21 @@ def register(mcp: "FastMCP") -> None:
             extra_sources: Additional design files (submodules, packages)
                    compiled alongside the DUT. Each entry may itself be a ``.f``
                    filelist, which is expanded in place.
+            coverage: When True, collect line/toggle coverage (Verilator only).
+                   Returns coverage_dat in the result — pass it to
+                   read_coverage for a structured report.
 
         Returns a SimulationResult dict:
             exit_code, errors [{file, line, severity, message}], warnings,
-            raw_stdout, raw_stderr, trace_vcd (str path or None)
+            raw_stdout, raw_stderr, trace_vcd (str path or None), and
+            coverage_dat (str path or None, Verilator + coverage=True only)
         """
+        if coverage and simulator not in ("auto", "verilator"):
+            return _error_result(
+                file,
+                f"coverage=True is only supported with Verilator, not "
+                f"'{simulator}'. Re-run with simulator='verilator'.",
+            )
         # Expand any .f filelists and split into a DUT + additional sources.
         try:
             design = expand_sources([file, *(extra_sources or [])])
@@ -112,9 +123,21 @@ def register(mcp: "FastMCP") -> None:
                     "trace_vcd": None,
                 }
 
+        # Coverage is Verilator-only; catch the case where auto resolved to
+        # another simulator so the caller gets a clear message, not a silent
+        # missing coverage_dat.
+        if coverage and simulator != "verilator":
+            return _error_result(
+                file,
+                f"coverage=True is only supported with Verilator, but the "
+                f"selected simulator is '{simulator}'. Re-run with "
+                f"simulator='verilator'.",
+            )
+
         if simulator == "verilator":
             return verilator.run(dut, testbench, top=top, timeout=timeout,
-                                 trace=trace, extra_sources=extra)
+                                 trace=trace, extra_sources=extra,
+                                 coverage=coverage)
         elif simulator in ("icarus", "iverilog"):
             return icarus.run(dut, testbench, top=top, timeout=timeout,
                               trace=trace, extra_sources=extra)
