@@ -40,16 +40,24 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Compile and simulate with xrun (Xcelium unified flow)."""
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+) -> dict:
     xrun = resolve("xcelium")  # resolves xrun or irun
     if not xrun:
         return _not_found()
@@ -58,7 +66,7 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
     trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
     with tempfile.TemporaryDirectory(prefix="silica_xcelium_") as tmpdir:
-        cmd = [xrun, "-sv", "-64bit", "-top", top_mod, testbench, dut]
+        cmd = [xrun, "-sv", "-64bit", "-top", top_mod, testbench, dut, *extra_sources]
         if trace:
             vcd_path = str(Path(trace_dir) / "dump.vcd") if trace_dir else "dump.vcd"
             cmd += [

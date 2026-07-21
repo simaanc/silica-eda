@@ -43,6 +43,7 @@ def run(
     trace: bool = False,
     std: str = "08",
     stop_time: str | None = None,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Analyze, elaborate, and run a VHDL design with GHDL.
 
@@ -54,9 +55,11 @@ def run(
         trace: When True, capture a VCD waveform. Returns trace_vcd path.
         std: VHDL standard — "87" | "93" | "00" | "02" | "08". Default "08".
         stop_time: Simulation stop time e.g. "1ms", "100us". Optional.
+        extra_sources: additional VHDL design files analyzed alongside dut/tb.
     """
     try:
-        return _run(dut, testbench, top, timeout, trace, std, stop_time)
+        return _run(dut, testbench, top, timeout, trace, std, stop_time,
+                    extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
@@ -70,6 +73,7 @@ def _run(
     trace: bool,
     std: str,
     stop_time: str | None,
+    extra_sources: list[str],
 ) -> dict:
     binary = oss_cad_suite.which("ghdl")
     if not binary:
@@ -80,6 +84,7 @@ def _run(
     files = [str(Path(dut).resolve()), str(Path(testbench).resolve())]
     if dut == testbench:
         files = [str(Path(dut).resolve())]
+    files += [str(Path(s).resolve()) for s in extra_sources]
 
     env = oss_cad_suite.env_with_suite()
 
