@@ -37,6 +37,14 @@ _HINTS: dict[str, dict[str, str]] = {
         "Windows": "Download win64.zip from:\n"
                    "  https://github.com/chipsalliance/verible/releases",
     },
+    "verible-verilog-format": {
+        "Darwin":  "brew tap chipsalliance/verible && brew install verible",
+        "Linux":   "Download the static release binary from:\n"
+                   "  https://github.com/chipsalliance/verible/releases\n"
+                   "(no apt/dnf package available)",
+        "Windows": "Download win64.zip from:\n"
+                   "  https://github.com/chipsalliance/verible/releases",
+    },
     "sby": {
         "Darwin":  "brew install sby\n"
                    "Also install a solver: brew install z3",

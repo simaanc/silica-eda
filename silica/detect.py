@@ -28,6 +28,7 @@ _BINARY: dict[str, str | list[str]] = {
     "vc_formal": ["vcf", "vc_static_shell"],
     "eqy": "eqy",
     "verible-verilog-lint": "verible-verilog-lint",
+    "verible-verilog-format": "verible-verilog-format",
     "svlint": "svlint",
     "spyglass": ["spyglass", "sg_shell", "vc_static_shell"],
     "surfer": "surfer",
