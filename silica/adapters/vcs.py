@@ -36,16 +36,24 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Compile with vcs -sverilog, then simulate with ./simv."""
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+) -> dict:
     vcs = resolve("vcs")
     if not vcs:
         return _not_found()
@@ -62,7 +70,7 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
         ]
         if top:
             compile_cmd += ["-top", top]
-        compile_cmd += [testbench, dut]
+        compile_cmd += [testbench, dut, *extra_sources]
 
         cp = subprocess.run(
             compile_cmd,

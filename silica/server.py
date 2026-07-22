@@ -62,6 +62,8 @@ def cdc_review() -> str:
 # --- register MCP tools ---
 
 from silica.tools import (  # noqa: E402
+    cocotb,
+    coverage,
     formal,
     lint,
     place_route,
@@ -71,12 +73,16 @@ from silica.tools import (  # noqa: E402
     synthesis,
     waveform,
 )
+from silica.tools import format as format_tool  # noqa: E402
 
 simulation.register(mcp)
 synthesis.register(mcp)
 place_route.register(mcp)
 program.register(mcp)
 lint.register(mcp)
+format_tool.register(mcp)
 formal.register(mcp)
 project.register(mcp)
 waveform.register(mcp)
+coverage.register(mcp)
+cocotb.register(mcp)

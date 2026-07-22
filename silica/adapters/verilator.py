@@ -1,5 +1,6 @@
 """Verilator adapter — compile-and-simulate using --binary (Verilator 5+)."""
 
+import os
 import re
 import shutil
 import subprocess
@@ -68,21 +69,38 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
+    coverage: bool = False,
 ) -> dict:
     """Compile and simulate with Verilator (--binary mode, Verilator 5+).
 
     Falls back to lint-only mode if --binary is unsupported.
     When trace=True, writes dump.vcd to a persistent temp directory and
     returns its path as trace_vcd in the result.
+    When coverage=True, compiles with --coverage; the simulation writes
+    coverage.dat, whose path is returned as coverage_dat (feed it to
+    read_coverage).
+
+    extra_sources: additional design files (submodules, packages) compiled
+    alongside dut and testbench.
     """
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [],
+                    coverage)
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+    coverage: bool,
+) -> dict:
     binary = _find_verilator()
     if not binary:
         return _not_found()
@@ -111,11 +129,14 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
             "-o", str(sim_bin),
             dut,
             testbench,
+            *extra_sources,
         ]
         if make_tool and make_tool != "make":
             compile_cmd.extend(["--make", make_tool])
         if trace:
             compile_cmd.append("--trace")
+        if coverage:
+            compile_cmd.append("--coverage")
 
         cp = subprocess.run(
             compile_cmd,
@@ -135,15 +156,19 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
                 "raw_stdout": cp.stdout,
                 "raw_stderr": cp.stderr,
                 "trace_vcd": None,
+                "coverage_dat": None,
             }
             return result
 
-        # When tracing, keep a persistent dir so the VCD survives after we return.
-        # Created only after a successful compile so failed runs don't leak dirs.
-        trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
+        # When tracing or collecting coverage, keep a persistent dir so the VCD
+        # / coverage.dat survive after we return. Created only after a
+        # successful compile so failed runs don't leak dirs.
+        out_dir = (tempfile.mkdtemp(prefix="silica_trace_")
+                   if (trace or coverage) else None)
 
-        # Run the simulation binary; if tracing, CWD is trace_dir so dump.vcd lands there.
-        sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
+        # Run the simulation binary; CWD is out_dir so dump.vcd / coverage.dat
+        # land there.
+        sim_cwd = out_dir if out_dir else str(Path(dut).parent)
         rp = subprocess.run(
             [str(sim_bin)],
             capture_output=True,
@@ -167,9 +192,14 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
             })
 
         trace_vcd = None
-        if trace_dir:
-            vcds = sorted(Path(trace_dir).glob("*.vcd"))
-            trace_vcd = str(vcds[0]) if vcds else None
+        coverage_dat = None
+        if out_dir:
+            if trace:
+                vcds = sorted(Path(out_dir).glob("*.vcd"))
+                trace_vcd = str(vcds[0]) if vcds else None
+            if coverage:
+                dat = Path(out_dir) / "coverage.dat"
+                coverage_dat = str(dat) if dat.exists() else None
 
         return {
             "exit_code": rp.returncode,
@@ -178,7 +208,45 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
             "raw_stdout": cp.stdout + rp.stdout,
             "raw_stderr": cp.stderr + rp.stderr,
             "trace_vcd": trace_vcd,
+            "coverage_dat": coverage_dat,
         }
+
+
+def coverage_info(dat_file: str, timeout: int = 30) -> dict:
+    """Convert a Verilator coverage.dat into lcov ``.info`` text.
+
+    Shells out to verilator_coverage (ships with Verilator) with --write-info.
+    Returns {"info": <lcov text>} on success or {"error": str}. The lcov info
+    is line-oriented (SF/DA/... records) and parsed by the read_coverage tool.
+    """
+    tool = oss_cad_suite.which("verilator_coverage") or shutil.which("verilator_coverage")
+    if not tool:
+        return {"error": (
+            "verilator_coverage not found — it ships with Verilator. "
+            "Install Verilator / the OSS CAD Suite."
+        )}
+    fd, info = tempfile.mkstemp(prefix="silica_cov_", suffix=".info")
+    os.close(fd)
+    try:
+        cp = subprocess.run(
+            [tool, "--write-info", info, dat_file],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=oss_cad_suite.env_with_suite(),
+        )
+    except subprocess.TimeoutExpired:
+        Path(info).unlink(missing_ok=True)
+        return {"error": f"verilator_coverage timed out after {timeout}s"}
+    if cp.returncode != 0:
+        Path(info).unlink(missing_ok=True)
+        detail = (cp.stderr or cp.stdout).strip()
+        return {"error": f"verilator_coverage failed: {detail}"}
+    try:
+        text = Path(info).read_text(encoding="utf-8", errors="replace")
+    finally:
+        Path(info).unlink(missing_ok=True)
+    return {"info": text}
 
 
 def lint_only(file: str, timeout: int = 30) -> dict:

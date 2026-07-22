@@ -40,16 +40,24 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Compile with vlog -sv, simulate with vsim -c."""
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+) -> dict:
     vlog = resolve("questa")  # binary resolved via _BINARY map: questa → vsim
     # resolve("questa") gives vsim path; derive vlog from same dir
     vsim = vlog
@@ -83,7 +91,7 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
                 "trace_vcd": None,
             }
 
-        compile_cmd = [vlog_bin, "-sv", testbench, dut]
+        compile_cmd = [vlog_bin, "-sv", testbench, dut, *extra_sources]
         cp = subprocess.run(
             compile_cmd,
             capture_output=True,

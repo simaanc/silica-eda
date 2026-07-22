@@ -51,21 +51,32 @@ def run(
     top: str | None = None,
     timeout: int = 60,
     trace: bool = False,
+    extra_sources: list[str] | None = None,
 ) -> dict:
     """Compile with iverilog -g2012, then simulate with vvp.
 
     When trace=True, runs the simulation in a persistent temp directory so
     any $dumpfile VCD written by the testbench survives. Returns trace_vcd
     pointing to the first .vcd found in that directory.
+
+    extra_sources: additional design files (submodules, packages) compiled
+    alongside dut and testbench.
     """
     try:
-        return _run(dut, testbench, top, timeout, trace)
+        return _run(dut, testbench, top, timeout, trace, extra_sources or [])
     except subprocess.TimeoutExpired:
         # A hung tool must not crash the MCP server — report it structurally.
         return _timeout_result(dut, timeout)
 
 
-def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -> dict:
+def _run(
+    dut: str,
+    testbench: str,
+    top: str | None,
+    timeout: int,
+    trace: bool,
+    extra_sources: list[str],
+) -> dict:
     iverilog = oss_cad_suite.which("iverilog")
     vvp = oss_cad_suite.which("vvp")
     if not iverilog or not vvp:
@@ -83,7 +94,7 @@ def _run(dut: str, testbench: str, top: str | None, timeout: int, trace: bool) -
         ]
         if top:
             compile_cmd += ["-s", top]
-        compile_cmd += [testbench, dut]
+        compile_cmd += [testbench, dut, *extra_sources]
 
         cp = subprocess.run(
             compile_cmd,
