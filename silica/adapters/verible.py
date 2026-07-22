@@ -76,3 +76,36 @@ def _not_found() -> dict:
         "raw_output": "",
         "error": f"verible-verilog-lint not found.\n{install_hint('verible-verilog-lint')}",
     }
+
+
+def format_src(file: str, timeout: int = 30) -> dict:
+    """Format a SystemVerilog file with verible-verilog-format.
+
+    Emits the formatted source to stdout (not --inplace) so the tool layer can
+    diff and path-confine before writing. Returns {"formatted": str} on success
+    or {"error": str} — including on a syntax error, which the formatter
+    refuses (exit != 0) rather than mangling.
+    """
+    binary = resolve("verible-verilog-format")
+    if not binary:
+        return {
+            "error": (
+                "verible-verilog-format not found.\n"
+                f"{install_hint('verible-verilog-format')}"
+            ),
+        }
+    try:
+        cp = subprocess.run(
+            [binary, file],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {"error": f"verible-verilog-format timed out after {timeout}s"}
+
+    if cp.returncode != 0:
+        detail = (cp.stderr or cp.stdout).strip()
+        return {"error": f"verible-verilog-format could not format {file}: {detail}"}
+
+    return {"formatted": cp.stdout, "raw_output": cp.stderr}

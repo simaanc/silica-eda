@@ -7,6 +7,24 @@ if TYPE_CHECKING:
 
 from silica.adapters import dc_shell, quartus, vivado, yosys
 from silica.tools._config_dispatch import check_enabled, pick
+from silica.tools._sources import expand_sources
+
+
+def _synth_error(tool: str, target: str, message: str) -> dict:
+    """A SynthesisResult-shaped dict carrying a single tool-level error."""
+    return {
+        "tool": tool,
+        "target": target,
+        "exit_code": -1,
+        "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0,
+                        "lut_pct": 0.0, "ff_pct": 0.0},
+        "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
+        "netlist": None,
+        "warnings": [],
+        "errors": [{"file": "", "line": 0, "severity": "error",
+                    "message": message}],
+        "raw_output": "",
+    }
 
 
 def register(mcp: "FastMCP") -> None:
@@ -41,7 +59,17 @@ def register(mcp: "FastMCP") -> None:
             netlist: path to a JSON netlist ready for run_place_route. Written by
             yosys for FPGA targets ("ice40" | "ecp5" | "xilinx" | "gowin");
             None for generic/commercial-tool runs and on failure.
+
+            files may include ``.f`` filelists (one source path per line),
+            expanded in place.
         """
+        # Expand any .f filelists so a single filelist can stand in for many
+        # source files.
+        try:
+            files = expand_sources(files)
+        except OSError as exc:
+            return _synth_error(tool, target, f"Could not read filelist: {exc}")
+
         if tool == "auto":
             chosen = pick("synthesis")
             if not chosen:
