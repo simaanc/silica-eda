@@ -26,7 +26,7 @@ def _eqy_cmd() -> list[str] | None:
 
 
 _DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN), rc=(\d+)\)")
-_MISMATCH_RE = re.compile(r"Mismatch in output '(\S+)'")
+_MISMATCH_RE = re.compile(r"Failed to prove equivalence of partition (\S+)")
 _WARNING_RE = re.compile(r"Warning:\s*(.+)")
 _ERROR_RE = re.compile(r"ERROR:\s*(.+)")
 
@@ -122,6 +122,11 @@ def run(
                 for mm in _WARNING_RE.finditer(raw)]
     errors = [{"file": "", "line": 0, "message": mm.group(1).strip()}
               for mm in _ERROR_RE.finditer(raw)]
+
+    # No DONE line means eqy aborted before running a strategy (e.g. a
+    # yosys stage failed), not that the proof was inconclusive.
+    if not m and rc != 0:
+        status = "ERROR"
 
     return {
         "status": status,
@@ -225,6 +230,9 @@ equiv_status __equiv__
 
 
 def generate_eqy(gold_files: list[str], gate_files: list[str], top: str) -> str:
+    # The sby strategy, not sat: eqy's sat strategy proves sequential
+    # partitions equivalent even when their next-state logic differs
+    # (an up-counter vs a down-counter passes).
     gold_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gold_files)
     gate_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gate_files)
     return f"""\
@@ -238,9 +246,10 @@ prep -top {top}
 {gate_reads}
 prep -top {top}
 
-[strategy sat]
-use sat
+[strategy sby]
+use sby
 depth 10
+engine smtbmc
 """
 
 
