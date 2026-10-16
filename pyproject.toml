@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "silica-eda"
-version = "0.1.9"
+version = "0.1.10"
 description = "AI-native EDA environment — MCP server for hardware design and verification"
 readme = "README.md"
 requires-python = ">=3.11"

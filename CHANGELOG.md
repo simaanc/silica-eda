@@ -6,6 +6,8 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-16
+
 ### Added
 - `cocotb` extra: `pip install "silica-eda[cocotb]"` installs a cocotb that
   `run_cocotb` supports (1.9 or newer).
@@ -124,6 +126,7 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 waveform viewer launch, and the `silica setup` wizard.
 
 [Unreleased]: https://github.com/simaanc/silica-eda/commits/main
+[0.1.10]: https://pypi.org/project/silica-eda/0.1.10/
 [0.1.9]: https://pypi.org/project/silica-eda/0.1.9/
 [0.1.8]: https://pypi.org/project/silica-eda/0.1.8/
 [0.1.7]: https://pypi.org/project/silica-eda/0.1.7/
