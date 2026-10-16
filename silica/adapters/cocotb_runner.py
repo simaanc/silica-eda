@@ -31,7 +31,10 @@ _SIM_BINARY = {
 # Driver executed in a subprocess. argv: sim toplevel module build_dir src...
 _DRIVER = """\
 import sys
-from cocotb.runner import get_runner
+try:
+    from cocotb_tools.runner import get_runner  # cocotb >= 2.0
+except ImportError:
+    from cocotb.runner import get_runner  # cocotb 1.9
 
 sim, toplevel, test_module, build_dir = sys.argv[1:5]
 sources = sys.argv[5:]
@@ -66,7 +69,7 @@ def run(
     if importlib.util.find_spec("cocotb") is None:
         return {"error": (
             "cocotb is not installed in the server's Python environment. "
-            "Install it with: pip install cocotb"
+            "Install it with: pip install \"silica-eda[cocotb]\""
         )}
 
     bin_name = _SIM_BINARY.get(simulator)
@@ -92,6 +95,9 @@ def run(
     env["PYTHONPATH"] = (
         str(test_path.parent) + (f"{_pathsep()}{existing_pp}" if existing_pp else "")
     )
+    # Inherited from a pytest parent, this makes cocotb's runner rename
+    # results.xml after the pytest test, and _parse_results finds nothing.
+    env.pop("PYTEST_CURRENT_TEST", None)
 
     with tempfile.TemporaryDirectory(prefix="silica_cocotb_") as build_dir:
         driver = Path(build_dir) / "_silica_cocotb_driver.py"
@@ -124,9 +130,11 @@ def run(
             "raw_stdout": cp.stdout,
             "raw_stderr": cp.stderr,
         }
-        # No results.xml and a nonzero exit means the build/elaboration failed
-        # before any test ran — surface that rather than a silent 0/0.
-        if not tests and cp.returncode != 0:
+        # No results means the build/elaboration failed or the simulator never
+        # loaded cocotb — surface that rather than a silent 0/0. The exit code
+        # alone can't tell: a simulator that fails to start cocotb's embedded
+        # Python can still exit 0.
+        if not tests:
             detail = (cp.stderr or cp.stdout).strip()[-2000:]
             result["error"] = f"cocotb run failed before any test executed: {detail}"
         return result

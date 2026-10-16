@@ -41,8 +41,11 @@ dmypy.json
 
 # Project-specific
 *.vcd
+*.fst
+*.fsdb
+*.ghw
 obj_dir/
 HANDOFF.md
 
-# Personal Claude Code settings (machine-specific: Grimoire vault hooks)
+# Personal Claude Code settings (machine-specific)
 .claude/settings.local.json
