@@ -66,13 +66,17 @@ def register(mcp: "FastMCP") -> None:
         """Return the RTL file tree and detect the likely top-level module.
 
         Args:
-            root: Directory to scan (defaults to current working directory).
+            root: Directory to scan, inside the project (defaults to the
+                  project root).
 
         Returns:
             files: list of relative paths to RTL/constraint files
             top_candidates: module names that are instantiated but not instances
         """
-        root_path = project_root() if root == "." else Path(root).resolve()
+        root_path, escape = _confine(root)
+        if escape:
+            return {"root": root, "rtl_files": [], "constraint_files": [],
+                    "file_count": 0, "error": escape}
         rtl_files = []
         constraint_files = []
 
@@ -205,7 +209,8 @@ def register(mcp: "FastMCP") -> None:
 
         Args:
             query: Search string (literal, not regex).
-            root: Directory to search.
+            root: Directory to search, inside the project (defaults to the
+                  project root).
             scope: "all" | "sv" | "v" — filter by file extension.
 
         Returns:
@@ -213,7 +218,10 @@ def register(mcp: "FastMCP") -> None:
             match_count: total matches found (may exceed len(matches))
             truncated: True when matches were dropped by the 50-entry cap
         """
-        root_path = project_root() if root == "." else Path(root).resolve()
+        root_path, escape = _confine(root)
+        if escape:
+            return {"query": query, "match_count": 0, "matches": [],
+                    "truncated": False, "error": escape}
         ext_filter = {
             "sv": {".sv", ".svh"},
             "v": {".v", ".vh"},
