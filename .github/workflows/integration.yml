@@ -51,7 +51,8 @@ jobs:
           enable-cache: true
           python-version: "3.12"
 
-      - run: uv sync
+      # The cocotb extra lets the cocotb integration test run instead of skip.
+      - run: uv sync --extra cocotb
 
       # Tools absent from the suite (verible, svlint, commercial) self-skip;
       # -rs surfaces the skip reasons in the log.
