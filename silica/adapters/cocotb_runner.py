@@ -69,7 +69,7 @@ def run(
     if importlib.util.find_spec("cocotb") is None:
         return {"error": (
             "cocotb is not installed in the server's Python environment. "
-            "Install it with: pip install cocotb"
+            "Install it with: pip install \"silica-eda[cocotb]\""
         )}
 
     bin_name = _SIM_BINARY.get(simulator)
