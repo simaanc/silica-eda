@@ -26,7 +26,7 @@ def _eqy_cmd() -> list[str] | None:
 
 
 _DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN), rc=(\d+)\)")
-_MISMATCH_RE = re.compile(r"Mismatch in output '(\S+)'")
+_MISMATCH_RE = re.compile(r"Failed to prove equivalence of partition (\S+)")
 _WARNING_RE = re.compile(r"Warning:\s*(.+)")
 _ERROR_RE = re.compile(r"ERROR:\s*(.+)")
 

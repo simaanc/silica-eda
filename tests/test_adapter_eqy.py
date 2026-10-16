@@ -7,7 +7,11 @@ from conftest import make_proc
 from silica.adapters import eqy
 
 EQY_PASS = "DONE (PASS, rc=0)\n"
-EQY_FAIL = "Mismatch in output 'q'\nDONE (FAIL, rc=2)\n"
+EQY_FAIL = (
+    "EQY 11:37:25 [top] Warning: Failed to prove equivalence for 1/1 partitions:\n"
+    "EQY 11:37:25 [top] Failed to prove equivalence of partition top.q\n"
+    "EQY 11:37:25 [top] DONE (FAIL, rc=2)\n"
+)
 
 
 @patch("silica.adapters.eqy.oss_cad_suite.which", return_value=None)
@@ -41,7 +45,7 @@ def test_fail(mock_run, mock_which, mock_env, eqy_file):
     result = eqy.run(eqy_file=eqy_file)
     assert result["status"] == "FAIL"
     assert len(result["failures"]) > 0
-    assert result["failures"][0]["property"] == "q"
+    assert result["failures"] == [{"property": "top.q", "file": "", "line": 0}]
 
 
 @patch("silica.adapters.eqy.oss_cad_suite.env_with_suite", return_value={})
