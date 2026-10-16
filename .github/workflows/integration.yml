@@ -2,11 +2,28 @@ name: Integration
 
 # Real-binary integration tests against OSS CAD Suite. The suite is ~1.5 GB
 # extracted, so this runs weekly and on demand rather than on every PR; its
-# job is catching output-parser regressions against tool-version drift.
+# job is catching output-parser regressions against tool-version drift. Run
+# it manually with suite=latest to check a newer suite before bumping the pin.
 on:
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
+    inputs:
+      suite:
+        description: >
+          OSS CAD Suite release: blank for the pinned release, "latest", or a
+          release tag such as 2026-10-14
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Scheduled runs use a pinned suite release: nightlies occasionally ship
+# broken (2026-10-16 paired yosys 0.70+145 with eqy plugins built for an
+# older yosys). Bump this after a manual run with suite=latest passes.
+env:
+  PINNED_SUITE: "2026-10-14"
 
 jobs:
   integration:
@@ -14,19 +31,26 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Resolve latest OSS CAD Suite release
+      - name: Resolve OSS CAD Suite release
         id: suite
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.suite }}
         run: |
-          tag=$(gh api repos/YosysHQ/oss-cad-suite-build/releases/latest -q .tag_name)
+          case "$REQUESTED" in
+            "") tag="$PINNED_SUITE" ;;
+            latest) tag=$(gh api repos/YosysHQ/oss-cad-suite-build/releases/latest -q .tag_name) ;;
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) tag="$REQUESTED" ;;
+            *) echo "::error::suite must be blank, 'latest' or YYYY-MM-DD, got '$REQUESTED'"; exit 1 ;;
+          esac
+          echo "Using OSS CAD Suite $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Cache OSS CAD Suite
         id: cache-suite
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/oss-cad-suite
           key: oss-cad-suite-${{ runner.os }}-${{ steps.suite.outputs.tag }}
@@ -43,12 +67,13 @@ jobs:
           tar -xzf suite.tgz -C "$HOME"
           rm suite.tgz
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           enable-cache: true
           python-version: "3.12"
 
-      - run: uv sync
+      # The cocotb extra lets the cocotb integration test run instead of skip.
+      - run: uv sync --extra cocotb
 
       # Tools absent from the suite (verible, svlint, commercial) self-skip;
       # -rs surfaces the skip reasons in the log.

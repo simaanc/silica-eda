@@ -1,0 +1,40 @@
+name: Bug report
+description: A tool call returned the wrong result, crashed, or misparsed tool output.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >
+        The MCP tool and arguments, plus the smallest RTL or config that
+        reproduces it. Paste the tool's `raw_output` if the result looks
+        misparsed.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: silica-eda version
+      placeholder: "0.1.9 (from `pip show silica-eda`)"
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: EDA tool and version
+      description: For example `yosys --version`, or the OSS CAD Suite release date.
+      placeholder: "Yosys 0.69 from OSS CAD Suite 2026-10-12"
+  - type: input
+    id: env
+    attributes:
+      label: OS, Python version and MCP client
+      placeholder: "Ubuntu 24.04, Python 3.12, Claude Code"

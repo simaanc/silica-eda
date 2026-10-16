@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,20 +8,32 @@ version = "0.1.9"
 description = "AI-native EDA environment — MCP server for hardware design and verification"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "AGPL-3.0-only" }
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Christopher Simaan", email = "dev@getsilica.dev" }]
 keywords = ["eda", "rtl", "fpga", "mcp", "ai", "hardware", "verilog", "systemverilog"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "mcp>=1.9.0,<2.0.0",
     "tomli-w>=1.0.0,<2.0.0",
 ]
+
+[project.optional-dependencies]
+# run_cocotb drives cocotb's runner API, which needs cocotb >= 1.9.
+cocotb = ["cocotb>=1.9"]
+
+[project.urls]
+Homepage = "https://github.com/simaanc/silica-eda"
+Repository = "https://github.com/simaanc/silica-eda"
+Issues = "https://github.com/simaanc/silica-eda/issues"
+Changelog = "https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md"
 
 [project.scripts]
 silica = "silica.cli:main"
