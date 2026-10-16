@@ -225,6 +225,9 @@ equiv_status __equiv__
 
 
 def generate_eqy(gold_files: list[str], gate_files: list[str], top: str) -> str:
+    # The sby strategy, not sat: eqy's sat strategy proves sequential
+    # partitions equivalent even when their next-state logic differs
+    # (an up-counter vs a down-counter passes).
     gold_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gold_files)
     gate_reads = "\n".join(f'read -formal "{Path(f).resolve()}"' for f in gate_files)
     return f"""\
@@ -238,9 +241,10 @@ prep -top {top}
 {gate_reads}
 prep -top {top}
 
-[strategy sat]
-use sat
+[strategy sby]
+use sby
 depth 10
+engine smtbmc
 """
 
 
