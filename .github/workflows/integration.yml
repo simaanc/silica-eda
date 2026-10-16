@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Resolve latest OSS CAD Suite release
         id: suite
@@ -29,7 +29,7 @@ jobs:
 
       - name: Cache OSS CAD Suite
         id: cache-suite
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/oss-cad-suite
           key: oss-cad-suite-${{ runner.os }}-${{ steps.suite.outputs.tag }}
@@ -46,7 +46,7 @@ jobs:
           tar -xzf suite.tgz -C "$HOME"
           rm suite.tgz
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           enable-cache: true
           python-version: "3.12"
