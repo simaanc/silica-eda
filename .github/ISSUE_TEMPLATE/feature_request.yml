@@ -1,0 +1,16 @@
+name: Feature request
+description: Support a new EDA tool, add a tool option, or add a workflow skill.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The workflow or loop you want the agent to be able to run.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: The tool, adapter, or option you have in mind, and an example of its output if relevant.

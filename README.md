@@ -28,6 +28,12 @@ The core value: **closed autonomous loops**. Run sim → parse failure → reaso
 pip install silica-eda
 ```
 
+To run Python (cocotb) testbenches with `run_cocotb`, install the `cocotb` extra so cocotb lands in the same environment as the server:
+
+```bash
+pip install "silica-eda[cocotb]"
+```
+
 ### 2. Run the setup wizard
 
 ```bash
@@ -157,7 +163,7 @@ Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `format`
 
 Built for pointing an autonomous agent at a real repo:
 
-- **File access is confined to the project directory** — `read_rtl` / `write_rtl` / `get_constraints` reject absolute or `..` paths that escape the directory the server was started in.
+- **File access is confined to the project directory** — `read_rtl`, `write_rtl`, `format_rtl`, `get_constraints`, `search_rtl` and `get_project_structure` reject absolute or `..` paths that escape the project root (`SILICA_PROJECT_ROOT`, the `project.root` config key, or the directory the server was started in). Relative paths are resolved against that root.
 - **Writes are diff-first** — `write_rtl` defaults to a dry run that returns a unified diff; nothing touches disk until explicitly confirmed.
 - **A hung tool never kills the server** — every tool call has a timeout and returns a structured error instead of crashing the session.
 
@@ -166,11 +172,11 @@ Built for pointing an autonomous agent at a real repo:
 | Tool | Description |
 |---|---|
 | `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Accepts multiple design files / a `.f` filelist via `extra_sources`. Returns structured errors, optional VCD trace, and optional coverage (`coverage=True`, Verilator). |
-| `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. |
+| `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. Needs the `cocotb` extra (see Quick start). |
 | `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary. |
 | `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
 | `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
-| `lint` | Static analysis. Auto-selects from Verible, Verilator, SpyGlass. Lints multiple files / a `.f` filelist. Returns structured warnings. |
+| `lint` | Static analysis. Auto-selects from Verible, Verilator, svlint, SpyGlass. Lints multiple files / a `.f` filelist. Returns structured warnings. |
 | `format_rtl` | Auto-format SystemVerilog/Verilog with verible-verilog-format. Diff-first (dry_run) like `write_rtl`; refuses to mangle on syntax errors. |
 | `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
 | `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |

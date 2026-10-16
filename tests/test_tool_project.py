@@ -148,21 +148,21 @@ def test_write_rtl_rejects_dotdot_traversal_even_in_dry_run(tools, in_project):
 
 # --- search_rtl ---
 
-def test_search_rtl_finds_symbol(tools, tmp_path):
+def test_search_rtl_finds_symbol(tools, tmp_path, in_project):
     (tmp_path / "dut.sv").write_text("module dut();\n  wire clk;\nendmodule\n")
     result = tools["search_rtl"](query="clk", root=str(tmp_path))
     assert result["match_count"] >= 1
     assert any("clk" in m["context"] for m in result["matches"])
 
 
-def test_search_rtl_no_matches(tools, tmp_path):
+def test_search_rtl_no_matches(tools, tmp_path, in_project):
     (tmp_path / "dut.sv").write_text("module dut(); endmodule\n")
     result = tools["search_rtl"](query="TOTALLY_UNIQUE_STRING_XYZ123", root=str(tmp_path))
     assert result["match_count"] == 0
     assert result["matches"] == []
 
 
-def test_search_rtl_truncation_flagged(tools, tmp_path):
+def test_search_rtl_truncation_flagged(tools, tmp_path, in_project):
     body = "\n".join(f"wire clk_{i};" for i in range(60))
     (tmp_path / "dut.sv").write_text(f"module dut();\n{body}\nendmodule\n")
     result = tools["search_rtl"](query="clk_", root=str(tmp_path))
@@ -171,19 +171,35 @@ def test_search_rtl_truncation_flagged(tools, tmp_path):
     assert result["truncated"] is True
 
 
-def test_search_rtl_not_truncated_when_under_cap(tools, tmp_path):
+def test_search_rtl_not_truncated_when_under_cap(tools, tmp_path, in_project):
     (tmp_path / "dut.sv").write_text("module dut();\n  wire clk;\nendmodule\n")
     result = tools["search_rtl"](query="clk", root=str(tmp_path))
     assert result["truncated"] is False
 
 
-def test_search_rtl_scoped_to_sv(tools, tmp_path):
+def test_search_rtl_scoped_to_sv(tools, tmp_path, in_project):
     (tmp_path / "dut.sv").write_text("module dut(); endmodule\n")
     (tmp_path / "dut.v").write_text("module dut_v(); endmodule\n")
     result = tools["search_rtl"](query="module", root=str(tmp_path), scope="sv")
     files = {m["file"] for m in result["matches"]}
     assert all(f.endswith(".sv") for f in files)
 
+
+
+def test_search_rtl_rejects_root_outside_project(tools, in_project, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside")
+    (outside / "secret.sv").write_text("module secret(); wire clk; endmodule\n")
+    result = tools["search_rtl"](query="clk", root=str(outside))
+    assert "escapes the project directory" in result["error"]
+    assert result["matches"] == []
+
+
+def test_get_structure_rejects_root_outside_project(tools, in_project, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside")
+    (outside / "secret.sv").write_text("module secret(); endmodule\n")
+    result = tools["get_project_structure"](root=str(outside))
+    assert "escapes the project directory" in result["error"]
+    assert result["rtl_files"] == []
 
 # --- get_constraints ---
 
@@ -271,4 +287,21 @@ def test_confine_root_follows_configured_project_root(tools, tmp_path, monkeypat
         assert "module dut" in result["content"]
         # A file under the old CWD now escapes the configured root.
         escape = tools["read_rtl"](file=str(elsewhere / "x.sv"))
+        assert "escapes the project directory" in escape["error"]
+
+
+def test_confine_resolves_relative_paths_against_project_root(tools, tmp_path, monkeypatch):
+    """A relative path means relative to the project root, not the server's CWD."""
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    proj = tmp_path / "proj"
+    (proj / "rtl").mkdir(parents=True)
+    (proj / "rtl" / "dut.sv").write_text("module dut(); endmodule\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    config = {"project": {"root": str(proj)}}
+    with patch("silica.config.load", return_value=config):
+        result = tools["read_rtl"](file="rtl/dut.sv")
+        assert "module dut" in result["content"]
+        escape = tools["read_rtl"](file="../elsewhere/x.sv")
         assert "escapes the project directory" in escape["error"]
