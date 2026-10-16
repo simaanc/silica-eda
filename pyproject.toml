@@ -25,6 +25,10 @@ dependencies = [
     "tomli-w>=1.0.0,<2.0.0",
 ]
 
+[project.optional-dependencies]
+# run_cocotb drives cocotb's runner API, which needs cocotb >= 1.9.
+cocotb = ["cocotb>=1.9"]
+
 [project.urls]
 Homepage = "https://github.com/simaanc/silica-eda"
 Repository = "https://github.com/simaanc/silica-eda"
