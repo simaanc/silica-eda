@@ -46,11 +46,12 @@ def _confine(file: str) -> tuple[Path | None, str | None]:
 
     The project root is :func:`project_root` (env/config/CWD). Absolute paths
     and ``..`` traversal that escape it are rejected so MCP callers cannot read
-    or write arbitrary files. Returns (path, None) on success or
+    or write arbitrary files. Relative paths are taken relative to the project
+    root, not the server's CWD. Returns (path, None) on success or
     (None, error message) on escape.
     """
     root = project_root()
-    path = Path(file).resolve()
+    path = (root / file).resolve()
     if path == root or path.is_relative_to(root):
         return path, None
     return None, (

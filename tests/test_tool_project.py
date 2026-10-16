@@ -272,3 +272,20 @@ def test_confine_root_follows_configured_project_root(tools, tmp_path, monkeypat
         # A file under the old CWD now escapes the configured root.
         escape = tools["read_rtl"](file=str(elsewhere / "x.sv"))
         assert "escapes the project directory" in escape["error"]
+
+
+def test_confine_resolves_relative_paths_against_project_root(tools, tmp_path, monkeypatch):
+    """A relative path means relative to the project root, not the server's CWD."""
+    monkeypatch.delenv("SILICA_PROJECT_ROOT", raising=False)
+    proj = tmp_path / "proj"
+    (proj / "rtl").mkdir(parents=True)
+    (proj / "rtl" / "dut.sv").write_text("module dut(); endmodule\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    config = {"project": {"root": str(proj)}}
+    with patch("silica.config.load", return_value=config):
+        result = tools["read_rtl"](file="rtl/dut.sv")
+        assert "module dut" in result["content"]
+        escape = tools["read_rtl"](file="../elsewhere/x.sv")
+        assert "escapes the project directory" in escape["error"]
