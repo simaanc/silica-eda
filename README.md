@@ -163,7 +163,7 @@ Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `format`
 
 Built for pointing an autonomous agent at a real repo:
 
-- **File access is confined to the project directory** — `read_rtl` / `write_rtl` / `get_constraints` reject absolute or `..` paths that escape the directory the server was started in.
+- **File access is confined to the project directory** — `read_rtl`, `write_rtl`, `format_rtl`, `get_constraints`, `search_rtl` and `get_project_structure` reject absolute or `..` paths that escape the project root (`SILICA_PROJECT_ROOT`, the `project.root` config key, or the directory the server was started in). Relative paths are resolved against that root.
 - **Writes are diff-first** — `write_rtl` defaults to a dry run that returns a unified diff; nothing touches disk until explicitly confirmed.
 - **A hung tool never kills the server** — every tool call has a timeout and returns a structured error instead of crashing the session.
 
