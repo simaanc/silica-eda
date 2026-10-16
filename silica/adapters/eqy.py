@@ -123,6 +123,11 @@ def run(
     errors = [{"file": "", "line": 0, "message": mm.group(1).strip()}
               for mm in _ERROR_RE.finditer(raw)]
 
+    # No DONE line means eqy aborted before running a strategy (e.g. a
+    # yosys stage failed), not that the proof was inconclusive.
+    if not m and rc != 0:
+        status = "ERROR"
+
     return {
         "status": status,
         "rc": rc,

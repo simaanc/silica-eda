@@ -12,6 +12,10 @@ EQY_FAIL = (
     "EQY 11:37:25 [top] Failed to prove equivalence of partition top.q\n"
     "EQY 11:37:25 [top] DONE (FAIL, rc=2)\n"
 )
+EQY_ABORT = (
+    "EQY 11:36:16 [top] combine: finished (returncode=1)\n"
+    "ERROR: Failed to combine designs. For details see 'top/combine.log'.\n"
+)
 
 
 @patch("silica.adapters.eqy.oss_cad_suite.which", return_value=None)
@@ -46,6 +50,17 @@ def test_fail(mock_run, mock_which, mock_env, eqy_file):
     assert result["status"] == "FAIL"
     assert len(result["failures"]) > 0
     assert result["failures"] == [{"property": "top.q", "file": "", "line": 0}]
+
+
+@patch("silica.adapters.eqy.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.eqy.oss_cad_suite.which", return_value="/usr/bin/eqy")
+@patch("silica.adapters.eqy.subprocess.run")
+def test_abort_without_done_is_error(mock_run, mock_which, mock_env, eqy_file):
+    mock_run.return_value = make_proc(stdout=EQY_ABORT, returncode=1)
+    result = eqy.run(eqy_file=eqy_file)
+    assert result["status"] == "ERROR"
+    assert result["rc"] == 1
+    assert any("combine" in e["message"] for e in result["errors"])
 
 
 @patch("silica.adapters.eqy.oss_cad_suite.env_with_suite", return_value={})
