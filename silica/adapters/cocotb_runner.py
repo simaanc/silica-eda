@@ -31,7 +31,10 @@ _SIM_BINARY = {
 # Driver executed in a subprocess. argv: sim toplevel module build_dir src...
 _DRIVER = """\
 import sys
-from cocotb.runner import get_runner
+try:
+    from cocotb_tools.runner import get_runner  # cocotb >= 2.0
+except ImportError:
+    from cocotb.runner import get_runner  # cocotb 1.9
 
 sim, toplevel, test_module, build_dir = sys.argv[1:5]
 sources = sys.argv[5:]
