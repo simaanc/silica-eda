@@ -23,6 +23,12 @@ dependencies = [
     "tomli-w>=1.0.0,<2.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/simaanc/silica-eda"
+Repository = "https://github.com/simaanc/silica-eda"
+Issues = "https://github.com/simaanc/silica-eda/issues"
+Changelog = "https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md"
+
 [project.scripts]
 silica = "silica.cli:main"
 
