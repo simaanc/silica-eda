@@ -130,9 +130,11 @@ def run(
             "raw_stdout": cp.stdout,
             "raw_stderr": cp.stderr,
         }
-        # No results.xml and a nonzero exit means the build/elaboration failed
-        # before any test ran — surface that rather than a silent 0/0.
-        if not tests and cp.returncode != 0:
+        # No results means the build/elaboration failed or the simulator never
+        # loaded cocotb — surface that rather than a silent 0/0. The exit code
+        # alone can't tell: a simulator that fails to start cocotb's embedded
+        # Python can still exit 0.
+        if not tests:
             detail = (cp.stderr or cp.stdout).strip()[-2000:]
             result["error"] = f"cocotb run failed before any test executed: {detail}"
         return result

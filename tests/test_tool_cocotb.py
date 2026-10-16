@@ -99,6 +99,21 @@ def test_build_failure_surfaced(mock_run, mock_spec, mock_resolve, mock_env, tmp
     assert "before any test executed" in result["error"]
 
 
+
+@patch("silica.adapters.cocotb_runner.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.cocotb_runner.resolve", return_value="/usr/bin/iverilog")
+@patch("silica.adapters.cocotb_runner.importlib.util.find_spec", return_value=object())
+@patch("silica.adapters.cocotb_runner.subprocess.run")
+def test_no_results_with_zero_exit_surfaced(mock_run, mock_spec, mock_resolve, mock_env,
+                                            tmp_path):
+    tb = tmp_path / "tb.py"
+    tb.write_text("# cocotb test\n")
+    # vvp exits 0 even when cocotb's embedded Python fails to import
+    mock_run.return_value = make_proc(stderr="ImportError: libm.so.6", returncode=0)
+    result = cocotb_runner.run([str(tmp_path / "dut.sv")], str(tb), "dut")
+    assert "error" in result
+    assert "ImportError" in result["error"]
+
 # --- tool layer ---
 
 @patch("silica.adapters.cocotb_runner.importlib.util.find_spec", return_value=None)
