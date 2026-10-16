@@ -95,6 +95,9 @@ def run(
     env["PYTHONPATH"] = (
         str(test_path.parent) + (f"{_pathsep()}{existing_pp}" if existing_pp else "")
     )
+    # Inherited from a pytest parent, this makes cocotb's runner rename
+    # results.xml after the pytest test, and _parse_results finds nothing.
+    env.pop("PYTEST_CURRENT_TEST", None)
 
     with tempfile.TemporaryDirectory(prefix="silica_cocotb_") as build_dir:
         driver = Path(build_dir) / "_silica_cocotb_driver.py"
