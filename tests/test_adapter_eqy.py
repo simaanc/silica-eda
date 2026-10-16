@@ -73,4 +73,5 @@ def test_generate_eqy_content():
     assert "[gold]" in content
     assert "[gate]" in content
     assert "top" in content
-    assert "[strategy sat]" in content
+    assert "[strategy sby]" in content
+    assert "use sby" in content
