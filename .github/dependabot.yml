@@ -13,8 +13,8 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      # mcp 2.x renames FastMCP to MCPServer and changes other server APIs;
-      # moving to it is a migration, not a routine bump.
+      # mcp majors change server APIs (1 -> 2 renamed FastMCP to MCPServer);
+      # moving to the next one is a migration, not a routine bump.
       - dependency-name: mcp
         update-types: ["version-update:semver-major"]
     groups:
