@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica.adapters import ghdl, icarus, questa, vcs, verilator, xcelium
 from silica.adapters._hints import install_hint
@@ -34,7 +34,7 @@ def _error_result(file: str, message: str) -> dict:
     }
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def run_simulation(
         file: str,
