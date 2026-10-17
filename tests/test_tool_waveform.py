@@ -304,3 +304,26 @@ def test_fst_cache_invalidated_when_trace_changes(read_waveform, tmp_path):
         read_waveform(str(f))
 
     assert len(created) == 2, "changed FST must be reconverted"
+
+
+def test_fst_parse_runs_under_cache_lock(read_waveform, tmp_path):
+    """A concurrent call must not evict the cached VCD while it is parsed."""
+    f = tmp_path / "sim.fst"
+    f.write_bytes(b"\x00\x01")
+    real_parse = waveform.vcd.parse
+    held: list[bool] = []
+
+    def parse_and_check(*args, **kwargs):
+        held.append(waveform._fst_lock.locked())
+        return real_parse(*args, **kwargs)
+
+    with patch("silica.tools.waveform.oss_cad_suite.which",
+               return_value="/opt/oss/bin/fst2vcd"), \
+         patch("silica.tools.waveform.oss_cad_suite.env_with_suite",
+               return_value={}), \
+         patch("silica.tools.waveform.subprocess.run",
+               side_effect=_fst_run_counter([])), \
+         patch("silica.tools.waveform.vcd.parse", side_effect=parse_and_check):
+        result = read_waveform(str(f))
+    assert "error" not in result
+    assert held == [True]
