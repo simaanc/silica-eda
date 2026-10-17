@@ -1,7 +1,9 @@
 import logging
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+
+from silica import __version__
 
 _SKILLS_DIR = Path(__file__).parent / "skills"
 
@@ -16,9 +18,10 @@ def _load_skill(relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-mcp = FastMCP(
+mcp = MCPServer(
     "silica",
     instructions=_load_skill("base/rtl_assistant.md"),
+    version=__version__,
 )
 
 # --- workflow skills exposed as MCP prompts ---

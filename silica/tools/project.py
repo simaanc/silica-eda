@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica import config as cfg
 
@@ -60,7 +60,7 @@ def _confine(file: str) -> tuple[Path | None, str | None]:
     )
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def get_project_structure(root: str = ".") -> dict:
         """Return the RTL file tree and detect the likely top-level module.

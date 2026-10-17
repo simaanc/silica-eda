@@ -3,14 +3,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica.adapters import cocotb_runner
 from silica.tools._config_dispatch import check_enabled
 from silica.tools._sources import expand_sources
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def run_cocotb(
         sources: list[str],

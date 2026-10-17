@@ -23,7 +23,7 @@ pytestmark = [
 
 
 class _Registry:
-    """Minimal FastMCP stand-in that captures registered tool functions."""
+    """Minimal MCPServer stand-in that captures registered tool functions."""
 
     def __init__(self):
         self.tools = {}

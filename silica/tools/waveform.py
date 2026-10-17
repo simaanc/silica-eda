@@ -5,12 +5,13 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica import oss_cad_suite, vcd
 from silica.adapters import verdi as verdi_adapter
@@ -38,6 +39,9 @@ _MAX_FST_CACHE = 8
 # resolved FST path -> ((mtime_ns, size), converted VCD path)
 _fst_cache: "OrderedDict[str, tuple[tuple[int, int], Path]]" = OrderedDict()
 _fst_cache_dir: str | None = None
+# Tool calls can run concurrently on worker threads, and a call can evict the
+# VCD another call is about to parse. Hold this across convert *and* parse.
+_fst_lock = threading.Lock()
 
 
 def _cache_dir() -> str:
@@ -125,7 +129,7 @@ def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
     return vcd_path, None
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def launch_waveform(trace_file: str, viewer: str = "auto") -> dict:
         """Open a VCD/FST/FSDB trace file in a waveform viewer (fire-and-forget).
@@ -237,25 +241,29 @@ def register(mcp: "FastMCP") -> None:
                 "launch_waveform with the verdi viewer."
             )}
 
+        def parse(target: Path) -> tuple[dict | None, str | None]:
+            try:
+                return vcd.parse(
+                    str(target),
+                    signals=signals,
+                    time_start=time_start,
+                    time_end=time_end,
+                    max_transitions=max_transitions,
+                ), None
+            except (ValueError, OSError) as exc:
+                return None, f"Failed to parse VCD: {exc}"
+
         # FST is binary — convert to a VCD (cached per trace), then parse as
         # usual. The VCD is owned by the cache, so we must not delete it here.
         if suffix == ".fst":
-            parse_target, err = _fst_to_vcd(path)
-            if err:
-                return {"error": err}
+            with _fst_lock:
+                vcd_path, err = _fst_to_vcd(path)
+                if not err:
+                    parsed, err = parse(vcd_path)
         else:
-            parse_target = path
-
-        try:
-            parsed = vcd.parse(
-                str(parse_target),
-                signals=signals,
-                time_start=time_start,
-                time_end=time_end,
-                max_transitions=max_transitions,
-            )
-        except (ValueError, OSError) as exc:
-            return {"error": f"Failed to parse VCD: {exc}"}
+            parsed, err = parse(path)
+        if err:
+            return {"error": err}
 
         if not signals:
             available = parsed["all_signals"]
