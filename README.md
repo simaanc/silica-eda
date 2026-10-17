@@ -204,7 +204,7 @@ Silica ships reasoning scripts that teach the model how to interpret tool output
 ```
 silica/
 ├── silica/
-│   ├── server.py              # FastMCP server; registers all tools and prompts
+│   ├── server.py              # MCP server; registers all tools and prompts
 │   ├── cli.py                 # subcommand dispatch (serve / setup / config)
 │   ├── tools_registry.py      # canonical list of EDA tools (per-OS support + install)
 │   ├── clients_registry.py    # canonical list of all supported MCP clients

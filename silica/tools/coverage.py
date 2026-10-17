@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica.adapters import verilator
 
@@ -62,7 +62,7 @@ def _parse_lcov(info: str) -> tuple[list[dict], dict]:
     return files, total_summary
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def read_coverage(
         coverage_dat: str,

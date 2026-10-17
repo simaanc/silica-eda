@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica import oss_cad_suite, vcd
 from silica.adapters import verdi as verdi_adapter
@@ -129,7 +129,7 @@ def _fst_to_vcd(fst_path: Path) -> tuple[Path | None, str | None]:
     return vcd_path, None
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def launch_waveform(trace_file: str, viewer: str = "auto") -> dict:
         """Open a VCD/FST/FSDB trace file in a waveform viewer (fire-and-forget).

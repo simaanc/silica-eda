@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica.adapters import eqy as eqy_adapter
 from silica.adapters import jaspergold, vc_formal
@@ -22,7 +22,7 @@ _FORMAL_ADAPTERS = {
 }
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def run_formal(
         sby_file: str | None = None,

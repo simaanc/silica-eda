@@ -4,7 +4,7 @@ import difflib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
 from silica.adapters import verible
 from silica.tools._config_dispatch import check_enabled, pick
@@ -18,7 +18,7 @@ _FORMATTERS = {
 }
 
 
-def register(mcp: "FastMCP") -> None:
+def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def format_rtl(
         file: str,
