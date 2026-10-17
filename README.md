@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="banner.png" alt="Silica" width="414"/>
+<img src="https://raw.githubusercontent.com/simaanc/silica-eda/main/banner.png" alt="Silica" width="414"/>
 
 **AI-native EDA environment** · MCP server for hardware design and verification
 
 [![PyPI](https://img.shields.io/pypi/v/silica-eda?style=flat-square&color=3b82f6&label=pypi)](https://pypi.org/project/silica-eda/)
 [![Python](https://img.shields.io/pypi/pyversions/silica-eda?style=flat-square)](https://pypi.org/project/silica-eda/)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e?style=flat-square)](https://github.com/simaanc/silica-eda/blob/main/LICENSE)
 
 </div>
 
@@ -288,4 +288,4 @@ vvp /tmp/uart_sim
 
 ## License
 
-silica is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). You can use, modify and redistribute it, including commercially. If you distribute a modified version, or run one as a service that others interact with over a network, you must make your changes' source available under the same license.
+silica is licensed under the [GNU Affero General Public License v3.0](https://github.com/simaanc/silica-eda/blob/main/LICENSE) (AGPL-3.0-only). You can use, modify and redistribute it, including commercially. If you distribute a modified version, or run one as a service that others interact with over a network, you must make your changes' source available under the same license.
