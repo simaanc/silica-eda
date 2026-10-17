@@ -56,6 +56,11 @@ docstring of `silica/adapters/__init__.py`. In short:
 
 ## Commits and pull requests
 
+- Sign off every commit with `git commit -s`. This adds a `Signed-off-by:`
+  line certifying the [Developer Certificate of Origin](https://developercertificate.org):
+  that you wrote the change or otherwise have the right to submit it under
+  the project's license. A CI check rejects pull requests with unsigned
+  commits; fix existing ones with `git rebase --signoff main`.
 - Keep each commit to one logical change, with a
   [Conventional Commits](https://www.conventionalcommits.org/) subject line
   (`fix(eqy): ...`, `feat: ...`, `docs: ...`) and a body that says why.

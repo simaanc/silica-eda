@@ -1,0 +1,41 @@
+name: DCO
+
+# Every commit in a pull request must carry a Developer Certificate of Origin
+# sign-off (`git commit -s`) from its author: https://developercertificate.org
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check Signed-off-by trailers
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          for sha in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            email=$(git log -1 --format='%ae' "$sha")
+            case "$email" in
+              *"[bot]@users.noreply.github.com") continue ;;  # Dependabot etc.
+            esac
+            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
+                | grep -qiF "<$email>"; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha") has no Signed-off-by from <$email>"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Sign off each commit with 'git commit -s' (fix existing ones with"
+            echo "'git rebase --signoff $BASE'). See CONTRIBUTING.md."
+            exit 1
+          fi
+          echo "All commits are signed off."
