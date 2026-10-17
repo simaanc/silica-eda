@@ -6,6 +6,12 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-16
+
+### Fixed
+- The banner image and LICENSE links in the README work on the PyPI project
+  page.
+
 ## [0.3.0] - 2026-10-16
 
 ### Changed
@@ -151,6 +157,7 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 waveform viewer launch, and the `silica setup` wizard.
 
 [Unreleased]: https://github.com/simaanc/silica-eda/commits/main
+[0.3.1]: https://pypi.org/project/silica-eda/0.3.1/
 [0.3.0]: https://pypi.org/project/silica-eda/0.3.0/
 [0.2.0]: https://pypi.org/project/silica-eda/0.2.0/
 [0.1.10]: https://pypi.org/project/silica-eda/0.1.10/
