@@ -6,6 +6,23 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-16
+
+### Changed
+- silica now runs on the mcp 2.x Python SDK and requires `mcp>=2.3,<3`.
+  Tools, prompts and their schemas are unchanged for clients. Clients that
+  speak MCP protocol 2026-07-28 now connect with it; older clients keep
+  working on 2025-11-25.
+- The server reports silica's own version to clients. Before, it reported
+  the mcp SDK's version.
+
+### Fixed
+- `read_waveform` on FST traces is safe when several calls run at once: a
+  concurrent call can no longer evict the converted VCD another call is
+  reading. mcp 2.x runs tool calls on worker threads, so they can overlap.
+- On Windows, concurrent first tool calls no longer race to create the OSS
+  CAD Suite `.bat` wrappers.
+
 ## [0.1.10] - 2026-10-16
 
 ### Added
@@ -127,6 +144,7 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 waveform viewer launch, and the `silica setup` wizard.
 
 [Unreleased]: https://github.com/simaanc/silica-eda/commits/main
+[0.2.0]: https://pypi.org/project/silica-eda/0.2.0/
 [0.1.10]: https://pypi.org/project/silica-eda/0.1.10/
 [0.1.9]: https://pypi.org/project/silica-eda/0.1.9/
 [0.1.8]: https://pypi.org/project/silica-eda/0.1.8/
