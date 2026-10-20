@@ -121,6 +121,9 @@ def _run(
             "--binary",
             "--build",
             "-Wall",
+            # Report lint warnings but don't let them stop the simulation;
+            # lint_only is the strict path.
+            "-Wno-fatal",
             "-Wno-TIMESCALEMOD",
             "-Wno-STMTDLY",
             "-Wno-PROCASSINIT",
@@ -149,6 +152,14 @@ def _run(
         errors, warnings = _parse_output(cp.stderr)
 
         if cp.returncode != 0:
+            if not errors:
+                errors.append({
+                    "file": dut,
+                    "line": 0,
+                    "severity": "error",
+                    "message": (f"Verilator build failed with exit code "
+                                f"{cp.returncode} — see raw_stderr"),
+                })
             result: dict = {
                 "exit_code": cp.returncode,
                 "errors": errors,

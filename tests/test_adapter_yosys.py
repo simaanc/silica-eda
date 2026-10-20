@@ -68,6 +68,85 @@ def test_count_cells_dff_and_lut():
     assert util["dsp"] == 0
 
 
+# Yosys 0.70 synth_xilinx of a top with one submodule, trimmed: synth_xilinx
+# prints its own statistics, then the script's stat prints them again, each
+# with per-module blocks followed by the hierarchy total.
+_XILINX_MODULE_STAT = """\
+=== sub ===
+
+        +----------Local Count, excluding submodules.
+        |
+       81 cells
+        5   CARRY4
+       30   FDCE
+        2   FDPE
+       16   LUT2
+        7   LUT6
+
+=== top ===
+
+        +----------Local Count, excluding submodules.
+        |
+      148 cells
+        1   BUFG
+       57   FDCE
+        6   FDRE
+        8   LUT2
+        6   LUT6
+        1   RAMB18E1
+        1   DSP48E1
+        1 submodules
+        1   sub
+
+=== design hierarchy ===
+
+        +----------Count including submodules.
+        |
+      229 top
+       81 sub
+
+        +----------Count including submodules.
+        |
+      229 cells
+        1   BUFG
+        5   CARRY4
+       87   FDCE
+        2   FDPE
+        6   FDRE
+       24   LUT2
+       13   LUT6
+        1   RAMB18E1
+        1   DSP48E1
+        1 submodules
+        1   sub
+"""
+XILINX_STAT_OUTPUT = (
+    "2.50. Printing statistics.\n\n" + _XILINX_MODULE_STAT
+    + "\n3. Printing statistics.\n\n" + _XILINX_MODULE_STAT
+)
+
+
+def test_count_cells_xilinx_counts_hierarchy_total_once():
+    util = yosys._count_cells(XILINX_STAT_OUTPUT)
+    assert util["luts"] == 37
+    assert util["ffs"] == 95
+    assert util["bram"] == 1
+    assert util["dsp"] == 1
+
+
+@pytest.mark.parametrize("cell,kind", [
+    ("SB_LUT4", "luts"), ("SB_DFFER", "ffs"), ("SB_RAM40_4K", "bram"), ("SB_MAC16", "dsp"),
+    ("LUT4", "luts"), ("TRELLIS_FF", "ffs"), ("DP16KD", "bram"), ("MULT18X18D", "dsp"),
+    ("DFFRE", "ffs"), ("SPX9", "bram"), ("MULT9X9", "dsp"),
+    ("LUT6", "luts"), ("FDSE", "ffs"), ("RAMB36E1", "bram"), ("DSP48E1", "dsp"),
+    ("$_SDFFCE_PN0P_", "ffs"),
+])
+def test_count_cells_mapped_primitives(cell, kind):
+    util = yosys._count_cells(f"=== top ===\n\n        3   {cell}\n")
+    assert util[kind] == 3
+    assert sum(util[k] for k in ("luts", "ffs", "bram", "dsp")) == 3
+
+
 def test_parse_warnings():
     warnings = yosys._parse_warnings(YOSYS_WARNING)
     assert len(warnings) == 1

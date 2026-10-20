@@ -6,6 +6,36 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `run_place_route` places and routes Xilinx 7-series parts with
+  `arch="xilinx"` through openXC7's nextpnr-xilinx, taking an `.xdc`
+  constraint file and a part such as `xc7a100tcsg324-1`. When openXC7's
+  `fpga-as` and `PRJXRAY_DB_DIR` are available the result is a `.bit` ready
+  for `program_device`; otherwise it is the FASM file, with a warning.
+
+### Fixed
+- `lint` with Verible reports its findings again. Current Verible releases
+  print a column range (`file.sv:22:20-31:`), which the parser skipped, so
+  every warning and syntax error was dropped.
+- `lint` with svlint 0.9 reports its findings. svlint now prints colored,
+  multi-line `Fail:` blocks even when piped, which the parser did not match.
+- `run_simulation` with Verilator no longer refuses to simulate a design that
+  has lint warnings. The build used `-Wall` with warnings fatal, so an unused
+  testbench signal stopped the run with exit code 1 and an empty `errors`
+  list. Warnings are still returned in `warnings`, and a failed build with no
+  parsed diagnostic now carries an error entry.
+- `synthesize` with Yosys reports real utilization for FPGA targets. LUTs,
+  flip-flops, block RAM and DSPs mapped to ice40, ecp5, gowin and xilinx
+  primitives were not counted, so those targets always reported zero, and
+  the generic target counted every flip-flop about four times.
+- `program_device` reports a failed Xilinx load as a failure. openFPGALoader
+  exits 0 even when the FPGA never asserts DONE (for example, after a
+  bitstream whose header declares a zero length), so the tool returned
+  `success: true` for a board that was left unconfigured.
+- `run_place_route` lists each clock once, with its routed result.
+  nextpnr reports every clock after placement and again after routing, and
+  both entries were returned, with the placement estimate first.
+
 ## [0.3.1] - 2026-10-16
 
 ### Fixed

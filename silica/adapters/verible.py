@@ -8,9 +8,10 @@ from silica.adapters._hints import install_hint
 from silica.detect import resolve
 
 # filename.sv:10:5: message [rule-id]
+# filename.sv:10:5-12: message [rule-id]  (newer releases print a column range)
 # filename.sv:10:5: message  (no rule-id)
 _WARN_RE = re.compile(
-    r"^([^:]+):(\d+):(\d+):\s*(.+?)(?:\s+\[([^\]]+)\])?$",
+    r"^([^:]+):(\d+):(\d+)(?:-\d+)?:\s*(.+?)(?:\s+\[([^\]]+)\])?$",
     re.MULTILINE,
 )
 

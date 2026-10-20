@@ -47,6 +47,28 @@ def test_compile_error(mock_run, mock_which, mock_env):
 @patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
 @patch("silica.adapters.verilator.subprocess.run")
+def test_compile_failure_without_diagnostics_reports_error(mock_run, mock_which, mock_env):
+    mock_run.return_value = make_proc(stderr="make: *** [Vtb.mk] Error 2\n", returncode=2)
+    result = verilator.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == 2
+    assert len(result["errors"]) == 1
+    assert "exit code 2" in result["errors"][0]["message"]
+
+
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
+def test_lint_warnings_are_not_fatal(mock_run, mock_which, mock_env):
+    mock_run.side_effect = [make_proc(returncode=0), make_proc(returncode=0)]
+    verilator.run("dut.sv", "tb.sv")
+    compile_cmd = mock_run.call_args_list[0].args[0]
+    assert "-Wall" in compile_cmd
+    assert "-Wno-fatal" in compile_cmd
+
+
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
 def test_warning_parsed(mock_run, mock_which, mock_env):
     mock_run.side_effect = [
         make_proc(stderr=VERILATOR_WARNING, returncode=0),

@@ -56,6 +56,38 @@ def test_parse_fail_format():
     assert warnings[0]["line"] == 10
 
 
+# svlint 0.9.5 output, piped: it still emits ANSI colors.
+SVLINT_09_OUTPUT = (
+    "\x1b[93mWarning\x1b[97m: Config file '.svlint.toml' is not found. "
+    "Enable all rules\x1b(B\x1b[m\n"
+    "\x1b[91mFail\x1b[97m: header_copyright\n"
+    "\x1b[94m   -->\x1b[37m bad.sv:1:1\n"
+    "\x1b[94m  |\n"
+    "\x1b[94m1 |\x1b[37m module m;\n"
+    "\x1b[94m  |\x1b[93m ^^^^^^^^^\x1b[93m hint  : Copyright notice must be "
+    "present on line 1.\n"
+    "\x1b[94m  |\x1b[33m          \x1b[33m reason: Copyright notices are "
+    "required for legal purposes.\n"
+    "\x1b(B\x1b[m\n"
+    "\x1b[91mError\x1b[97m: parse error\n"
+    "\x1b[94m   -->\x1b[37m bad.sv:3:1\n"
+    "\x1b[94m  |\n"
+    "\x1b[94m3 |\x1b[37m endmodule\n"
+    "\x1b[94m  |\x1b[93m ^\x1b(B\x1b[m\n"
+)
+
+
+def test_parse_09_block_format():
+    warnings = svlint._parse(SVLINT_09_OUTPUT)
+    assert warnings == [
+        {"file": "bad.sv", "line": 1, "severity": "warning",
+         "rule_id": "header_copyright",
+         "message": "Copyright notice must be present on line 1."},
+        {"file": "bad.sv", "line": 3, "severity": "error",
+         "rule_id": "svlint", "message": "parse error"},
+    ]
+
+
 @patch("silica.adapters.svlint.subprocess.run",
        side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
 @patch("silica.adapters.svlint.resolve", return_value="/usr/bin/svlint")

@@ -14,14 +14,26 @@ from silica.adapters._script_paths import unsafe_script_value
 _FF_CELL_ABSTRACT = {
     "$dff", "$dffe", "$sdff", "$sdffe", "$adff", "$adffe", "$dffsr", "$dffsre",
 }
-# Tech-mapped single-bit DFF variants (any $_DFF*_ or $_DFFE*_ cell is a FF)
-_FF_CELL_MAPPED_RE = re.compile(r"^\$_DFF(E|SR|SRE)?_")
+# Single-bit FF cells: yosys gate-level ($_DFF*_, $_SDFF*_, ...) and the
+# primitives synth_<arch> maps to (ice40 SB_DFF*, ecp5 TRELLIS_FF, gowin DFF*,
+# xilinx FD[CPRS]E).
+_FF_CELL_MAPPED_RE = re.compile(
+    r"^(\$_(SDFF|ALDFF|DFF)\w*_|SB_DFF\w*|TRELLIS_FF|DFF[A-Z]*|FD[CPRS]E(_1)?)$"
+)
 _LUT_CELLS = {
     "$lut", "$pmux",
     "$_LUT1_", "$_LUT2_", "$_LUT3_", "$_LUT4_", "$_LUT5_", "$_LUT6_",
 }
+# ice40 SB_LUT4; ecp5 LUT4; gowin LUT1-4; xilinx LUT1-6
+_LUT_CELL_MAPPED_RE = re.compile(r"^(SB_LUT4|LUT[1-6])$")
 _MEM_CELLS = {"$mem", "$mem_v2", "$memrd", "$memrd_v2", "$memwr", "$memwr_v2"}
+_MEM_CELL_MAPPED_RE = re.compile(
+    r"^(SB_RAM40_4K\w*|DP16KD|PDPW16KD|SPX?9?|DPX?9?B?|SDPX?9?B?|pROMX?9?|RAMB(18|36)E[12])$"
+)
 _DSP_CELLS = {"$mul", "$div", "$mod", "$pow"}
+_DSP_CELL_MAPPED_RE = re.compile(
+    r"^(SB_MAC16|MULT18X18D|ALU54D|MULT(9X9|18X18|36X36)|MULTALU\w+|MULTADDALU\w+|DSP48E[12])$"
+)
 
 # Abstract cell format:   "  $cell_name    COUNT"  (cell then count, right-aligned)
 # Tech-mapped cell format: "    COUNT   $cell_name" (count then cell)
@@ -35,18 +47,31 @@ _WARNING_RE = re.compile(r"^Warning:\s*(.+)$", re.MULTILINE)
 _FPGA_TARGETS = {"ice40", "ecp5", "xilinx", "gowin"}
 
 
+def _final_stat(output: str) -> str:
+    """Return the design-wide cell counts from the last ``stat`` report.
+
+    synth_<arch> prints its own statistics before the script's ``stat`` runs,
+    and each report lists every module and then the hierarchy total, so
+    counting every block counts each cell several times over."""
+    start = output.rfind("Printing statistics.")
+    report = output[start:] if start >= 0 else output
+    total = report.find("=== design hierarchy ===")
+    return report[total:] if total >= 0 else report
+
+
 def _count_cells(stat_output: str) -> dict:
+    stat_output = _final_stat(stat_output)
     luts = ffs = bram = dsp = 0
 
     def _tally(cell: str, count: int) -> None:
         nonlocal luts, ffs, bram, dsp
         if cell in _FF_CELL_ABSTRACT or _FF_CELL_MAPPED_RE.match(cell):
             ffs += count
-        elif cell in _LUT_CELLS:
+        elif cell in _LUT_CELLS or _LUT_CELL_MAPPED_RE.match(cell):
             luts += count
-        elif cell in _MEM_CELLS:
+        elif cell in _MEM_CELLS or _MEM_CELL_MAPPED_RE.match(cell):
             bram += count
-        elif cell in _DSP_CELLS:
+        elif cell in _DSP_CELLS or _DSP_CELL_MAPPED_RE.match(cell):
             dsp += count
 
     for m in _CELL_RE_ABSTRACT.finditer(stat_output):
