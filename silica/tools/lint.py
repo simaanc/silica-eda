@@ -37,7 +37,9 @@ def register(mcp: "MCPServer") -> None:
             timeout: Seconds before killing the linter (applied per file).
             extra_files: Additional files to lint. Each may itself be a ``.f``
                   filelist, expanded in place. Warnings across all files are
-                  merged into one result.
+                  merged into one result. Verilator elaborates all the files
+                  together, so pass a design's submodules here when linting
+                  its top level.
 
         Returns a LintResult dict:
             warnings [{file, line, severity, rule_id, message}], tool, raw_output
@@ -86,6 +88,11 @@ def register(mcp: "MCPServer") -> None:
             return {"warnings": [], "tool": tool, "raw_output": "",
                     "error": "No source files provided."}
 
+        # Verilator elaborates a design, so its files go in one run: linted
+        # alone, a top-level file reports every submodule as missing.
+        if tool == "verilator":
+            return _lint_one(tool, files[0], ruleset, timeout, files[1:])
+
         # Lint each file and merge. An adapter-level error (tool missing,
         # timeout) short-circuits — it applies to every file equally.
         all_warnings: list[dict] = []
@@ -103,13 +110,16 @@ def register(mcp: "MCPServer") -> None:
         }
 
 
-def _lint_one(tool: str, file: str, ruleset: str, timeout: int) -> dict:
-    """Lint a single file with the resolved tool; returns a LintResult dict."""
+def _lint_one(tool: str, file: str, ruleset: str, timeout: int,
+              extra_files: list[str] | None = None) -> dict:
+    """Lint a single file with the resolved tool; returns a LintResult dict.
+
+    extra_files is only used by Verilator, which elaborates them with file."""
     if tool == "verible":
         return verible.run(file, ruleset=ruleset, timeout=timeout)
 
     if tool == "verilator":
-        result = verilator.lint_only(file, timeout=timeout)
+        result = verilator.lint_only(file, timeout=timeout, extra_files=extra_files)
         if "error" in result:
             return {"warnings": [], "tool": "verilator", "raw_output": "",
                     "error": result["error"]}

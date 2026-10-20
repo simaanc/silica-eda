@@ -38,6 +38,9 @@ All notable changes to silica-eda are listed here. The format follows
 - `lint` with Verilator reports errors. Only Verilator's warnings were
   passed through, so a syntax error or a missing module came back as a clean
   result; errors now appear in `warnings` with `severity: "error"`.
+- `lint` with Verilator elaborates `file` and `extra_files` together. Each
+  file used to be linted on its own, so a top-level module reported every
+  submodule as missing and a multi-file design could not be linted.
 
 ## [0.3.1] - 2026-10-16
 

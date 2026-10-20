@@ -260,15 +260,19 @@ def coverage_info(dat_file: str, timeout: int = 30) -> dict:
     return {"info": text}
 
 
-def lint_only(file: str, timeout: int = 30) -> dict:
-    """Run verilator --lint-only for a quick syntax/semantic check."""
+def lint_only(file: str, timeout: int = 30, extra_files: list[str] | None = None) -> dict:
+    """Run verilator --lint-only for a quick syntax/semantic check.
+
+    extra_files are elaborated together with file, so a top-level module can
+    find its submodules."""
     binary = _find_verilator()
     if not binary:
         return _not_found()
 
     try:
         cp = subprocess.run(
-            [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file],
+            [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file,
+             *(extra_files or [])],
             capture_output=True,
             text=True,
             timeout=timeout,

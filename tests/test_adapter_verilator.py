@@ -104,6 +104,16 @@ def test_lint_only_success(mock_run, mock_which, mock_env):
     assert "trace_vcd" not in result
 
 
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
+def test_lint_only_passes_extra_files(mock_run, mock_which, mock_env):
+    mock_run.return_value = make_proc(returncode=0)
+    verilator.lint_only("top.sv", extra_files=["sub.sv"])
+    cmd = mock_run.call_args[0][0]
+    assert cmd[-2:] == ["top.sv", "sub.sv"]
+
+
 def test_parse_output_error():
     errors, warnings = verilator._parse_output(VERILATOR_ERROR)
     assert len(errors) == 1
