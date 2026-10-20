@@ -25,10 +25,11 @@ def register(mcp: "MCPServer") -> None:
         """Place and route an FPGA netlist and return timing and utilization.
 
         Takes a Yosys JSON netlist (from synthesize with target "ice40"/"ecp5"/
-        "xilinx"/etc.). For xilinx with openXC7's fpga-as available, output is
-        a .bit ready for program_device. For ice40/ecp5 the output is nextpnr's
-        text config (.asc/.textcfg), which still needs packing (icepack /
-        ecppack, not run by silica) before openFPGALoader can load it.
+        "xilinx"/etc.). The output is a bitstream ready for program_device
+        when the packing tool is available: a .bit for xilinx (openXC7's
+        fpga-as), a .bin for ice40 (icepack) and a .bit for ecp5 (ecppack).
+        Without it, the output is nextpnr's FASM or text config (.asc /
+        .textcfg) and a warning says what is missing.
 
         Args:
             netlist: Path to Yosys JSON netlist (produced by the synthesize tool).
@@ -49,8 +50,10 @@ def register(mcp: "MCPServer") -> None:
             package: Package code, e.g. "ct256" (ice40), "CABGA381" (ecp5). Optional.
             constraint: Path to physical constraint file (.pcf for ice40, .lpf for ecp5,
                         .xdc for xilinx).
-            output: Output file path for the bitstream/config. Auto-placed in temp dir
-                    if omitted — the path is returned in the result.
+            output: Output file path for the bitstream. Auto-placed in temp dir
+                    if omitted — the path is returned in the result. A path
+                    ending in .asc/.textcfg/.fasm keeps nextpnr's file there
+                    and writes the bitstream beside it.
             freq: Target clock frequency in MHz for timing checks.
             tool: "auto" | "nextpnr". Auto uses config priority order.
             timeout: Seconds before killing the tool.
@@ -59,7 +62,8 @@ def register(mcp: "MCPServer") -> None:
             tool, target, exit_code,
             timing_summary {clocks [{clock, max_freq_mhz, pass}], wns, failing_endpoints},
             utilization {<cell_type>: {used, total, pct}},
-            output (path to the .bit (xilinx) or config file),
+            output (path to the bitstream, or to nextpnr's file if it
+                    couldn't be packed),
             workdir, warnings, errors, raw_output
         """
         if tool == "auto":

@@ -23,7 +23,7 @@ def run(
     """Program an FPGA using openFPGALoader.
 
     Args:
-        bitstream: Path to the bitstream file (.asc, .textcfg, .bit, .bin, etc.)
+        bitstream: Path to the bitstream file (.bit, .bin, etc.)
         board: Board name preset, e.g. "ice40_hx8k_b_evn", "arty", "basys3".
         cable: JTAG cable, e.g. "ft2232", "digilent_hs2", "jlink".
         device: Explicit FPGA part override, e.g. "xc7a35t". Optional.

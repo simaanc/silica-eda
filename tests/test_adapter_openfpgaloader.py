@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import pytest
 from conftest import make_proc
 
 from silica.adapters import openfpgaloader
@@ -125,3 +126,22 @@ def test_timeout(mock_run, mock_which, mock_env, bitstream_file):
     result = openfpgaloader.run(bitstream_file)
     assert result["exit_code"] == -1
     assert result["success"] is False
+
+
+# iCE40 and ECP5 programming is tested only with mocked openFPGALoader calls:
+# no iCE40 or ECP5 board has been available to test on.
+@pytest.mark.parametrize("board,name", [
+    ("ice40_generic", "top.bin"),   # icepack output from run_place_route
+    ("ulx3s", "top.bit"),           # ecppack output from run_place_route
+])
+@patch("silica.adapters.openfpgaloader.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.openfpgaloader.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.openfpgaloader.subprocess.run")
+def test_lattice_bitstream_passed_through(mock_run, mock_which, mock_env, board, name,
+                                         tmp_path):
+    bitstream = tmp_path / name
+    bitstream.write_bytes(b"bitstream")
+    mock_run.return_value = make_proc(stdout="Done\n", returncode=0)
+    result = openfpgaloader.run(str(bitstream), board=board)
+    assert result["success"] is True
+    assert mock_run.call_args.args[0] == [FAKE_BIN, "-b", board, str(bitstream)]

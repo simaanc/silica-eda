@@ -6,6 +6,16 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `run_place_route` packs iCE40 and ECP5 designs into a bitstream that
+  `program_device` can load: a `.bin` from icepack for ice40 and a `.bit` from
+  ecppack for ecp5, the way Xilinx designs are assembled with `fpga-as`. If
+  the packer isn't installed, `output` is nextpnr's `.asc`/`.textcfg` as
+  before, with a warning. An `output` ending in `.asc`/`.textcfg`/`.fasm`
+  keeps nextpnr's file there and writes the bitstream beside it. Packing is
+  tested with the real tools; programming iCE40 and ECP5 boards is tested only
+  with mocked openFPGALoader calls. `doctor` reports icepack and ecppack.
+
 ### Fixed
 - ECP5 place and route failed with every device: silica passed `--device`,
   which nextpnr-ecp5 doesn't accept. Parts such as `LFE5U-25F`, `LFE5UM-45F`

@@ -25,6 +25,9 @@ PYPI_URL = "https://pypi.org/pypi/silica-eda/json"
 _OPENXC7_FIX = ("Install the openXC7 toolchain (it is not in OSS CAD Suite): "
                 "https://github.com/openXC7/toolchain-nix")
 
+_OSS_CAD_SUITE_FIX = ("Install OSS CAD Suite, which includes icepack and ecppack: "
+                      "https://github.com/YosysHQ/oss-cad-suite-build/releases")
+
 
 class _Check:
     def __init__(self, name, binary, version_args, used_by, hint=None,
@@ -56,6 +59,10 @@ CHECKS = [
            hint="nextpnr"),
     _Check("nextpnr-ecp5", "nextpnr-ecp5", ["--version"], "run_place_route (ecp5)",
            hint="nextpnr"),
+    _Check("icepack", "icepack", None, "run_place_route (ice40 bitstream packing)",
+           fix=_OSS_CAD_SUITE_FIX),
+    _Check("ecppack", "ecppack", ["--version"], "run_place_route (ecp5 bitstream packing)",
+           fix=_OSS_CAD_SUITE_FIX),
     _Check("nextpnr-nexus", "nextpnr-nexus", ["--version"], "run_place_route (nexus)",
            hint="nextpnr"),
     _Check("nextpnr-machxo2", "nextpnr-machxo2", ["--version"], "run_place_route (machxo2)",

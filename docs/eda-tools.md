@@ -9,8 +9,9 @@ for anything missing.
 
 YosysHQ's [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases)
 is one binary bundle with Verilator, Icarus Verilog, Yosys, SymbiYosys, GHDL,
-nextpnr (ice40, ECP5, Nexus, MachXO2), eqy, openFPGALoader, Surfer, GTKWave
-and the SMT solvers. Download the release for your platform and extract it.
+nextpnr (ice40, ECP5, Nexus, MachXO2), icepack and ecppack (which turn
+nextpnr's iCE40 and ECP5 output into bitstreams), eqy, openFPGALoader, Surfer,
+GTKWave and the SMT solvers. Download the release for your platform and extract it.
 silica uses the bundled tools directly, with no `PATH` changes or sourcing of
 the suite's `environment` script.
 
