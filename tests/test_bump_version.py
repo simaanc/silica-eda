@@ -37,6 +37,7 @@ def repo(tmp_path):
     plugin_dir = tmp_path / ".claude-plugin"
     plugin_dir.mkdir()
     shutil.copy(ROOT / ".claude-plugin" / "plugin.json", plugin_dir / "plugin.json")
+    shutil.copy(ROOT / "server.json", tmp_path / "server.json")
     (tmp_path / "CHANGELOG.md").write_text(CHANGELOG, encoding="utf-8")
     return tmp_path
 
@@ -70,6 +71,8 @@ def test_bump_updates_all_files(repo, capsys):
     assert f'name = "silica-eda"\nversion = "{new}"' in (repo / "uv.lock").read_text()
     plugin = json.loads((repo / ".claude-plugin" / "plugin.json").read_text())
     assert plugin["version"] == new
+    server = json.loads((repo / "server.json").read_text())
+    assert server["version"] == server["packages"][0]["version"] == new
     changelog = (repo / "CHANGELOG.md").read_text()
     assert f"## [Unreleased]\n\n## [{new}] - 2026-11-02\n\n### Added\n- A thing." in changelog
     assert f"[{new}]: https://pypi.org/project/silica-eda/{new}/" in changelog
