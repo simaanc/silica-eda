@@ -15,22 +15,24 @@ def test_plugin_version_matches_pyproject():
     # Users get a plugin update only when this version changes, and
     # scripts/bump_version.py bumps both together.
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    plugin = _json(".claude-plugin/plugin.json")
+    plugin = _json("plugin/.claude-plugin/plugin.json")
     assert plugin["version"] == pyproject["project"]["version"], (
         "plugin.json version must match pyproject.toml; run scripts/bump_version.py "
-        "or update .claude-plugin/plugin.json")
+        "or update plugin/.claude-plugin/plugin.json")
 
 
 def test_plugin_launches_the_published_server():
-    server = _json(".mcp.json")["mcpServers"]["silica"]
+    server = _json("plugin/.mcp.json")["mcpServers"]["silica"]
     assert server == {"command": "uvx", "args": ["silica-eda@latest"]}
 
 
 def test_marketplace_lists_this_plugin():
-    plugin = _json(".claude-plugin/plugin.json")
+    plugin = _json("plugin/.claude-plugin/plugin.json")
     (entry,) = _json(".claude-plugin/marketplace.json")["plugins"]
     assert entry["name"] == plugin["name"] == "silica-eda"
-    assert entry["source"] == "./"
+    # Only plugin/ is copied into the user's plugin cache, not the repository.
+    assert entry["source"] == "./plugin"
+    assert (ROOT / "plugin" / "skills" / "silica" / "SKILL.md").is_file()
     # A version in both places makes Claude Code warn; plugin.json owns it.
     assert "version" not in entry
 

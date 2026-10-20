@@ -49,6 +49,12 @@ silica/
     └── _hints.py           # per-platform install hints
 ```
 
+The Claude Code plugin is in `plugin/`: its manifest
+(`plugin/.claude-plugin/plugin.json`), the server launch command
+(`plugin/.mcp.json`) and its skill. The marketplace manifest stays at the
+repository root (`.claude-plugin/marketplace.json`) and points at `./plugin`,
+so installing the plugin copies only that directory.
+
 Adapter conventions (binary lookup, environment, result shape, tests) are in
 [CONTRIBUTING.md](../CONTRIBUTING.md) and the docstring of
 `silica/adapters/__init__.py`.

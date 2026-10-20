@@ -19,6 +19,10 @@ All notable changes to silica-eda are listed here. The format follows
   with mocked openFPGALoader calls. `doctor` reports icepack and ecppack.
 
 ### Changed
+- The Claude Code plugin moved into `plugin/`, and the marketplace points
+  there, so installing it copies three files (about 12 KB) instead of the
+  whole repository (about 1.2 MB with the tests and docs). Existing installs
+  pick this up with the next plugin update.
 - The README explains that `uvx silica-eda@latest` needs network to start
   the server and how to run from uv's cache with `--offline`.
 

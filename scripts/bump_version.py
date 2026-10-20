@@ -3,7 +3,7 @@
     uv run python scripts/bump_version.py 0.4.0      # or: major | minor | patch
 
 Updates the version in pyproject.toml, uv.lock, the plugin manifest
-(.claude-plugin/plugin.json) and the MCP registry's server.json, moves the
+(plugin/.claude-plugin/plugin.json) and the MCP registry's server.json, moves the
 "Unreleased"
 changelog entries under a new "## [X.Y.Z] - YYYY-MM-DD" heading with a link,
 and prints the commands to commit, open the release PR, then tag and push.
@@ -73,7 +73,7 @@ def bump_lock(text: str, version: str) -> str:
 def bump_plugin(text: str, version: str) -> str:
     new, n = _PLUGIN_RE.subn(rf"\g<1>{version}\g<3>", text, count=1)
     if n != 1:
-        raise BumpError('no top-level "version" found in .claude-plugin/plugin.json')
+        raise BumpError('no top-level "version" found in plugin/.claude-plugin/plugin.json')
     return new
 
 
@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pyproject_path = args.root / "pyproject.toml"
     lock_path = args.root / "uv.lock"
-    plugin_path = args.root / ".claude-plugin" / "plugin.json"
+    plugin_path = args.root / "plugin" / ".claude-plugin" / "plugin.json"
     server_path = args.root / "server.json"
     changelog_path = args.root / "CHANGELOG.md"
     try:
