@@ -1,9 +1,12 @@
 # Releasing silica-eda
 
-Releases go to [PyPI](https://pypi.org/project/silica-eda/) from a version tag.
-Pushing `vX.Y.Z` runs [`.github/workflows/publish.yml`](.github/workflows/publish.yml),
-which builds, publishes with PyPI trusted publishing (no stored token), and then
-checks the published package.
+Releases go to [PyPI](https://pypi.org/project/silica-eda/) and the
+[official MCP registry](https://registry.modelcontextprotocol.io) from a
+version tag. Pushing `vX.Y.Z` runs
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds,
+publishes with PyPI trusted publishing, checks the published package, and then
+publishes `server.json` to the MCP registry with GitHub OIDC. Neither step uses
+a stored token.
 
 ## One-time setup
 
@@ -23,6 +26,13 @@ checks the published package.
   ```
 
   Adding required reviewers there makes every publish wait for an approval.
+- **MCP registry.** Nothing to configure. The registry job logs in with
+  `mcp-publisher login github-oidc`, which uses the job's GitHub OIDC token
+  (`id-token: write`). The registry grants the `io.github.<owner>/` namespace
+  of the repository that ran the workflow, so this repository can publish
+  `io.github.simaanc/silica-eda` with no secret, DNS record or PAT. It only
+  works from `simaanc/silica-eda`; a fork's run gets the fork owner's
+  namespace and is rejected.
 
 ## Cutting a release
 
@@ -65,35 +75,46 @@ checks the published package.
      (`uvx silica-eda==X.Y.Z`) and checks that it starts, reports X.Y.Z, serves
      exactly the tools the tagged source serves, and that its `doctor` tool
      runs. It retries for a few minutes while PyPI's index catches up.
+   - **registry**: runs only after verify passes. It checks that `server.json`
+     names X.Y.Z, installs a pinned `mcp-publisher` (checksum-verified), and
+     runs `validate`, `login github-oidc` and `publish`. It then checks that
+     the registry serves X.Y.Z. Registry versions can't be changed or published
+     twice, so if X.Y.Z is already there the job skips the publish and only
+     runs the final check. That makes a re-run safe.
 
-## Publish to the MCP registry
+## Publish to the MCP registry by hand
 
-After the Publish workflow has finished, publish the same version to the
-[official MCP registry](https://registry.modelcontextprotocol.io) by hand.
-The registry verifies the PyPI package by reading the published release's
+The registry job normally does this. Publish by hand only if the job can't
+run, for example while the registry rejects the pinned `mcp-publisher`. The
+registry verifies the PyPI package by reading the published release's
 description (the README) for `mcp-name: io.github.simaanc/silica-eda`, so this
 only works once the release is on PyPI.
-
-One-time setup:
 
 1. Install `mcp-publisher` from the
    [registry releases](https://github.com/modelcontextprotocol/registry/releases)
    (`brew install mcp-publisher` also works).
 2. Run `mcp-publisher login github` and authorize with the `simaanc` GitHub
-   account. GitHub login is what proves ownership of the `io.github.simaanc/`
-   namespace; no DNS record is needed. Run it again when the token expires
-   ("Invalid or expired Registry JWT token").
+   account. Run it again when the token expires ("Invalid or expired Registry
+   JWT token").
+3. From a checkout of the tag:
 
-Each release, from a checkout of the tag:
+   ```bash
+   mcp-publisher validate      # checks server.json against the registry's schema
+   mcp-publisher publish
+   curl "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.simaanc%2Fsilica-eda/versions/X.Y.Z"
+   ```
 
-```bash
-mcp-publisher validate      # checks server.json against the registry's schema
-mcp-publisher publish
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.simaanc/silica-eda"
-```
+`server.json` already names the new version, because the bump script updates it
+along with the package version.
 
-The search should list the new version. `server.json` already names it,
-because the bump script updates it along with the package version.
+### Updating mcp-publisher
+
+The workflow pins `MCP_PUBLISHER_VERSION` and `MCP_PUBLISHER_SHA256`. The
+registry rejects logins from publishers that are too old with "invalid
+audience". To update, take the version from the
+[releases page](https://github.com/modelcontextprotocol/registry/releases) and
+the `mcp-publisher_linux_amd64.tar.gz` line from that release's
+`registry_<version>_checksums.txt`.
 
 ## Post-release check
 

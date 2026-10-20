@@ -119,9 +119,9 @@ After the release PR is merged:
   git tag -a {tag} -m "{tag}"
   git push origin {tag}
 
-Pushing the tag runs the Publish workflow, which builds, publishes to PyPI
-and then checks the release with `uvx silica-eda=={version}`. After that,
-publish server.json to the MCP registry (see RELEASING.md)."""
+Pushing the tag runs the Publish workflow, which builds, publishes to PyPI,
+checks the release with `uvx silica-eda=={version}`, and then publishes
+server.json to the MCP registry (see RELEASING.md)."""
 
 
 def main(argv: list[str] | None = None) -> int:
