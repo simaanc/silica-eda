@@ -64,6 +64,9 @@ def register(mcp: "MCPServer") -> None:
             rc: exit code
             failures: [{property, file, line}]
             traces: [path to counterexample VCD — open with launch_waveform] (sby only)
+            induction_failures, induction_traces: assertions the k-induction
+                step could not prove and its trace (sby only). They explain an
+                UNKNOWN prove and are not reachable failures.
             warnings, errors, workdir, raw_output
         """
         if tool == "auto":

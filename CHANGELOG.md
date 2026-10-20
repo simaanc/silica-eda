@@ -53,6 +53,11 @@ All notable changes to silica-eda are listed here. The format follows
 - `synthesize` accepts relative source paths. The synthesis tools run in a
   temporary directory, so `files=["rtl/top.sv"]` failed with "File not
   found" even though `lint` and `run_simulation` took the same paths.
+- `run_formal` with sby no longer lists an unproven induction step as a
+  failure. An UNKNOWN prove (base case passes, k-induction does not close)
+  used to fill `failures` and `traces` as if a bug had been found. Those
+  entries now go in `induction_failures` and `induction_traces`, and
+  `failures` holds only reachable counterexamples.
 
 ## [0.3.1] - 2026-10-16
 
