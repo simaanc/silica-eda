@@ -15,88 +15,55 @@
 
 ## What it does
 
-Silica wraps your EDA toolchain — open-source and commercial — in a structured MCP interface. You describe what you want to the model; Silica gives it the tool access and reasoning skills to find and fix RTL bugs, synthesize designs, and run verification workflows autonomously.
+Silica is an MCP server that gives coding agents structured access to an EDA toolchain. The agent lints, simulates, proves, synthesizes, places and routes, programs a board and reads its UART through MCP tools, and gets parsed results back (errors with file and line, timing per clock, utilization, inferred memories, counterexample traces) instead of raw logs.
 
-Open-source tools (Verilator, Yosys, Verible, SymbiYosys, Icarus, GHDL, nextpnr, eqy, openFPGALoader, Surfer) work out of the box. Commercial tools (VCS, Questa, Xcelium, Vivado, Quartus, DC Shell, JasperGold, VC Formal, SpyGlass, Verdi) are detected automatically when present on PATH — no extra config needed.
+That closes the loop without copy-paste: run the simulation, read the failure, fix the RTL, re-run. The server also tells the agent the order to work in and the pitfalls to avoid, and a `doctor` tool reports which EDA tools are installed and how to install the rest.
 
-The core value: **closed autonomous loops**. Run sim → parse failure → reason about RTL → propose fix → re-run — without human copy-paste. The full open-source FPGA flow is covered end-to-end: synthesize → place and route → program device.
+Silica drives tools you install yourself: open-source tools (mostly from [OSS CAD Suite](docs/eda-tools.md)), and commercial ones (VCS, Questa, Xcelium, Vivado, …) when they're on `PATH`. How well each is tested is listed under [Supported tools](#supported-tools).
+
+## What works today
+
+The full flow has been run end to end on a **Digilent Arty A7-100T** (Xilinx Artix-7) with a PicoRV32 RISC-V SoC whose firmware prints a banner, echoes UART input and drives LEDs from a timer:
+
+1. **RTL and lint**: Verilator, Verible and svlint, with Verilator elaborating the whole multi-file design.
+2. **Simulation**: Icarus and Verilator running the real firmware from `$readmemh`, with waveform (`read_waveform`) and line coverage (`read_coverage`).
+3. **Formal**: SymbiYosys prove, cover and bounded checks on the UART and FIFO, a deliberately false assertion reported as FAIL with its counterexample, and eqy equivalence.
+4. **Synthesis**: Yosys `synth_xilinx`, with utilization and the firmware ROM reported as block RAM with init data.
+5. **Place and route**: openXC7's nextpnr-xilinx (100 MHz target, routed at 153 MHz), and the `.bit` assembled with `fpga-as`.
+6. **Programming**: `program_device` (openFPGALoader) into SRAM, with the FPGA's DONE status checked.
+7. **Serial check**: `capture_serial` confirming the banner and the echo over the board's UART.
+
+These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolchain-nix 1.0.0, Verible v0.0-4296, svlint 0.9.5). CI covers the open-source tools in a weekly integration job; see [Supported tools](#supported-tools).
+
+## Known limitations
+
+- **Vivado** is synthesis only: there's no implementation or bitstream step.
+- **VCS, Questa and Xcelium** adapters are tested only with mocked tool calls, never against a real install; the same goes for Quartus, DC Shell, JasperGold, VC Formal, SpyGlass and Verdi. If one misbehaves, please [open an issue](https://github.com/simaanc/silica-eda/issues) with the tool version and output.
+- **iCE40 and ECP5** place and route returns nextpnr's `.asc`/`.textcfg`; silica doesn't run icepack/ecppack, so those can't be loaded with `program_device` directly. `get_project_structure` doesn't list iCE40 `.pcf` files.
+- **cocotb** needs a Python whose glibc is compatible with the simulator it loads into. With OSS CAD Suite's simulators and a newer system Python (glibc newer than the suite's), `run_cocotb` fails at import.
+- **Formal**: an `UNKNOWN` prove with `induction_failures` is inconclusive (k-induction didn't close), not a bug. Deep bounded checks can be slow; 120 steps on the example UART took 16 minutes.
+- **Serial**: `capture_serial` needs the port named explicitly and read/write access to it. A boot banner is usually missed by a capture started after programming.
+- **Windows**: the serial existence and permission pre-checks are POSIX-only, and the pty-based serial tests skip there.
 
 ## Quick start
 
-### 1. Install Silica
+1. **Add silica to your agent.** Follow [Install in your agent](#install-in-your-agent): each client launches `uvx silica-eda@latest`. (With pip instead: `pip install silica-eda`, then `silica setup` writes the config for Claude Desktop, Claude Code, Cursor, Zed, Windsurf, OpenCode or Gemini CLI.)
+2. **Install the EDA tools** you need: [OSS CAD Suite](docs/eda-tools.md#oss-cad-suite-most-open-source-tools) for most open-source tools, [Verible and svlint](docs/eda-tools.md#linters) for linting, [openXC7](docs/eda-tools.md#xilinx-7-series-place-and-route-openxc7) for Xilinx place and route. Then ask the agent to run `doctor`.
+3. **Try the UART example** in [`examples/uart/`](examples/uart/):
 
-```bash
-pip install silica-eda
-```
+   > Run the UART TX simulation in examples/uart/ and tell me if it passes.
 
-To run Python (cocotb) testbenches with `run_cocotb`, install the `cocotb` extra so cocotb lands in the same environment as the server:
+   Then break it and let the agent find the bug:
 
-```bash
-pip install "silica-eda[cocotb]"
-```
+   > In examples/uart/uart_tx.sv, change the DATA state's shift to `shift_reg <= {shift_reg[6:0], 1'b0};`. Run the simulation, find the bug and fix it.
 
-### 2. Run the setup wizard
-
-```bash
-silica setup
-```
-
-The wizard detects which MCP clients and EDA tools you already have installed, lets you choose what to enable, and writes the MCP client config for you. It covers Claude Desktop, Claude Code, Cursor, Zed, Windsurf, OpenCode, and Gemini CLI.
-
-When it's done, check your config anytime with:
-
-```bash
-silica config
-```
-
-### 3. Install missing tools (if any)
-
-**Easiest path — OSS CAD Suite.** YosysHQ publishes a single binary bundle that includes Verilator, Icarus, Yosys, SymbiYosys, GHDL, nextpnr, eqy, openFPGALoader, Surfer, GTKWave, and all the SMT solvers. Download it from the [releases page](https://github.com/YosysHQ/oss-cad-suite-build/releases) and extract it — silica uses the bundled tools directly, with no PATH setup or `environment` sourcing needed. This covers everything except the linters (Verible / svlint), which you install separately.
-
-> silica does **not** download OSS CAD Suite for you (it bundles many tools under their own licenses — that's your call to install). It only *detects* an existing install.
-
-**How silica finds your OSS CAD Suite** — any one of these:
-
-1. **Auto-detect** — common locations are checked automatically: `~/oss-cad-suite`, `~/.silica/oss-cad-suite`, `/opt/oss-cad-suite`, `/usr/local/oss-cad-suite` (Linux/macOS), or `C:\oss-cad-suite` (Windows).
-2. **Enter a path in the wizard** — if it's installed somewhere else, `silica setup` prompts you for the path and remembers it.
-3. **Set it manually** — point silica at any location with either:
-   - the config key in `~/.silica/config.toml`:
-     ```toml
-     [oss_cad_suite]
-     path = "/your/path/to/oss-cad-suite"
-     ```
-   - or the `SILICA_OSS_CAD_SUITE` environment variable:
-     ```bash
-     export SILICA_OSS_CAD_SUITE=/your/path/to/oss-cad-suite
-     ```
-
-   The path should point at the `oss-cad-suite` folder itself (the one containing `bin/`). Run `silica config` to confirm it's detected.
-
-For anything not bundled in OSS CAD Suite, the wizard prints the exact install commands for your platform automatically.
-
-### 4. Start the server
-
-```bash
-silica serve
-```
-
-Your MCP client will launch this automatically — you typically don't need to run it manually.
-
-### 5. Test the UART example
-
-Ask Claude:
-
-> Run the UART TX simulation in examples/uart/ and tell me if it passes.
-
-Or introduce a bug and ask Claude to find and fix it autonomously:
-
-> In examples/uart/uart_tx.sv, change line 54 to use `==` instead of `== CLKS_PER_BIT - 1` for the baud counter comparison. Then run the simulation, find the bug, and fix it.
+   The testbench then prints `[FAIL]` lines such as `bit[2] is 0, expected 1`, and the agent should trace them to the shift direction.
 
 ## Install in your agent
 
 Every client below starts the server with `uvx silica-eda@latest`: [uv](https://docs.astral.sh/uv/getting-started/installation/) downloads silica into a cached environment on first use and picks up new releases when the client next starts the server. Install uv first. `uvx silica-eda` needs a silica-eda release newer than 0.3.1; on 0.3.1 use `uvx --from silica-eda@latest silica` instead.
 
-silica drives EDA tools you install separately (Verilator, Yosys, SymbiYosys, nextpnr, …); see [Install missing tools](#3-install-missing-tools-if-any). Once connected, ask the agent to run the `doctor` tool: it lists what's installed and how to install what's missing.
+silica drives EDA tools you install separately (Verilator, Yosys, SymbiYosys, nextpnr, …); see [Installing the EDA tools](docs/eda-tools.md). Once connected, ask the agent to run the `doctor` tool: it lists what's installed and how to install what's missing.
 
 <details>
 <summary><b>Claude Code</b> (plugin, with a workflow skill)</summary>
@@ -233,57 +200,54 @@ or in `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project):
 
 **Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and in the [changelog](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md).
 
-## CLI reference
-
-| Command | Description |
-|---|---|
-| `silica serve` | Start the MCP server (stdio transport). Default if no subcommand given. |
-| `silica setup` | Interactive first-run configuration wizard. |
-| `silica config` | Show current configuration and live tool status (incl. detected OSS CAD Suite). |
-
-## Controlling tool selection
-
-By default every detected tool is available and `auto` picks the best one (open-source first). To control this per category, edit `~/.silica/config.toml`:
-
-```toml
-[tools.simulation]
-priority = ["verilator", "iverilog"]   # ordering for auto-selection
-enabled  = ["verilator", "iverilog"]   # allowlist — everything else is blocked
-```
-
-`priority` reorders what `auto` tries. `enabled` is an enforced allowlist: tools not on it can't be used **even when the model asks for one explicitly** — the request is rejected with an error naming the tool and what's enabled, so the model can retry with an allowed one. Useful when a machine has commercial tools installed that shouldn't be run (license pools, air-gapped flows). Leave `enabled` empty or unset for no restriction.
-
-Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `format`, `waveform`, `program`.
-
-## Guardrails
-
-Built for pointing an autonomous agent at a real repo:
-
-- **File access is confined to the project directory** — `read_rtl`, `write_rtl`, `format_rtl`, `get_constraints`, `search_rtl` and `get_project_structure` reject absolute or `..` paths that escape the project root (`SILICA_PROJECT_ROOT`, the `project.root` config key, or the directory the server was started in). Relative paths are resolved against that root.
-- **Writes are diff-first** — `write_rtl` defaults to a dry run that returns a unified diff; nothing touches disk until explicitly confirmed.
-- **A hung tool never kills the server** — every tool call has a timeout and returns a structured error instead of crashing the session.
-
-## MCP Tools
+## MCP tools
 
 | Tool | Description |
 |---|---|
-| `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Accepts multiple design files / a `.f` filelist via `extra_sources`. Returns structured errors, optional VCD trace, and optional coverage (`coverage=True`, Verilator). |
-| `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. Needs the `cocotb` extra (see Quick start). |
-| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary, and (Yosys) the inferred memories with their mapping and whether each has init data. |
-| `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2, and Xilinx 7-series through openXC7's nextpnr-xilinx). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
-| `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
-| `capture_serial` | Read a board's UART for a set time, optionally sending text first. Returns timestamped lines and whether an `expect` regex matched. Opens only the port you name. Needs the `serial` extra. |
-| `lint` | Static analysis. Auto-selects from Verible, Verilator, svlint, SpyGlass. Lints multiple files / a `.f` filelist. Returns structured warnings. |
-| `format_rtl` | Auto-format SystemVerilog/Verilog with verible-verilog-format. Diff-first (dry_run) like `write_rtl`; refuses to mangle on syntax errors. |
-| `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
-| `launch_waveform` | Open a VCD/FST/FSDB trace in Surfer, GTKWave, or Verdi (fire-and-forget). |
-| `read_waveform` | Read signal values straight out of a VCD/FST trace (pure Python, no viewer). List available signals, then fetch transitions for chosen signals in a time window — lets the model inspect waveforms autonomously. |
-| `read_coverage` | Summarize a Verilator `coverage.dat` as per-file and overall line coverage, with uncovered line numbers. |
-| `read_rtl` | Read source file with line numbers. |
-| `write_rtl` | Propose RTL changes — always dry_run=True before writing. |
-| `get_project_structure` | Scan for RTL and constraint files. |
-| `search_rtl` | Grep across project RTL with context. |
-| `get_constraints` | Read constraint files (.xdc, .sdc, .lpf). |
+| `doctor` | Report silica's version, whether a newer release exists, which EDA tools are installed (with versions) and how to install missing ones. |
+| `lint` | Verible, Verilator, svlint or SpyGlass. Verilator elaborates `file` and `extra_files` together. Errors and warnings come back with file, line and rule. |
+| `format_rtl` | Format SystemVerilog with verible-verilog-format. Diff-first (`dry_run`), refuses files with syntax errors. |
+| `run_simulation` | Verilator, Icarus, GHDL, VCS, Questa or Xcelium. Runs in the DUT's directory; returns errors including `$fatal`/`$error` messages, an optional VCD (`trace`, testbench calls `$dumpfile`/`$dumpvars`) and Verilator coverage. |
+| `run_cocotb` | Run a cocotb (Python) testbench; per-test pass/fail. Needs the `cocotb` extra. |
+| `read_waveform` | Read signal transitions from a VCD/FST trace in a time window, without a viewer. |
+| `launch_waveform` | Open a trace in Surfer, GTKWave or Verdi for the user. |
+| `read_coverage` | Summarize a Verilator `coverage.dat` per file with uncovered lines. |
+| `run_formal` | SymbiYosys prove/bmc/cover, eqy equivalence, JasperGold, VC Formal. `failures` are reachable counterexamples (with traces); an `UNKNOWN` prove lists `induction_failures` instead. |
+| `synthesize` | Yosys, Vivado, Quartus or DC Shell. Utilization, errors with file and line, a JSON netlist for FPGA targets, and (Yosys) every inferred memory with its mapping and whether it has init data. |
+| `run_place_route` | nextpnr for ice40, ECP5, Nexus, MachXO2 and Xilinx 7-series (`arch="xilinx"`, openXC7, `.bit` via `fpga-as`). Routed timing per clock and utilization. |
+| `program_device` | openFPGALoader. SRAM by default, SPI flash on request; a Xilinx load counts as success only when the FPGA asserts DONE. Takes `.bit`/`.bin`. |
+| `capture_serial` | Read a UART for a set time, optionally send text, match an `expect` regex. Opens only the port you name. Needs the `serial` extra. |
+| `get_project_structure` | List the project's RTL and constraint files. |
+| `read_rtl` / `search_rtl` | Read a file with line numbers / grep the project's RTL. |
+| `write_rtl` | Change a file, diff-first (`dry_run=True` by default). |
+| `get_constraints` | Read a constraint file (.xdc, .sdc, .lpf). |
+
+Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_formal_failure`, `write_testbench`, `generate_assertions`, `close_timing`, `cdc_review`.
+
+## Supported tools
+
+| Tool | Used by | Verification |
+|---|---|---|
+| Verilator | `lint`, `run_simulation`, `read_coverage` | Real tool in CI; used in the Arty A7 flow |
+| Icarus Verilog | `run_simulation`, `run_cocotb` | Real tool in CI; used in the Arty A7 flow |
+| GHDL | `run_simulation` (VHDL) | Real tool in CI |
+| cocotb | `run_cocotb` | Real tool in CI |
+| Verible, svlint | `lint`, `format_rtl` | Real tools, tested locally (not in CI) |
+| Yosys | `synthesize` | Real tool in CI (generic, ice40, xilinx); used in the Arty A7 flow |
+| SymbiYosys, eqy | `run_formal` | Real tools in CI |
+| nextpnr-ice40 | `run_place_route` | Real tool in CI (place and route only) |
+| nextpnr-ecp5, -nexus, -machxo2 | `run_place_route` | Mocked only |
+| openXC7 nextpnr-xilinx + fpga-as | `run_place_route` (`arch="xilinx"`) | Tested on hardware (Arty A7-100T) |
+| openFPGALoader | `program_device` | Tested on hardware (Arty A7-100T) |
+| pyserial | `capture_serial` | Tested on hardware; pty-based tests in CI |
+| Surfer, GTKWave, Verdi | `launch_waveform` | Untested (fire-and-forget launch) |
+| VCS, Questa, Xcelium | `run_simulation` | Mocked only |
+| Vivado | `synthesize` | Mocked only; synthesis only |
+| Quartus, DC Shell | `synthesize` | Mocked only |
+| JasperGold, VC Formal | `run_formal` | Mocked only |
+| SpyGlass | `lint` | Mocked only |
+
+"Real tool in CI" means the weekly integration workflow runs it from OSS CAD Suite. "Tested on hardware" means the manual Arty A7-100T run described under [What works today](#what-works-today). "Mocked only" means unit tests with captured or representative output, never a real install.
 
 ## Checking a design on hardware
 
@@ -313,103 +277,55 @@ sudo setfacl -m u:you:rw /dev/ttyUSB1   (temporary: lasts until the device is un
 permanent: sudo usermod -aG uucp you, then log out and back in
 ```
 
-## Workflow Skills
+## Xilinx 7-series flow
 
-Silica ships reasoning scripts that teach the model how to interpret tool output and form hypotheses — not just how to call tools. Available as MCP prompts:
+With [openXC7 set up](docs/eda-tools.md#xilinx-7-series-place-and-route-openxc7), an Artix-7 design goes from RTL to a programmed board in three calls:
 
-- `debug_simulation_failure` — step-by-step triage from error list to verified fix
-- `write_testbench` — generate a complete testbench from a module interface
-- `generate_assertions` — write SVA assertions from design intent
-- `close_timing` — work through timing violations with synthesis feedback
-- `debug_formal_failure` — triage a formal FAIL/UNKNOWN from the counterexample trace to a verified fix
-- `cdc_review` — enumerate and classify every clock domain crossing against known-safe patterns
+```text
+synthesize(top_module="soc_top", files=["rtl/soc_top.sv", ...], target="xilinx", tool="yosys")
+  -> {"netlist": "/tmp/silica_synth_.../netlist.json", "memories": [...], ...}
 
-## Architecture
+run_place_route(netlist="<netlist>", arch="xilinx", device="xc7a100tcsg324-1",
+                constraint="arty.xdc", freq=100, output="build/soc.bit")
+  -> {"output": "build/soc.bit", "timing_summary": {"clocks": [{"max_freq_mhz": 153.4, "pass": true}]}, ...}
 
-```
-silica/
-├── silica/
-│   ├── server.py              # MCP server; registers all tools and prompts
-│   ├── cli.py                 # subcommand dispatch (serve / setup / config)
-│   ├── tools_registry.py      # canonical list of EDA tools (per-OS support + install)
-│   ├── clients_registry.py    # canonical list of all supported MCP clients
-│   ├── terminal.py            # OSC 8 hyperlink support
-│   ├── config.py              # ~/.silica/config.toml load/save
-│   ├── oss_cad_suite.py       # detect an existing OSS CAD Suite; binary resolution
-│   ├── setup.py               # interactive setup wizard + config viewer
-│   ├── tools/                 # MCP tool definitions
-│   │   ├── _config_dispatch.py  # config-aware auto tool selection
-│   │   ├── _sources.py        # .f filelist / multi-file expansion
-│   │   ├── simulation.py      # run_simulation()
-│   │   ├── cocotb.py          # run_cocotb()
-│   │   ├── coverage.py        # read_coverage()
-│   │   ├── synthesis.py       # synthesize()
-│   │   ├── place_route.py     # run_place_route()
-│   │   ├── program.py         # program_device()
-│   │   ├── lint.py            # lint()
-│   │   ├── format.py          # format_rtl()
-│   │   ├── formal.py          # run_formal()
-│   │   ├── waveform.py        # launch_waveform(), read_waveform()
-│   │   └── project.py         # read_rtl(), write_rtl(), get_project_structure(), ...
-│   └── adapters/              # per-tool CLI wrappers + output parsers
-│       ├── _hints.py          # platform-aware install hint strings
-│       ├── verilator.py       # open source
-│       ├── cocotb_runner.py
-│       ├── icarus.py
-│       ├── ghdl.py
-│       ├── yosys.py
-│       ├── nextpnr.py
-│       ├── openfpgaloader.py
-│       ├── verible.py
-│       ├── sby.py
-│       ├── eqy.py
-│       ├── vcs.py             # commercial (detected if on PATH)
-│       ├── questa.py
-│       ├── xcelium.py
-│       ├── vivado.py
-│       ├── quartus.py
-│       ├── dc_shell.py
-│       ├── jaspergold.py
-│       ├── vc_formal.py
-│       ├── spyglass.py
-│       └── verdi.py
-└── examples/
-    └── uart/                  # 8N1 UART TX — reference design for end-to-end testing
+program_device(bitstream="build/soc.bit", board="arty_a7_100t")
+  -> {"success": true, ...}
 ```
 
-## Toolchain coverage
+`device` is the full part with speed grade. For the Arty A7-100T the openFPGALoader board is `arty_a7_100t` (`arty` is the 35T).
 
-| Category | Open source | Commercial (detected if on PATH) |
-|---|---|---|
-| Simulation | Verilator, Icarus Verilog, GHDL | VCS (Synopsys), Questa (Siemens), Xcelium (Cadence) |
-| Python TB | cocotb (Icarus/Verilator/…) | — |
-| Synthesis | Yosys | Vivado (AMD/Xilinx), Quartus (Intel), DC Shell (Synopsys) |
-| Place & Route | nextpnr (ice40, ECP5, Nexus, MachXO2) | — |
-| Formal | SymbiYosys, eqy | JasperGold (Cadence), VC Formal (Synopsys) |
-| Lint | Verible, svlint | SpyGlass (Synopsys) |
-| Format | verible-verilog-format | — |
-| Coverage | Verilator | — |
-| Waveform | GTKWave, Surfer | Verdi (Synopsys) |
-| Program | openFPGALoader | — |
+## Configuration
 
-## Development
+### Controlling tool selection
 
-```bash
-git clone https://github.com/simaanc/silica-eda
-cd silica-eda
-uv sync                  # installs silica-eda editable + dev deps (pytest, ruff)
+By default every detected tool is available and `auto` picks the best one (open-source first). To control this per category, edit `~/.silica/config.toml`:
 
-# Run the test suite and linter
-uv run pytest tests/ -q
-uv run ruff check silica/ tests/
-
-# Run the server locally (for debugging)
-uv run silica serve
-
-# Run the UART end-to-end test
-iverilog -g2012 -o /tmp/uart_sim examples/uart/uart_tx_tb.sv examples/uart/uart_tx.sv
-vvp /tmp/uart_sim
+```toml
+[tools.simulation]
+priority = ["verilator", "iverilog"]   # ordering for auto-selection
+enabled  = ["verilator", "iverilog"]   # allowlist — everything else is blocked
 ```
+
+`priority` reorders what `auto` tries. `enabled` is an enforced allowlist: tools not on it can't be used **even when the model asks for one explicitly** — the request is rejected with an error naming the tool and what's enabled, so the model can retry with an allowed one. Useful when a machine has commercial tools installed that shouldn't be run (license pools, air-gapped flows). Leave `enabled` empty or unset for no restriction.
+
+Categories: `simulation`, `synthesis`, `place_route`, `formal`, `lint`, `format`, `waveform`, `program`.
+
+### Guardrails
+
+Built for pointing an autonomous agent at a real repo:
+
+- **File access is confined to the project directory** — `read_rtl`, `write_rtl`, `format_rtl`, `get_constraints`, `search_rtl` and `get_project_structure` reject absolute or `..` paths that escape the project root (`SILICA_PROJECT_ROOT`, the `project.root` config key, or the directory the server was started in). Relative paths are resolved against that root.
+- **Writes are diff-first** — `write_rtl` defaults to a dry run that returns a unified diff; nothing touches disk until explicitly confirmed.
+- **A hung tool never kills the server** — every tool call has a timeout and returns a structured error instead of crashing the session.
+
+### CLI
+
+| Command | Description |
+|---|---|
+| `silica serve` | Start the MCP server (stdio). Default when no subcommand is given. `silica-eda` is the same command. |
+| `silica setup` | Interactive wizard that writes MCP client configs for a pip install. |
+| `silica config` | Show the configuration and which tools are detected. |
 
 ## Versioning and compatibility
 
@@ -418,6 +334,19 @@ silica follows [Semantic Versioning](https://semver.org/), applied to what MCP c
 - **Within a major version** no tool is renamed or removed, no parameter is removed or made required, and no result field is removed or renamed. Minor releases may add tools, optional parameters and result fields.
 - **Deprecations** are announced in [CHANGELOG.md](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md) and in the affected tool's description at least one minor release before the change ships in the next major version.
 - **Every user-visible change** is listed in the changelog when it merges, under "Unreleased", and moves under the version heading at release.
+
+## Development
+
+```bash
+git clone https://github.com/simaanc/silica-eda
+cd silica-eda
+uv sync                                       # editable install + dev deps
+uv run ruff check silica/ tests/ scripts/
+uv run pytest tests/ -q                       # integration tests skip tools that aren't installed
+uv run silica serve                           # run the server from the checkout
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for conventions, [docs/architecture.md](docs/architecture.md) for the code layout, and [RELEASING.md](RELEASING.md) for releases.
 
 ## License
 
