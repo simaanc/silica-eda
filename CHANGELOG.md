@@ -21,6 +21,10 @@ All notable changes to silica-eda are listed here. The format follows
   flip-flops, block RAM and DSPs mapped to ice40, ecp5, gowin and xilinx
   primitives were not counted, so those targets always reported zero, and
   the generic target counted every flip-flop about four times.
+- `program_device` reports a failed Xilinx load as a failure. openFPGALoader
+  exits 0 even when the FPGA never asserts DONE (for example, after a
+  bitstream whose header declares a zero length), so the tool returned
+  `success: true` for a board that was left unconfigured.
 
 ## [0.3.1] - 2026-10-16
 

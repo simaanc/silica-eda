@@ -1,11 +1,15 @@
 """openFPGALoader adapter — FPGA bitstream programming."""
 
+import re
 import subprocess
 
 from silica import oss_cad_suite
 from silica.adapters._hints import install_hint
 
 _ERROR_KEYWORDS = ["Error", "error:", "failed", "FAILED", "Unable to"]
+# Xilinx loads end with "ir: 1 isc_done 1 isc_ena 0 init 1 done 1". When the
+# device rejects the bitstream it reports done 0 but still exits 0.
+_XILINX_DONE_LOW_RE = re.compile(r"^ir:.*\bdone 0\b", re.MULTILINE)
 
 
 def run(
@@ -62,7 +66,13 @@ def run(
     success = cp.returncode == 0
 
     errors = []
-    if not success:
+    if success and _XILINX_DONE_LOW_RE.search(raw):
+        success = False
+        errors.append({"message": (
+            "The FPGA did not assert DONE after loading, so it is not "
+            "configured; the bitstream was rejected — see raw_output"
+        )})
+    elif not success:
         for line in raw.splitlines():
             if any(kw in line for kw in _ERROR_KEYWORDS):
                 errors.append({"message": line.strip()})
