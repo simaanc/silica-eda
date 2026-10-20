@@ -6,6 +6,8 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-20
+
 ### Added
 - `silica setup` can add silica to Codex CLI (`codex mcp add`) and VS Code
   (`code --add-mcp`, into the user profile), both running
@@ -326,6 +328,7 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 waveform viewer launch, and the `silica setup` wizard.
 
 [Unreleased]: https://github.com/simaanc/silica-eda/commits/main
+[0.5.0]: https://pypi.org/project/silica-eda/0.5.0/
 [0.4.0]: https://pypi.org/project/silica-eda/0.4.0/
 [0.3.1]: https://pypi.org/project/silica-eda/0.3.1/
 [0.3.0]: https://pypi.org/project/silica-eda/0.3.0/
