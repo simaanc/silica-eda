@@ -1,0 +1,92 @@
+name: openXC7
+
+# Runs the open Xilinx 7-series flow through silica's tools on a small design:
+# synthesize (yosys synth_xilinx), run_place_route (nextpnr-xilinx, then
+# fpga-as for the .bit) for an xc7a35t. There is no board, so nothing is
+# programmed.
+#
+# openXC7 publishes no binaries, container image or binary cache; its own CI
+# builds the toolchain with Nix from openXC7/toolchain-nix. This does the
+# same for only the three tools the flow needs, from a pinned revision, and
+# caches the Nix store and the chip database.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/openxc7.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # openXC7/toolchain-nix main as of 2026-10-05 (nextpnr 1.0.0 port). Bump
+  # both together; the revision is part of the cache keys.
+  TOOLCHAIN_NIX_REV: 42323cb00c8b76486619695166498dfa72b1e3e2
+
+jobs:
+  xc7-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31.11.2
+
+      # Restores /nix on a hit. On a miss it saves the store after the job,
+      # first collecting garbage: only the tools' runtime closures, kept
+      # alive by the out-links below, are saved, not their build inputs.
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: openxc7-nix-${{ runner.os }}-${{ env.TOOLCHAIN_NIX_REV }}
+          gc-max-store-size-linux: 1G
+
+      - name: Build nextpnr-xilinx, fpga-as and yosys
+        run: |
+          flake="github:openXC7/toolchain-nix/$TOOLCHAIN_NIX_REV"
+          tools="$RUNNER_TEMP/openxc7"
+          mkdir -p "$tools"
+          nix build --print-build-logs --out-link "$tools/nextpnr" "$flake#nextpnr"
+          nix build --print-build-logs --out-link "$tools/fpga-assembler" "$flake#fpga-assembler"
+          # yosys from the nixpkgs revision toolchain-nix locks.
+          nix build --print-build-logs --out-link "$tools/yosys" --inputs-from "$flake" nixpkgs#yosys
+          for t in nextpnr fpga-assembler yosys; do
+            echo "$tools/$t/bin" >> "$GITHUB_PATH"
+          done
+          echo "PRJXRAY_DB_DIR=$(readlink -f "$tools/nextpnr")/share/nextpnr/external/prjxray-db" >> "$GITHUB_ENV"
+          echo "NEXTPNR_DIR=$(readlink -f "$tools/nextpnr")" >> "$GITHUB_ENV"
+
+      - name: Cache the xc7a35t chip database
+        id: cache-chipdb
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/chipdb
+          key: openxc7-chipdb-xc7a35tcsg324-${{ env.TOOLCHAIN_NIX_REV }}
+
+      # xc7a35t parts use the xc7a50t die's database, as in toolchain-nix's
+      # nextpnr-chipdb.nix. Generating it takes about a minute.
+      - name: Generate the xc7a35t chip database
+        if: steps.cache-chipdb.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/chipdb"
+          python3 "$NEXTPNR_DIR/share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py" \
+            --xray "$PRJXRAY_DB_DIR/artix7" --device xc7a50t --bba "$RUNNER_TEMP/xc7a50t.bba"
+          bbasm -l "$RUNNER_TEMP/xc7a50t.bba" "$RUNNER_TEMP/chipdb/xc7a35tcsg324.bin"
+          rm "$RUNNER_TEMP/xc7a50t.bba"
+
+      - run: |
+          yosys -V
+          command -v nextpnr-xilinx fpga-as
+          ls -l "$RUNNER_TEMP/chipdb"
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - run: uv sync
+
+      - run: uv run pytest tests/integration/test_xilinx_flow.py -q -rs
+        env:
+          ARTIX7_CHIPDB: ${{ runner.temp }}/chipdb
+          SILICA_REQUIRE_TOOLS: yosys,nextpnr-xilinx,fpga-as
