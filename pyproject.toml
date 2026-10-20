@@ -28,6 +28,8 @@ dependencies = [
 [project.optional-dependencies]
 # run_cocotb drives cocotb's runner API, which needs cocotb >= 1.9.
 cocotb = ["cocotb>=1.9"]
+# capture_serial reads a board's UART through pyserial.
+serial = ["pyserial>=3.5"]
 
 [project.urls]
 Homepage = "https://github.com/simaanc/silica-eda"
@@ -59,5 +61,6 @@ select = ["E", "F", "I", "UP"]
 dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pyserial>=3.5",
     "ruff>=0.4",
 ]

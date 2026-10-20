@@ -21,6 +21,7 @@ def _synth_error(tool: str, target: str, message: str) -> dict:
                         "lut_pct": 0.0, "ff_pct": 0.0},
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
         "netlist": None,
+        "memories": [],
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
                     "message": message}],
@@ -54,12 +55,21 @@ def register(mcp: "MCPServer") -> None:
 
         Returns a SynthesisResult dict:
             tool, target, exit_code, utilization {luts, ffs, bram, dsp, lut_pct, ff_pct},
-            timing_summary {wns, tns, failing_endpoints}, netlist, warnings, errors,
-            raw_output
+            timing_summary {wns, tns, failing_endpoints}, netlist, memories,
+            warnings, errors, raw_output
 
             netlist: path to a JSON netlist ready for run_place_route. Written by
             yosys for FPGA targets ("ice40" | "ecp5" | "xilinx" | "gowin");
             None for generic/commercial-tool runs and on failure.
+
+            memories (yosys; [] for other tools and on failure): every
+            inferred memory as {name (module.memory), module, depth, width,
+            bits, read_ports, write_ports, has_init, type, mapped_to}. type is
+            "block_ram" | "distributed_ram" | "logic" (flip-flops and LUTs) |
+            "removed" (optimized away); mapped_to is the primitive yosys chose.
+            has_init is False when no $readmemh/initial data reached
+            synthesis; a read-only memory without init data also adds a
+            warning, since its contents (usually firmware) are missing.
 
             files may include ``.f`` filelists (one source path per line),
             expanded in place.
@@ -85,6 +95,7 @@ def register(mcp: "MCPServer") -> None:
                                     "lut_pct": 0.0, "ff_pct": 0.0},
                     "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
                     "netlist": None,
+                    "memories": [],
                     "warnings": [],
                     "errors": [{
                         "file": "", "line": 0, "severity": "error",
@@ -109,6 +120,7 @@ def register(mcp: "MCPServer") -> None:
                                     "lut_pct": 0.0, "ff_pct": 0.0},
                     "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
                     "netlist": None,
+                    "memories": [],
                     "warnings": [],
                     "errors": [{"file": "", "line": 0, "severity": "error",
                                 "message": disabled}],
@@ -132,6 +144,7 @@ def register(mcp: "MCPServer") -> None:
                                 "lut_pct": 0.0, "ff_pct": 0.0},
                 "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
                 "netlist": None,
+                "memories": [],
                 "warnings": [],
                 "errors": [{
                     "file": "", "line": 0, "severity": "error",
