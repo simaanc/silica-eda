@@ -91,51 +91,146 @@ Or introduce a bug and ask Claude to find and fix it autonomously:
 
 > In examples/uart/uart_tx.sv, change line 54 to use `==` instead of `== CLKS_PER_BIT - 1` for the baud counter comparison. Then run the simulation, find the bug, and fix it.
 
-## Manual client setup
+## Install in your agent
 
-If you prefer to configure your MCP client by hand instead of using `silica setup`:
+Every client below starts the server with `uvx silica-eda@latest`: [uv](https://docs.astral.sh/uv/getting-started/installation/) downloads silica into a cached environment on first use and picks up new releases when the client next starts the server. Install uv first. `uvx silica-eda` needs a silica-eda release newer than 0.3.1; on 0.3.1 use `uvx --from silica-eda@latest silica` instead.
 
-**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/Claude/claude_desktop_config.json` (Linux):
+silica drives EDA tools you install separately (Verilator, Yosys, SymbiYosys, nextpnr, …); see [Install missing tools](#3-install-missing-tools-if-any). Once connected, ask the agent to run the `doctor` tool: it lists what's installed and how to install what's missing.
 
-```json
-{
-  "mcpServers": {
-    "silica": {
-      "command": "silica",
-      "args": ["serve"]
-    }
-  }
-}
+<details>
+<summary><b>Claude Code</b> (plugin, with a workflow skill)</summary>
+
+In Claude Code:
+
+```text
+/plugin marketplace add simaanc/silica-eda
+/plugin install silica-eda@silica-eda
 ```
 
-**Claude Code**
+On Claude Code 2.1.275 or later this also works in one step: `/plugin install silica-eda --marketplace simaanc/silica-eda`.
+
+Updates: the plugin's server always runs `uvx silica-eda@latest`. To also receive plugin updates (new skills, config changes) automatically, turn on auto-update for the marketplace, which is off by default: `/plugin` → **Marketplaces** → **silica-eda** → **Enable auto-update**. Admins can set `"autoUpdate": true` on the marketplace's `extraKnownMarketplaces` entry in managed settings. Without auto-update, run `/plugin marketplace update silica-eda`.
+
+Without the plugin, add just the server:
+
 ```bash
-claude mcp add silica silica serve
+claude mcp add --transport stdio --scope user silica -- uvx silica-eda@latest
 ```
 
-**Cursor** — `~/.cursor/mcp.json`:
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+Open **Settings → Developer → Edit Config** and add the server to `claude_desktop_config.json`, then quit and restart Claude Desktop:
+
 ```json
 {
   "mcpServers": {
     "silica": {
-      "command": "silica",
-      "args": ["serve"]
+      "command": "uvx",
+      "args": ["silica-eda@latest"]
     }
   }
 }
 ```
 
-**Windows (WSL2)**
+If the server doesn't start, Claude Desktop may not see your shell's `PATH`: put the full path from `which uvx` in `command`.
+
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
+
+```bash
+codex mcp add silica -- uvx silica-eda@latest
+```
+
+or in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.silica]
+command = "uvx"
+args = ["silica-eda@latest"]
+# The first launch downloads silica; Codex's default start timeout is 10 s.
+startup_timeout_sec = 60
+```
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Add to `~/.cursor/mcp.json` (all projects) or `.cursor/mcp.json` (one project):
+
 ```json
 {
   "mcpServers": {
     "silica": {
-      "command": "wsl",
-      "args": ["-e", "silica", "serve"]
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["silica-eda@latest"]
     }
   }
 }
 ```
+
+One-click install: open this link in your browser (GitHub doesn't make `cursor://` links clickable):
+
+```text
+cursor://anysphere.cursor-deeplink/mcp/install?name=silica&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJzaWxpY2EtZWRhQGxhdGVzdCJdfQ==
+```
+
+</details>
+
+<details>
+<summary><b>VS Code (GitHub Copilot)</b></summary>
+
+```bash
+code --add-mcp '{"name":"silica","type":"stdio","command":"uvx","args":["silica-eda@latest"]}'
+```
+
+or in `.vscode/mcp.json` (workspace) or your user-profile `mcp.json`:
+
+```json
+{
+  "servers": {
+    "silica": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["silica-eda@latest"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+```bash
+gemini mcp add -s user silica uvx silica-eda@latest
+```
+
+or in `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project):
+
+```json
+{
+  "mcpServers": {
+    "silica": {
+      "command": "uvx",
+      "args": ["silica-eda@latest"]
+    }
+  }
+}
+```
+
+</details>
+
+**Optional extras.** `capture_serial` needs pyserial and `run_cocotb` needs cocotb. With uvx, add them to the arguments: `"args": ["--with", "pyserial", "silica-eda@latest"]` (or `--with cocotb`). With pip, install `silica-eda[serial]` or `silica-eda[cocotb]`.
+
+**Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and in the [changelog](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md).
 
 ## CLI reference
 

@@ -2,7 +2,8 @@
 
     uv run python scripts/bump_version.py 0.4.0      # or: major | minor | patch
 
-Updates the version in pyproject.toml and uv.lock, moves the "Unreleased"
+Updates the version in pyproject.toml, uv.lock and the Claude Code plugin
+manifest (.claude-plugin/plugin.json), moves the "Unreleased"
 changelog entries under a new "## [X.Y.Z] - YYYY-MM-DD" heading with a link,
 and prints the commands to commit, open the release PR, then tag and push.
 It changes files only; nothing is committed, tagged or pushed. See
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 _VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 _PYPROJECT_RE = re.compile(r'^(version = ")([^"]+)(")$', re.MULTILINE)
 _LOCK_RE = re.compile(r'(name = "silica-eda"\nversion = ")([^"]+)(")')
+_PLUGIN_RE = re.compile(r'^(  "version": ")([^"]+)(",?)$', re.MULTILINE)
 _UNRELEASED = "## [Unreleased]\n"
 _UNRELEASED_LINK_RE = re.compile(r"^\[Unreleased\]: .*$", re.MULTILINE)
 
@@ -64,6 +66,13 @@ def bump_lock(text: str, version: str) -> str:
     new, n = _LOCK_RE.subn(rf"\g<1>{version}\g<3>", text, count=1)
     if n != 1:
         raise BumpError("no silica-eda package entry found in uv.lock")
+    return new
+
+
+def bump_plugin(text: str, version: str) -> str:
+    new, n = _PLUGIN_RE.subn(rf"\g<1>{version}\g<3>", text, count=1)
+    if n != 1:
+        raise BumpError('no top-level "version" found in .claude-plugin/plugin.json')
     return new
 
 
@@ -115,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pyproject_path = args.root / "pyproject.toml"
     lock_path = args.root / "uv.lock"
+    plugin_path = args.root / ".claude-plugin" / "plugin.json"
     changelog_path = args.root / "CHANGELOG.md"
     try:
         pyproject = pyproject_path.read_text(encoding="utf-8")
@@ -122,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         version = next_version(current, args.version)
         new_pyproject = bump_pyproject(pyproject, version)
         new_lock = bump_lock(lock_path.read_text(encoding="utf-8"), version)
+        new_plugin = bump_plugin(plugin_path.read_text(encoding="utf-8"), version)
         new_changelog = bump_changelog(
             changelog_path.read_text(encoding="utf-8"), version, args.date)
     except (BumpError, OSError) as exc:
@@ -131,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     # Write only after every file has been prepared, so a failure leaves none half-done.
     pyproject_path.write_text(new_pyproject, encoding="utf-8")
     lock_path.write_text(new_lock, encoding="utf-8")
+    plugin_path.write_text(new_plugin, encoding="utf-8")
     changelog_path.write_text(new_changelog, encoding="utf-8")
     print(f"silica-eda {current} -> {version}\n")
     print(release_commands(version))

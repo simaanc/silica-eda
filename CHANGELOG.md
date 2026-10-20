@@ -7,6 +7,15 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- silica installs as a Claude Code plugin, and the repository is its own
+  marketplace: `/plugin marketplace add simaanc/silica-eda`, then
+  `/plugin install silica-eda@silica-eda`. The plugin runs the server with
+  `uvx silica-eda@latest` and adds a short workflow skill.
+- README install instructions for Claude Code, Claude Desktop, Codex CLI,
+  Cursor, VS Code (Copilot) and Gemini CLI, all launching
+  `uvx silica-eda@latest`, with how to add the optional extras, pin a
+  version, roll back, and turn on plugin auto-update. `AGENTS.md` gives
+  coding agents the workflow and the repository's conventions.
 - A `doctor` tool that reports silica's version, whether a newer release is
   on PyPI, the version of every open-source EDA tool silica can find
   (Verilator, Verible, svlint, Icarus, GHDL, SymbiYosys, eqy, Yosys, the
