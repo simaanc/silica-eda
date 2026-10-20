@@ -24,17 +24,26 @@ def register(mcp: "MCPServer") -> None:
     ) -> dict:
         """Place and route an FPGA netlist and return timing and utilization.
 
-        Takes a Yosys JSON netlist (from synthesize with target "ice40"/"ecp5"/etc.)
-        and produces a bitstream/config file ready for programming.
+        Takes a Yosys JSON netlist (from synthesize with target "ice40"/"ecp5"/
+        "xilinx"/etc.) and produces a bitstream/config file ready for programming.
 
         Args:
             netlist: Path to Yosys JSON netlist (produced by the synthesize tool).
-            arch: FPGA architecture — "ice40" | "ecp5" | "nexus" | "machxo2" | "generic".
+            arch: FPGA architecture — "ice40" | "ecp5" | "nexus" | "machxo2" |
+                  "generic" | "xilinx".
             device: Device variant within the architecture:
                     ice40: "hx1k" | "hx4k" | "hx8k" | "up5k" | "lp1k" | "lp8k" | ...
                     ecp5:  "LFE5U-12F" | "LFE5U-25F" | "LFE5U-45F" | "LFE5U-85F"
+                    xilinx: full 7-series part with speed grade, e.g.
+                            "xc7a100tcsg324-1" (Arty A7-100T). Uses openXC7's
+                            nextpnr-xilinx; its chip database is found through
+                            NEXTPNR_XILINX_CHIPDB_DIR or <FAMILY>_CHIPDB, and
+                            the FASM is assembled into a .bit with fpga-as when
+                            PRJXRAY_DB_DIR is set. A chip database path also
+                            works as device (the result is then FASM).
             package: Package code, e.g. "ct256" (ice40), "CABGA381" (ecp5). Optional.
-            constraint: Path to physical constraint file (.pcf for ice40, .lpf for ecp5).
+            constraint: Path to physical constraint file (.pcf for ice40, .lpf for ecp5,
+                        .xdc for xilinx).
             output: Output file path for the bitstream/config. Auto-placed in temp dir
                     if omitted — the path is returned in the result.
             freq: Target clock frequency in MHz for timing checks.

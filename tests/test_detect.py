@@ -18,7 +18,7 @@ def test_binaries_list_tool():
 def test_binaries_nextpnr_includes_all_arches():
     result = _binaries("nextpnr")
     for binary in ("nextpnr-ice40", "nextpnr-ecp5", "nextpnr-nexus",
-                   "nextpnr-machxo2", "nextpnr-generic"):
+                   "nextpnr-machxo2", "nextpnr-generic", "nextpnr-xilinx"):
         assert binary in result
 
 
