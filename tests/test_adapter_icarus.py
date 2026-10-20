@@ -108,3 +108,44 @@ def test_traced_run_uses_dut_dir_and_moves_vcd(mock_run, mock_which, mock_env, t
 
     assert result["trace_vcd"] == str(out / "tb.vcd")
     assert not (src / "tb.vcd").exists()
+
+
+# vvp (Icarus 13) prints $fatal/$error and runtime errors on stdout.
+VVP_RUNTIME_OUTPUT = """\
+VCD info: dumpfile soc_tb.vcd opened for output.
+ERROR: rtl/soc_top.sv:80: $readmemh: Unable to open ../fw/firmware.hex for reading.
+WARNING: tb/soc_tb.sv:12: $readmemh: Not enough words in the file
+tb/soc_tb.sv:104: $finish called at 1327395000 (1ps)
+FATAL: tb/soc_tb.sv:102: LEDs 1 at tick 16, expected 0
+       Time: 766895000  Scope: soc_tb
+"""
+
+
+@patch("silica.adapters.icarus.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.icarus.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.icarus.subprocess.run")
+def test_runtime_fatal_on_stdout_is_reported(mock_run, mock_which, mock_env):
+    mock_run.side_effect = [
+        make_proc(returncode=0),
+        make_proc(stdout=VVP_RUNTIME_OUTPUT, returncode=1),
+    ]
+    result = icarus.run("dut.sv", "tb.sv")
+    assert [(e["file"], e["line"]) for e in result["errors"]] == [
+        ("rtl/soc_top.sv", 80), ("tb/soc_tb.sv", 102),
+    ]
+    assert result["errors"][1]["message"] == "LEDs 1 at tick 16, expected 0"
+    assert [w["line"] for w in result["warnings"]] == [12]
+
+
+@patch("silica.adapters.icarus.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.icarus.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.icarus.subprocess.run")
+def test_runtime_error_reported_even_with_exit_0(mock_run, mock_which, mock_env):
+    # $error doesn't change vvp's exit code.
+    mock_run.side_effect = [
+        make_proc(returncode=0),
+        make_proc(stdout="ERROR: tb.sv:9: checksum mismatch\n", returncode=0),
+    ]
+    result = icarus.run("dut.sv", "tb.sv")
+    assert result["exit_code"] == 0
+    assert result["errors"][0]["message"] == "checksum mismatch"

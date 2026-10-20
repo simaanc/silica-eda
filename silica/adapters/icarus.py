@@ -19,6 +19,28 @@ _DIAG_RE = re.compile(
     re.MULTILINE,
 )
 
+# vvp prints $error/$fatal/$warning and its own runtime errors to stdout:
+#   FATAL: tb.sv:102: LEDs 1 at tick 16, expected 0
+#   ERROR: soc.sv:80: $readmemh: Unable to open fw.hex for reading.
+_RUNTIME_RE = re.compile(
+    r"^(ERROR|FATAL|WARNING): ((?:[A-Za-z]:)?[^:]+):(\d+): (.+)$",
+    re.MULTILINE,
+)
+
+
+def _parse_runtime(text: str) -> tuple[list[dict], list[dict]]:
+    errors: list[dict] = []
+    warnings: list[dict] = []
+    for m in _RUNTIME_RE.finditer(text):
+        entry: dict[str, Any] = {
+            "file": m.group(2).strip(),
+            "line": int(m.group(3)),
+            "severity": "warning" if m.group(1) == "WARNING" else "error",
+            "message": m.group(4).strip(),
+        }
+        (warnings if m.group(1) == "WARNING" else errors).append(entry)
+    return errors, warnings
+
 
 def _parse_output(text: str) -> tuple[list[dict], list[dict]]:
     errors: list[dict] = []
@@ -134,7 +156,7 @@ def _run(
             env=env,
         )
 
-        run_errors, run_warnings = _parse_output(rp.stderr)
+        run_errors, run_warnings = _parse_runtime(rp.stdout + rp.stderr)
         all_errors = compile_errors + run_errors
         all_warnings = compile_warnings + run_warnings
 

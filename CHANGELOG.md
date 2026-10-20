@@ -46,6 +46,10 @@ All notable changes to silica-eda are listed here. The format follows
   directory, so a `$readmemh("../fw/firmware.hex")` that worked untraced
   failed to open its file. Every run now starts in the DUT's directory, and
   the VCD and `coverage.dat` still end up in the persistent output directory.
+- `run_simulation` reports why a simulation failed. Icarus and Verilator print
+  `$fatal`, `$error` and runtime errors such as a missing `$readmemh` file on
+  stdout, which was not parsed, so `errors` only said "Simulation exited with
+  code 1" (and an Icarus `$error`, which exits 0, was not reported at all).
 
 ## [0.3.1] - 2026-10-16
 

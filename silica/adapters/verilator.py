@@ -42,6 +42,15 @@ _DIAG_RE = re.compile(
     r"^%(Error|Warning)(?:-\w+)?:\s*((?:[A-Za-z]:)?[^:]+):(\d+)(?::\d+)?:\s*(.+)$",
     re.MULTILINE,
 )
+# The simulation binary prints assertion failures and $error/$fatal to stdout,
+# prefixed with the sim time:
+#   [1327395000] %Fatal: tb.sv:102: Assertion failed in tb: LEDs 1 at tick 16
+#   %Error: tb.sv:102: Verilog $stop
+_RUNTIME_RE = re.compile(
+    r"^(?:\[\d+\]\s*)?%(Fatal|Error|Warning)(?:-\w+)?:\s*"
+    r"((?:[A-Za-z]:)?[^:]+):(\d+)(?::\d+)?:\s*(.+)$",
+    re.MULTILINE,
+)
 # Summary lines like "%Error: Exiting due to 1 error(s)" have no file — skip them.
 _SUMMARY_RE = re.compile(r"^%(Error|Warning)(?:-\w+)?:\s*[A-Z]", re.MULTILINE)
 
@@ -61,6 +70,20 @@ def _parse_output(stderr: str) -> tuple[list[dict], list[dict]]:
             errors.append(entry)
         else:
             warnings.append(entry)
+    return errors, warnings
+
+
+def _parse_runtime(text: str) -> tuple[list[dict], list[dict]]:
+    errors: list[dict] = []
+    warnings: list[dict] = []
+    for m in _RUNTIME_RE.finditer(text):
+        entry: dict[str, Any] = {
+            "file": m.group(2).strip(),
+            "line": int(m.group(3)),
+            "severity": "warning" if m.group(1) == "Warning" else "error",
+            "message": m.group(4).strip(),
+        }
+        (warnings if m.group(1) == "Warning" else errors).append(entry)
     return errors, warnings
 
 
@@ -195,7 +218,7 @@ def _run(
             env=env,
         )
 
-        run_errors, run_warnings = _parse_output(rp.stderr)
+        run_errors, run_warnings = _parse_runtime(rp.stdout + rp.stderr)
         all_errors = errors + run_errors
         all_warnings = warnings + run_warnings
 
