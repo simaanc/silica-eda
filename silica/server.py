@@ -72,6 +72,7 @@ from silica.tools import (  # noqa: E402
     place_route,
     program,
     project,
+    serial_capture,
     simulation,
     synthesis,
     waveform,
@@ -89,3 +90,4 @@ project.register(mcp)
 waveform.register(mcp)
 coverage.register(mcp)
 cocotb.register(mcp)
+serial_capture.register(mcp)
