@@ -29,10 +29,9 @@ def register(mcp: "MCPServer") -> None:
         missed by a serial capture started afterwards (see capture_serial).
 
         Args:
-            bitstream: Path to a loadable bitstream: .bit (Xilinx, e.g. from
-                       run_place_route with arch="xilinx"; ECP5 after ecppack)
-                       or .bin (iCE40 after icepack). nextpnr's .asc/.textcfg
-                       text configs can't be loaded directly.
+            bitstream: Path to a loadable bitstream from run_place_route:
+                       .bit (Xilinx, ECP5) or .bin (iCE40). nextpnr's
+                       .asc/.textcfg text configs can't be loaded directly.
             board: Board preset name, e.g. "arty_a7_100t", "arty_a7_35t",
                    "basys3", "cmod_a7", "nexys4ddr", "ice40_hx8k_b_evn".
                    Plain "arty" is the 35T. Run openFPGALoader --list-boards

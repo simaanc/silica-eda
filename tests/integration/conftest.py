@@ -219,6 +219,25 @@ def ice40_netlist(tmp_path, counter_v):
     return str(json_out)
 
 
+@pytest.fixture
+def ecp5_netlist(tmp_path, counter_v):
+    """Synthesize counter.v to an ECP5 JSON netlist using yosys directly."""
+    yosys_bin = oss_cad_suite.which("yosys")
+    if not yosys_bin:
+        pytest.skip("yosys not found — cannot build ecp5 netlist fixture")
+    json_out = tmp_path / "counter_ecp5.json"
+    script = f'read_verilog "{counter_v}"; synth_ecp5 -top counter -json "{json_out}"'
+    cp = subprocess.run(
+        [yosys_bin, "-p", script],
+        capture_output=True,
+        text=True,
+        env=oss_cad_suite.env_with_suite(),
+    )
+    if cp.returncode != 0 or not json_out.exists():
+        pytest.skip(f"yosys ecp5 synthesis failed:\n{cp.stderr}")
+    return str(json_out)
+
+
 COUNTER_INEQUIV_V = """\
 `timescale 1ns/1ps
 module counter (

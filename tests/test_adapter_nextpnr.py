@@ -145,13 +145,16 @@ def test_parse_utilization():
     assert util["LCs"]["total"] == 7680
 
 
-@pytest.mark.parametrize("arch", ["ice40", "ecp5", "nexus", "machxo2", "generic"])
+@pytest.mark.parametrize("arch,device", [
+    ("ice40", "hx8k"), ("ecp5", "LFE5U-25F"), ("nexus", "LIFCL-40-9BG400C"),
+    ("machxo2", "LCMXO2-1200HC"), ("generic", "generic"),
+])
 @patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value="/usr/bin/nextpnr-ice40")
 @patch("silica.adapters.nextpnr.subprocess.run")
-def test_all_arches(mock_run, mock_which, mock_env, arch, netlist_file):
+def test_all_arches(mock_run, mock_which, mock_env, arch, device, netlist_file):
     mock_run.return_value = make_proc(returncode=0)
-    result = nextpnr.run(netlist_file, arch=arch)
+    result = nextpnr.run(netlist_file, arch=arch, device=device)
     assert result["exit_code"] == 0
 
 
@@ -288,3 +291,118 @@ def test_xilinx_failed_assembly_leaves_no_bit(mock_run, mock_which, mock_env, ne
     assert result["output"].endswith(".fasm")
     assert not (Path(result["workdir"]) / "out.bit").exists()
     assert any("fpga-as failed" in w["message"] for w in result["warnings"])
+
+
+# ---------------------------------------------------------------------------
+# ice40 / ecp5 bitstream packing (icepack / ecppack)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("device,args", [
+    ("LFE5U-25F", ["--25k"]),
+    ("LFE5UM-45F", ["--um-45k"]),
+    ("LFE5UM5G-85F-8", ["--um5g-85k", "--speed", "8"]),
+    ("lfe5u-12f", ["--12k"]),
+    ("25k", ["--25k"]),
+    ("um5g-45k", ["--um5g-45k"]),
+    ("hx8k", None),
+    ("LFE5U-30F", None),
+])
+def test_ecp5_device_args(device, args):
+    assert nextpnr._ecp5_device_args(device) == args
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+@patch("silica.adapters.nextpnr.subprocess.run")
+def test_ecp5_uses_device_flag_not_device_option(mock_run, mock_which, mock_env,
+                                                 netlist_file):
+    # nextpnr-ecp5 rejects --device ("unrecognised option '--device'").
+    mock_run.return_value = make_proc(returncode=0)
+    nextpnr.run(netlist_file, arch="ecp5", device="LFE5U-45F-6", package="CABGA381")
+    cmd = mock_run.call_args_list[0].args[0]
+    assert "--device" not in cmd
+    assert cmd[cmd.index("--45k") + 1:cmd.index("--45k") + 5] == [
+        "--speed", "6", "--package", "CABGA381"]
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+def test_ecp5_unknown_device(mock_which, netlist_file):
+    result = nextpnr.run(netlist_file, arch="ecp5", device="hx8k")
+    assert result["exit_code"] == -1
+    assert "Unknown ECP5 device" in result["errors"][0]["message"]
+
+
+def _fake_lattice(cmd, **kwargs):
+    """Stand-in for nextpnr-ice40/-ecp5 then icepack/ecppack."""
+    if "nextpnr" in cmd[0]:
+        flag = "--asc" if "--asc" in cmd else "--textcfg"
+        Path(cmd[cmd.index(flag) + 1]).write_text("text config\n")
+        return make_proc(stdout=NEXTPNR_OUTPUT, returncode=0)
+    Path(cmd[2]).write_bytes(b"bitstream")
+    return make_proc(returncode=0)
+
+
+@pytest.mark.parametrize("arch,device,packer,text_ext,bit_ext", [
+    ("ice40", "hx8k", "icepack", ".asc", ".bin"),
+    ("ecp5", "LFE5U-25F", "ecppack", ".textcfg", ".bit"),
+])
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+@patch("silica.adapters.nextpnr.subprocess.run", side_effect=_fake_lattice)
+def test_lattice_place_route_and_pack(mock_run, mock_which, mock_env, arch, device,
+                                      packer, text_ext, bit_ext, netlist_file):
+    result = nextpnr.run(netlist_file, arch=arch, device=device)
+    assert result["exit_code"] == 0, result["errors"]
+    pack_cmd = mock_run.call_args_list[1].args[0]
+    assert pack_cmd[0].endswith(packer)
+    assert pack_cmd[1] == str(Path(result["workdir"]) / f"out{text_ext}")
+    assert result["output"] == pack_cmd[2]
+    assert result["output"].endswith(bit_ext)
+    assert Path(result["output"]).read_bytes() == b"bitstream"
+    assert not any("not a bitstream" in w["message"] for w in result["warnings"])
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+@patch("silica.adapters.nextpnr.subprocess.run", side_effect=_fake_lattice)
+def test_output_named_like_text_config_keeps_it(mock_run, mock_which, mock_env,
+                                                netlist_file, tmp_path):
+    asc = tmp_path / "top.asc"
+    result = nextpnr.run(netlist_file, arch="ice40", device="hx8k", output=str(asc))
+    assert asc.read_text() == "text config\n"
+    assert result["output"] == str(tmp_path / "top.bin")
+    assert (tmp_path / "top.bin").read_bytes() == b"bitstream"
+
+
+@pytest.mark.parametrize("arch,device,packer,text_ext", [
+    ("ice40", "hx8k", "icepack", ".asc"),
+    ("ecp5", "LFE5U-25F", "ecppack", ".textcfg"),
+])
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.subprocess.run", side_effect=_fake_lattice)
+def test_lattice_without_packer_returns_text_config(mock_run, mock_env, arch, device,
+                                                    packer, text_ext, netlist_file):
+    with patch("silica.adapters.nextpnr.oss_cad_suite.which",
+               side_effect=lambda name: None if name == packer else f"/usr/bin/{name}"):
+        result = nextpnr.run(netlist_file, arch=arch, device=device)
+    assert result["exit_code"] == 0
+    assert result["output"].endswith(text_ext)
+    assert any("not a bitstream" in w["message"] and packer in w["message"]
+               for w in result["warnings"])
+    assert mock_run.call_count == 1
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+@patch("silica.adapters.nextpnr.subprocess.run")
+def test_failed_packing_leaves_no_bitstream(mock_run, mock_which, mock_env, netlist_file):
+    def fake(cmd, **kwargs):
+        if "nextpnr" in cmd[0]:
+            return _fake_lattice(cmd, **kwargs)
+        Path(cmd[2]).write_bytes(b"trunc")
+        return make_proc(stderr="Error: bad config", returncode=1)
+    mock_run.side_effect = fake
+    result = nextpnr.run(netlist_file, arch="ecp5", device="LFE5U-25F")
+    assert result["output"].endswith(".textcfg")
+    assert not (Path(result["workdir"]) / "out.bit").exists()
+    assert any("ecppack failed" in w["message"] for w in result["warnings"])

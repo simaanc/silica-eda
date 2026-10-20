@@ -39,7 +39,7 @@ These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolch
 
 - **Vivado** is synthesis only: there's no implementation or bitstream step.
 - **VCS, Questa and Xcelium** adapters are tested only with mocked tool calls, never against a real install; the same goes for Quartus, DC Shell, JasperGold, VC Formal, SpyGlass and Verdi. If one misbehaves, please [open an issue](https://github.com/simaanc/silica-eda/issues) with the tool version and output.
-- **iCE40 and ECP5** place and route returns nextpnr's `.asc`/`.textcfg`; silica doesn't run icepack/ecppack, so those can't be loaded with `program_device` directly. `get_project_structure` doesn't list iCE40 `.pcf` files.
+- **iCE40 and ECP5** bitstreams are packed with icepack/ecppack and checked against the real tools, but `program_device` has only been tested on these boards with mocked openFPGALoader calls: no iCE40 or ECP5 board has been available. `get_project_structure` doesn't list iCE40 `.pcf` files.
 - **cocotb** needs a Python whose glibc is compatible with the simulator it loads into. With OSS CAD Suite's simulators and a newer system Python (glibc newer than the suite's), `run_cocotb` fails at import.
 - **Formal**: an `UNKNOWN` prove with `induction_failures` is inconclusive (k-induction didn't close), not a bug. Deep bounded checks can be slow; 120 steps on the example UART took 16 minutes.
 - **Serial**: `capture_serial` needs the port named explicitly and read/write access to it. A boot banner is usually missed by a capture started after programming.
@@ -230,7 +230,7 @@ Where a client's documentation gives no config path for your platform (Zed on ma
 | `read_coverage` | Summarize a Verilator `coverage.dat` per file with uncovered lines. |
 | `run_formal` | SymbiYosys prove/bmc/cover, eqy equivalence, JasperGold, VC Formal. `failures` are reachable counterexamples (with traces); an `UNKNOWN` prove lists `induction_failures` instead. |
 | `synthesize` | Yosys, Vivado, Quartus or DC Shell. Utilization, errors with file and line, a JSON netlist for FPGA targets, and (Yosys) every inferred memory with its mapping and whether it has init data. |
-| `run_place_route` | nextpnr for ice40, ECP5, Nexus, MachXO2 and Xilinx 7-series (`arch="xilinx"`, openXC7, `.bit` via `fpga-as`). Routed timing per clock and utilization. |
+| `run_place_route` | nextpnr for ice40, ECP5, Nexus, MachXO2 and Xilinx 7-series (`arch="xilinx"`, openXC7). Returns a loadable bitstream for Xilinx (`.bit` via `fpga-as`), iCE40 (`.bin` via `icepack`) and ECP5 (`.bit` via `ecppack`). Routed timing per clock and utilization. |
 | `program_device` | openFPGALoader. SRAM by default, SPI flash on request; a Xilinx load counts as success only when the FPGA asserts DONE. Takes `.bit`/`.bin`. |
 | `capture_serial` | Read a UART for a set time, optionally send text, match an `expect` regex. Opens only the port you name. Needs the `serial` extra. |
 | `get_project_structure` | List the project's RTL and constraint files. |
@@ -251,10 +251,11 @@ Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_for
 | Verible, svlint | `lint`, `format_rtl` | Real tools, tested locally (not in CI) |
 | Yosys | `synthesize` | Real tool in CI (generic, ice40, xilinx); used in the Arty A7 flow |
 | SymbiYosys, eqy | `run_formal` | Real tools in CI |
-| nextpnr-ice40 | `run_place_route` | Real tool in CI (place and route only) |
-| nextpnr-ecp5, -nexus, -machxo2 | `run_place_route` | Mocked only |
+| nextpnr-ice40 + icepack | `run_place_route` (`arch="ice40"`) | Real tools in CI (place and route, packing); programming mocked only |
+| nextpnr-ecp5 + ecppack | `run_place_route` (`arch="ecp5"`) | Real tools in CI (place and route, packing); programming mocked only |
+| nextpnr-nexus, -machxo2 | `run_place_route` | Mocked only |
 | openXC7 nextpnr-xilinx + fpga-as | `run_place_route` (`arch="xilinx"`) | Tested on hardware (Arty A7-100T) |
-| openFPGALoader | `program_device` | Tested on hardware (Arty A7-100T) |
+| openFPGALoader | `program_device` | Tested on hardware (Arty A7-100T); iCE40 and ECP5 mocked only |
 | pyserial | `capture_serial` | Tested on hardware; pty-based tests in CI |
 | Surfer, GTKWave, Verdi | `launch_waveform` | Untested (fire-and-forget launch) |
 | VCS, Questa, Xcelium | `run_simulation` | Mocked only |
