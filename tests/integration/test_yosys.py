@@ -51,3 +51,18 @@ def test_bad_rtl_returns_errors(counter_bad_v):
 def test_nonexistent_top_module_fails(counter_v):
     result = yosys.run(top="no_such_module", files=[counter_v], target="generic")
     assert result["exit_code"] != 0
+
+
+def test_error_carries_file_and_line(tmp_path):
+    broken = tmp_path / "broken.v"
+    broken.write_text(
+        "module broken(input a, output y);\n"
+        "  assign y = a\n"          # missing semicolon
+        "endmodule\n"
+    )
+    result = yosys.run(top="broken", files=[str(broken)], target="generic")
+    assert result["exit_code"] != 0
+    (error,) = result["errors"]
+    assert error["file"] == str(broken)
+    assert error["line"] == 3
+    assert "syntax error" in error["message"]

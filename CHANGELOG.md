@@ -14,6 +14,11 @@ All notable changes to silica-eda are listed here. The format follows
   for `program_device`; otherwise it is the FASM file, with a warning.
 
 ### Fixed
+- `synthesize` with Yosys fills in `file` and `line` for errors and warnings
+  when Yosys gives a location, either as a prefix (`top.sv:12: ERROR: ...`)
+  or as an `at top.sv:12.5-12.9` clause. They were always `""` and `0`.
+  Warnings with a location prefix were not reported at all, and an error
+  with one came back as "Yosys synthesis failed"; both are now returned.
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.
