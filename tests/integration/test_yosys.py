@@ -51,3 +51,18 @@ def test_bad_rtl_returns_errors(counter_bad_v):
 def test_nonexistent_top_module_fails(counter_v):
     result = yosys.run(top="no_such_module", files=[counter_v], target="generic")
     assert result["exit_code"] != 0
+
+
+def test_readmemh_with_wrong_path_is_reported(tmp_path):
+    src = tmp_path / "rom.v"
+    src.write_text(
+        "module rom(input clk, input [3:0] a, output reg [7:0] q);\n"
+        "    reg [7:0] code [0:15];\n"
+        f'    initial $readmemh("{(tmp_path / "fw_typo.hex").as_posix()}", code);\n'
+        "    always @(posedge clk) q <= code[a];\n"
+        "endmodule\n"
+    )
+    result = yosys.run(top="rom", files=[str(src)], target="xilinx")
+    assert result["exit_code"] != 0
+    assert "fw_typo.hex" in result["errors"][0]["message"]
+    assert "readmemh" in result["errors"][0]["message"]

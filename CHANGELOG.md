@@ -20,6 +20,10 @@ All notable changes to silica-eda are listed here. The format follows
   "silica-eda[serial]"`).
 
 ### Fixed
+- `synthesize` with Yosys says which file it could not open when a
+  `$readmemh` path is wrong. Errors that Yosys prefixes with a location
+  (`rom.v:4: ERROR: ...`) were not recognized, so the result only said
+  "Yosys synthesis failed".
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.

@@ -227,3 +227,20 @@ def test_fpga_success_without_json_file_returns_no_netlist(mock_which, mock_run)
     result = yosys.run("top", ["dut.sv"], target="ice40")
     assert result["exit_code"] == 0
     assert result["netlist"] is None
+
+
+# yosys 0.70 reading a $readmemh whose file doesn't exist.
+YOSYS_READMEMH_ERROR = """\
+1. Executing Verilog-2005 frontend: /work/rom.v
+Parsing Verilog input from `/work/rom.v' to AST representation.
+/work/rom.v:4: ERROR:Can not open file `fw_nope.hex` for \\$readmemh.
+"""
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_readmemh_wrong_path_error_names_the_file(mock_which, mock_run):
+    mock_run.return_value = make_proc(stdout=YOSYS_READMEMH_ERROR, returncode=1)
+    result = yosys.run("rom", ["rom.v"], target="xilinx")
+    assert result["exit_code"] == 1
+    assert "fw_nope.hex" in result["errors"][0]["message"]

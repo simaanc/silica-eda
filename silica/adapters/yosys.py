@@ -220,7 +220,8 @@ def run(
 
 def _extract_error(output: str) -> str:
     for line in output.splitlines():
-        if line.strip().startswith("ERROR:") or "syntax error" in line.lower():
+        # Frontend errors carry a location prefix ("rom.v:4: ERROR: ...").
+        if "ERROR:" in line or "syntax error" in line.lower():
             return line.strip()
     return "Yosys synthesis failed"
 
