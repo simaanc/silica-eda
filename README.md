@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.simaanc/silica-eda -->
 <div align="center">
 
 <img src="https://raw.githubusercontent.com/simaanc/silica-eda/main/banner.png" alt="Silica" width="414"/>

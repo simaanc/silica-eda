@@ -1,4 +1,4 @@
-"""Consistency checks for the Claude Code plugin and marketplace files."""
+"""Consistency checks for the plugin, marketplace and MCP registry files."""
 
 import json
 import tomllib
@@ -33,3 +33,17 @@ def test_marketplace_lists_this_plugin():
     assert entry["source"] == "./"
     # A version in both places makes Claude Code warn; plugin.json owns it.
     assert "version" not in entry
+
+
+def test_registry_server_json_matches_the_package():
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    server = _json("server.json")
+    (package,) = server["packages"]
+    version = pyproject["project"]["version"]
+    assert server["version"] == package["version"] == version
+    assert package["registryType"] == "pypi"
+    assert package["identifier"] == pyproject["project"]["name"]
+    # The registry checks the PyPI description (the README) for this line.
+    readme = (ROOT / pyproject["project"]["readme"]).read_text(encoding="utf-8")
+    assert f"mcp-name: {server['name']}" in readme
+    assert len(server["description"]) <= 100  # the schema's limit

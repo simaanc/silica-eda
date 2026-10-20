@@ -2,8 +2,9 @@
 
     uv run python scripts/bump_version.py 0.4.0      # or: major | minor | patch
 
-Updates the version in pyproject.toml, uv.lock and the Claude Code plugin
-manifest (.claude-plugin/plugin.json), moves the "Unreleased"
+Updates the version in pyproject.toml, uv.lock, the plugin manifest
+(.claude-plugin/plugin.json) and the MCP registry's server.json, moves the
+"Unreleased"
 changelog entries under a new "## [X.Y.Z] - YYYY-MM-DD" heading with a link,
 and prints the commands to commit, open the release PR, then tag and push.
 It changes files only; nothing is committed, tagged or pushed. See
@@ -76,6 +77,14 @@ def bump_plugin(text: str, version: str) -> str:
     return new
 
 
+def bump_server_json(text: str, current: str, version: str) -> str:
+    """Bump server.json's top-level and PyPI package versions together."""
+    old = f'"version": "{current}"'
+    if text.count(old) != 2:
+        raise BumpError(f"server.json should have two {old} entries (server and package)")
+    return text.replace(old, f'"version": "{version}"')
+
+
 def bump_changelog(text: str, version: str, date: str) -> str:
     """Start a "## [version] - date" section from the Unreleased entries."""
     start = text.find(_UNRELEASED)
@@ -111,7 +120,8 @@ After the release PR is merged:
   git push origin {tag}
 
 Pushing the tag runs the Publish workflow, which builds, publishes to PyPI
-and then checks the release with `uvx silica-eda=={version}`."""
+and then checks the release with `uvx silica-eda=={version}`. After that,
+publish server.json to the MCP registry (see RELEASING.md)."""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -125,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     pyproject_path = args.root / "pyproject.toml"
     lock_path = args.root / "uv.lock"
     plugin_path = args.root / ".claude-plugin" / "plugin.json"
+    server_path = args.root / "server.json"
     changelog_path = args.root / "CHANGELOG.md"
     try:
         pyproject = pyproject_path.read_text(encoding="utf-8")
@@ -133,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         new_pyproject = bump_pyproject(pyproject, version)
         new_lock = bump_lock(lock_path.read_text(encoding="utf-8"), version)
         new_plugin = bump_plugin(plugin_path.read_text(encoding="utf-8"), version)
+        new_server = bump_server_json(server_path.read_text(encoding="utf-8"), current, version)
         new_changelog = bump_changelog(
             changelog_path.read_text(encoding="utf-8"), version, args.date)
     except (BumpError, OSError) as exc:
@@ -143,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     pyproject_path.write_text(new_pyproject, encoding="utf-8")
     lock_path.write_text(new_lock, encoding="utf-8")
     plugin_path.write_text(new_plugin, encoding="utf-8")
+    server_path.write_text(new_server, encoding="utf-8")
     changelog_path.write_text(new_changelog, encoding="utf-8")
     print(f"silica-eda {current} -> {version}\n")
     print(release_commands(version))

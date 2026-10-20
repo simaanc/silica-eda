@@ -66,6 +66,35 @@ checks the published package.
      exactly the tools the tagged source serves, and that its `doctor` tool
      runs. It retries for a few minutes while PyPI's index catches up.
 
+## Publish to the MCP registry
+
+After the Publish workflow has finished, publish the same version to the
+[official MCP registry](https://registry.modelcontextprotocol.io) by hand.
+The registry verifies the PyPI package by reading the published release's
+description (the README) for `mcp-name: io.github.simaanc/silica-eda`, so this
+only works once the release is on PyPI.
+
+One-time setup:
+
+1. Install `mcp-publisher` from the
+   [registry releases](https://github.com/modelcontextprotocol/registry/releases)
+   (`brew install mcp-publisher` also works).
+2. Run `mcp-publisher login github` and authorize with the `simaanc` GitHub
+   account. GitHub login is what proves ownership of the `io.github.simaanc/`
+   namespace; no DNS record is needed. Run it again when the token expires
+   ("Invalid or expired Registry JWT token").
+
+Each release, from a checkout of the tag:
+
+```bash
+mcp-publisher validate      # checks server.json against the registry's schema
+mcp-publisher publish
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.simaanc/silica-eda"
+```
+
+The search should list the new version. `server.json` already names it,
+because the bump script updates it along with the package version.
+
 ## Post-release check
 
 The verify job does this automatically. To repeat it by hand from a checkout of
