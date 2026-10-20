@@ -3,6 +3,7 @@
 """
 
 import json
+import shlex
 import shutil
 import subprocess
 import sys
@@ -20,7 +21,7 @@ else:
 
 from silica import config as cfg
 from silica import detect, oss_cad_suite
-from silica.clients_registry import CLIENTS
+from silica.clients_registry import CLIENTS, SERVER_ARGS, SERVER_COMMAND
 from silica.terminal import docs_link, hyperlink, supports_hyperlinks, tool_link
 from silica.tools_registry import CATEGORIES, TOOLS, display_name
 
@@ -327,29 +328,46 @@ def _build_config(tool_selections: dict[str, list[str]], client_selections: list
 
 # ── Step 4: client config injection ──────────────────────────────────────────
 
-def _silica_binary() -> str:
-    path = shutil.which("silica")
-    if path:
-        return path
-    venv_bin = Path(sys.executable).parent / "silica"
-    if venv_bin.exists():
-        return str(venv_bin)
-    return str(Path(sys.executable).parent / "silica")
+def _server_command() -> str:
+    """uvx, as a full path when it's on PATH: desktop apps such as Claude
+    Desktop may not inherit the shell's PATH."""
+    return shutil.which(SERVER_COMMAND) or SERVER_COMMAND
 
 
-def _merge_mcp_config(existing: dict, config_key: str, silica_bin: str) -> dict:
+def _server_entry(shape: str, command: str) -> dict:
+    """The client config entry that starts the server, in the client's shape."""
+    if shape == "opencode":
+        return {"type": "local", "command": [command, *SERVER_ARGS], "enabled": True}
+    entry = {"command": command, "args": list(SERVER_ARGS)}
+    if shape == "stdio_typed":
+        entry = {"type": "stdio", **entry}
+    return entry
+
+
+def _merge_mcp_config(existing: dict, config_key: str, entry: dict) -> dict:
     result = dict(existing)
     block = result.setdefault(config_key, {})
-    block["silica"] = {"command": silica_bin, "args": ["serve"]}
+    block["silica"] = entry
     return result
 
 
-def _inject_file_client(key: str, silica_bin: str) -> None:
+def _print_block(config_key: str, entry: dict) -> None:
+    preview = json.dumps({config_key: {"silica": entry}}, indent=2)
+    for line in preview.splitlines():
+        print(f"    {line}")
+
+
+def _inject_file_client(key: str, command: str) -> None:
     client = CLIENTS[key]
+    config_key = client["config_key"]
+    entry = _server_entry(client["entry"], command)
     plat = _platform_key()
     config_path = client["config_paths"].get(plat)
     if not config_path:
-        print(f"  {_dim('No config path for this platform, skipping.')}")
+        print(f"\n  {_bold(client['name'])} — no documented config path on this "
+              "platform. Add this to its config by hand:")
+        _print_block(config_key, entry)
+        print(f"  {_dim(client['docs'])}\n")
         return
 
     config_path = Path(config_path)
@@ -358,16 +376,21 @@ def _inject_file_client(key: str, silica_bin: str) -> None:
         try:
             with open(config_path) as f:
                 existing = json.load(f)
-        except Exception:
-            existing = {}
+            if not isinstance(existing, dict):
+                raise ValueError("not a JSON object")
+        except (OSError, ValueError) as e:
+            # Rewriting a file we couldn't parse (often JSON with comments)
+            # would drop the user's settings.
+            print(f"\n  {_bold(client['name'])} — couldn't read {config_path} ({e}).")
+            print("  Leaving it unchanged. Add this to it by hand:")
+            _print_block(config_key, entry)
+            print()
+            return
 
-    config_key = client["config_key"]
-    merged = _merge_mcp_config(existing, config_key, silica_bin)
+    merged = _merge_mcp_config(existing, config_key, entry)
 
     print(f"\n  {_bold(client['name'])} — will write to: {config_path}")
-    preview = json.dumps({config_key: merged[config_key]}, indent=2)
-    for line in preview.splitlines():
-        print(f"    {line}")
+    _print_block(config_key, entry)
 
     answer = input("\n  Write this config? [Y/n] ").strip().lower()
     if answer in ("", "y", "yes"):
@@ -380,9 +403,10 @@ def _inject_file_client(key: str, silica_bin: str) -> None:
         print(f"  {_dim('Skipped.')}\n")
 
 
-def _inject_command_client(key: str, silica_bin: str) -> None:
+def _inject_command_client(key: str) -> None:
     client = CLIENTS[key]
-    cmd = client["command_template"].format(binary=silica_bin)
+    argv = client["command"]
+    cmd = shlex.join(argv)
     print(f"\n  {_bold(client['name'])} — running: {_cyan(cmd)}")
 
     detect_bin = client.get("detect_binary")
@@ -397,7 +421,7 @@ def _inject_command_client(key: str, silica_bin: str) -> None:
         return
 
     try:
-        result = subprocess.run(cmd.split(), capture_output=True, text=True)
+        result = subprocess.run(argv, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"  {_green('Done.')}  {_dim(client['restart_note'])}\n")
             if result.stdout.strip():
@@ -415,31 +439,35 @@ def _inject_command_client(key: str, silica_bin: str) -> None:
         print(f"  Run manually: {_cyan(cmd)}\n")
 
 
-def _inject_other(silica_bin: str) -> None:
-    block = json.dumps({"command": silica_bin, "args": ["serve"]}, indent=2)
-    setup_link = hyperlink("getsilica.dev/setup", "https://getsilica.dev/setup")
+def _inject_other(command: str) -> None:
+    block = json.dumps(_server_entry("stdio", command), indent=2)
+    setup_link = hyperlink("the README", "https://github.com/simaanc/silica-eda#install-in-your-agent")
     print(f"\n  {_bold('Manual / Other MCP client')} — add this block to your client config:")
     for line in block.splitlines():
         print(f"    {line}")
-    print(f"\n  For client-specific instructions see: {setup_link}\n")
+    print(f"\n  For client-specific instructions see {setup_link}.\n")
 
 
 def _step_inject_clients(client_selections: list[str]) -> None:
     if not client_selections:
         return
     print(_bold("Step 4 — Configuring MCP clients:"))
-    silica_bin = _silica_binary()
+    command = _server_command()
+    if not shutil.which(SERVER_COMMAND):
+        print(f"  {_YELLOW}uvx not found on PATH.{_RESET} Clients start silica with "
+              f"`uvx {' '.join(SERVER_ARGS)}`; install uv first: "
+              "https://docs.astral.sh/uv/getting-started/installation/\n")
     for key in client_selections:
         if key == "__other__":
-            _inject_other(silica_bin)
+            _inject_other(command)
         elif key not in CLIENTS:
             continue
         else:
             client = CLIENTS[key]
             if client["config_type"] == "file":
-                _inject_file_client(key, silica_bin)
+                _inject_file_client(key, command)
             elif client["config_type"] == "command":
-                _inject_command_client(key, silica_bin)
+                _inject_command_client(key)
 
 
 # ── Install hint helpers ──────────────────────────────────────────────────────
@@ -578,8 +606,8 @@ def _step_summary(tool_selections: dict[str, list[str]], client_selections: list
     print(f"  Tools enabled:      {tools_str}")
     print(f"  Clients configured: {clients_str}")
     print(f"  Config saved to:    {cfg.config_path()}\n")
-    print("  Start the server:")
-    print(f"    {_cyan('silica serve')}\n")
+    print("  Your MCP clients start the server with:")
+    print(f"    {_cyan(' '.join([SERVER_COMMAND, *SERVER_ARGS]))}\n")
     print("  View current config anytime:")
     print(f"    {_cyan('silica config')}\n")
 

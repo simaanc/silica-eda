@@ -47,7 +47,7 @@ These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolch
 
 ## Quick start
 
-1. **Add silica to your agent.** Follow [Install in your agent](#install-in-your-agent): each client launches `uvx silica-eda@latest`. (With pip instead: `pip install silica-eda`, then `silica setup` writes the config for Claude Desktop, Claude Code, Cursor, Zed, Windsurf, OpenCode or Gemini CLI.)
+1. **Add silica to your agent.** Follow [Install in your agent](#install-in-your-agent): each client launches `uvx silica-eda@latest`. Or run the setup wizard, `uvx silica-eda@latest setup`, which writes that config for you; see [Setup wizard](#setup-wizard).
 2. **Install the EDA tools** you need: [OSS CAD Suite](docs/eda-tools.md#oss-cad-suite-most-open-source-tools) for most open-source tools, [Verible and svlint](docs/eda-tools.md#linters) for linting, [openXC7](docs/eda-tools.md#xilinx-7-series-place-and-route-openxc7) for Xilinx place and route. Then ask the agent to run `doctor`.
 3. **Try the UART example** in [`examples/uart/`](examples/uart/):
 
@@ -196,6 +196,22 @@ or in `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project):
 
 </details>
 
+### Setup wizard
+
+`uvx silica-eda@latest setup` (or `silica setup` from a pip install) asks which clients and EDA tools you use, saves the tool choices to `~/.silica/config.toml`, and adds a `silica` server that runs `uvx silica-eda@latest` to each client's config. It shows each change and asks before writing it; other servers and settings in the file are kept. uvx is written as a full path when it's on `PATH`, because desktop apps may not see your shell's `PATH`.
+
+| Client | What the wizard does |
+|---|---|
+| Claude Code | Runs `claude mcp add --transport stdio --scope user silica -- uvx silica-eda@latest` |
+| Claude Desktop | `mcpServers` in `claude_desktop_config.json` (macOS, Windows, Linux) |
+| Cursor | `mcpServers` in `~/.cursor/mcp.json`, with `"type": "stdio"` |
+| Gemini CLI | `mcpServers` in `~/.gemini/settings.json` |
+| Windsurf | `mcpServers` in `~/.codeium/windsurf/mcp_config.json` |
+| OpenCode | `mcp` in `~/.config/opencode/opencode.json`, as `{"type": "local", "command": ["uvx", "silica-eda@latest"]}` (macOS, Linux) |
+| Zed | `context_servers` in `~/.config/zed/settings.json` (Linux) |
+
+Where a client's documentation gives no config path for your platform (Zed on macOS and Windows, OpenCode on Windows), or the existing file can't be read as plain JSON (for example a Zed `settings.json` with comments), the wizard leaves the file alone and prints the block to add by hand. Codex CLI and VS Code aren't in the wizard yet; use the commands above.
+
 **Optional extras.** `capture_serial` needs pyserial and `run_cocotb` needs cocotb. With uvx, add them to the arguments: `"args": ["--with", "pyserial", "silica-eda@latest"]` (or `--with cocotb`). With pip, install `silica-eda[serial]` or `silica-eda[cocotb]`.
 
 **Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and in the [changelog](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md).
@@ -325,7 +341,7 @@ Built for pointing an autonomous agent at a real repo:
 | Command | Description |
 |---|---|
 | `silica serve` | Start the MCP server (stdio). Default when no subcommand is given. `silica-eda` is the same command. |
-| `silica setup` | Interactive wizard that writes MCP client configs for a pip install. |
+| `silica setup` | Interactive wizard that writes MCP client configs that start the server with `uvx silica-eda@latest`; see [Setup wizard](#setup-wizard). |
 | `silica config` | Show the configuration and which tools are detected. |
 
 ## Versioning and compatibility

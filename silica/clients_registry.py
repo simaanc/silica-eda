@@ -6,6 +6,17 @@ def _home() -> Path:
     return Path.home()
 
 
+# How every client starts the server: uv fetches the newest release from PyPI
+# into a cached environment, so clients pick up new releases on restart.
+SERVER_COMMAND = "uvx"
+SERVER_ARGS = ["silica-eda@latest"]
+
+# Config paths and entry shapes follow each client's documentation (the
+# "docs" URL). A platform is left out when its docs don't give a path; the
+# wizard then prints the block to add by hand. "entry" names the shape of the
+# server entry: "stdio" is {"command", "args"}, "stdio_typed" adds
+# "type": "stdio", "opencode" is OpenCode's {"type": "local", "command": [...]}.
+
 CLIENTS = {
     "claude_desktop": {
         "name": "Claude Desktop",
@@ -16,6 +27,7 @@ CLIENTS = {
             "linux": _home() / ".config/Claude/claude_desktop_config.json",
             "win32": Path(os.environ.get("APPDATA", "")) / "Claude/claude_desktop_config.json",
         },
+        "entry": "stdio",
         "detect_binary": None,
         "url": "https://claude.ai/download",
         "docs": "https://modelcontextprotocol.io/docs/develop/connect-local-servers",
@@ -24,11 +36,12 @@ CLIENTS = {
     "claude_code": {
         "name": "Claude Code",
         "config_type": "command",
-        "command_template": "claude mcp add silica {binary} serve",
+        "command": ["claude", "mcp", "add", "--transport", "stdio", "--scope", "user",
+                    "silica", "--", SERVER_COMMAND, *SERVER_ARGS],
         "detect_binary": "claude",
-        "url": "https://docs.anthropic.com/en/docs/claude-code",
-        "docs": "https://docs.anthropic.com/en/docs/claude-code/mcp",
-        "restart_note": "Run the command above in your terminal — no restart needed",
+        "url": "https://code.claude.com/docs",
+        "docs": "https://code.claude.com/docs/en/mcp",
+        "restart_note": "Available in new Claude Code sessions",
     },
     "cursor": {
         "name": "Cursor",
@@ -39,23 +52,24 @@ CLIENTS = {
             "linux": _home() / ".cursor/mcp.json",
             "win32": _home() / ".cursor/mcp.json",
         },
+        "entry": "stdio_typed",
         "detect_binary": "cursor",
         "url": "https://cursor.com",
-        "docs": "https://docs.cursor.com/advanced/model-context-protocol",
+        "docs": "https://cursor.com/docs/context/mcp",
         "restart_note": "Restart Cursor after config update",
     },
     "zed": {
         "name": "Zed",
         "config_type": "file",
         "config_key": "context_servers",
+        # Zed documents only the Linux path; elsewhere use "zed: open settings".
         "config_paths": {
-            "darwin": _home() / ".config/zed/settings.json",
             "linux": _home() / ".config/zed/settings.json",
-            "win32": _home() / "AppData/Roaming/Zed/settings.json",
         },
+        "entry": "stdio",
         "detect_binary": "zed",
         "url": "https://zed.dev",
-        "docs": "https://zed.dev/docs/context-servers",
+        "docs": "https://zed.dev/docs/ai/mcp",
         "restart_note": "Restart Zed after config update",
     },
     "windsurf": {
@@ -67,9 +81,10 @@ CLIENTS = {
             "linux": _home() / ".codeium/windsurf/mcp_config.json",
             "win32": _home() / ".codeium/windsurf/mcp_config.json",
         },
+        "entry": "stdio",
         "detect_binary": "windsurf",
         "url": "https://windsurf.com",
-        "docs": "https://docs.windsurf.com/windsurf/cascade/mcp",
+        "docs": "https://docs.devin.ai/windsurf/plugins/cascade/mcp",
         "restart_note": "Restart Windsurf after config update",
     },
     "opencode": {
@@ -77,10 +92,10 @@ CLIENTS = {
         "config_type": "file",
         "config_key": "mcp",
         "config_paths": {
-            "darwin": _home() / ".config/opencode/config.json",
-            "linux": _home() / ".config/opencode/config.json",
-            "win32": _home() / "AppData/Roaming/opencode/config.json",
+            "darwin": _home() / ".config/opencode/opencode.json",
+            "linux": _home() / ".config/opencode/opencode.json",
         },
+        "entry": "opencode",
         "detect_binary": "opencode",
         "url": "https://opencode.ai",
         "docs": "https://opencode.ai/docs/mcp-servers/",
@@ -95,6 +110,7 @@ CLIENTS = {
             "linux": _home() / ".gemini/settings.json",
             "win32": _home() / ".gemini/settings.json",
         },
+        "entry": "stdio",
         "detect_binary": "gemini",
         "url": "https://github.com/google-gemini/gemini-cli",
         "docs": "https://geminicli.com/docs/tools/mcp-server/",

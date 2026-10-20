@@ -20,6 +20,20 @@ All notable changes to silica-eda are listed here. The format follows
 - ECP5 place and route failed with every device: silica passed `--device`,
   which nextpnr-ecp5 doesn't accept. Parts such as `LFE5U-25F`, `LFE5UM-45F`
   and `LFE5UM5G-85F-8` now map to nextpnr-ecp5's device flags (and `--speed`).
+- `silica setup` writes client configs that start the server with
+  `uvx silica-eda@latest`, like the README and the Claude Code plugin, instead
+  of the path of the `silica` executable it ran from with `serve`. That path
+  broke when the environment it came from (a uvx cache or a virtualenv) went
+  away, and never picked up new releases. Each client's entry now follows its
+  current documentation: Claude Code is added with `--scope user`, Cursor
+  entries carry `"type": "stdio"`, OpenCode gets its `{"type": "local",
+  "command": [...]}` shape in `opencode.json` (it was `config.json` with the
+  wrong shape), and Zed and OpenCode are written only on the platforms whose
+  path their docs give. Elsewhere the wizard prints the block to add by hand.
+- `silica setup` replaced a client config it couldn't parse, such as a Zed
+  `settings.json` with comments, with one holding only the silica entry,
+  losing the user's other settings. It now leaves the file unchanged and
+  prints the block to add by hand.
 
 ## [0.4.0] - 2026-10-20
 
