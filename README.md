@@ -343,6 +343,7 @@ Built for pointing an autonomous agent at a real repo:
 | `silica serve` | Start the MCP server (stdio). Default when no subcommand is given. `silica-eda` is the same command. |
 | `silica setup` | Interactive wizard that writes MCP client configs that start the server with `uvx silica-eda@latest`; see [Setup wizard](#setup-wizard). |
 | `silica config` | Show the configuration and which tools are detected. |
+| `silica --version`, `silica --help` | Print the version, or the commands. |
 
 ## Versioning and compatibility
 

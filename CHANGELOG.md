@@ -7,6 +7,8 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- `silica --version` (`-V`) and `silica --help` (`-h`). They used to fail
+  with "unknown command", which now goes to stderr instead of stdout.
 - `run_place_route` packs iCE40 and ECP5 designs into a bitstream that
   `program_device` can load: a `.bin` from icepack for ice40 and a `.bit` from
   ecppack for ecp5, the way Xilinx designs are assembled with `fpga-as`. If
