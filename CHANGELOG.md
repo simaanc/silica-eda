@@ -12,6 +12,11 @@ All notable changes to silica-eda are listed here. The format follows
   every warning and syntax error was dropped.
 - `lint` with svlint 0.9 reports its findings. svlint now prints colored,
   multi-line `Fail:` blocks even when piped, which the parser did not match.
+- `run_simulation` with Verilator no longer refuses to simulate a design that
+  has lint warnings. The build used `-Wall` with warnings fatal, so an unused
+  testbench signal stopped the run with exit code 1 and an empty `errors`
+  list. Warnings are still returned in `warnings`, and a failed build with no
+  parsed diagnostic now carries an error entry.
 
 ## [0.3.1] - 2026-10-16
 
