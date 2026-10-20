@@ -1,0 +1,15 @@
+{
+  "name": "silica-eda",
+  "displayName": "Silica",
+  "version": "0.3.1",
+  "description": "MCP server for RTL and FPGA work: lint, simulate, formal, synthesize, place and route, program a board and read its UART, with structured results from Verilator, Yosys, SymbiYosys, nextpnr, openFPGALoader and commercial tools.",
+  "author": {
+    "name": "Christopher Simaan",
+    "email": "dev@getsilica.dev",
+    "url": "https://github.com/simaanc"
+  },
+  "homepage": "https://github.com/simaanc/silica-eda",
+  "repository": "https://github.com/simaanc/silica-eda",
+  "license": "AGPL-3.0-only",
+  "keywords": ["eda", "rtl", "fpga", "verilog", "systemverilog", "simulation", "synthesis", "formal", "mcp"]
+}
