@@ -36,6 +36,16 @@ All notable changes to silica-eda are listed here. The format follows
   with no init data (firmware loaded only under `` `ifdef SIM``, say) also
   adds a warning, because synthesis otherwise drops it without a trace.
 
+### Changed
+- The instructions the server sends to MCP clients now cover every tool and
+  prompt, the order to use them in (lint, simulate, formal, synthesize,
+  place and route, program, serial check), what each step hands to the
+  next, and known pitfalls: relative paths, ROMs that lose their
+  `$readmemh` in synthesis, inconclusive proofs (`induction_failures`),
+  which FPGA flows produce a loadable bitstream, SRAM vs flash, serial
+  ports and permissions, the boot banner missed after programming, and
+  which adapters are only tested with mocks.
+
 ### Fixed
 - Tool descriptions that clients read now match what the tools do:
   `get_project_structure` returns `rtl_files`, `constraint_files` and
