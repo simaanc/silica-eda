@@ -6,6 +6,18 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `silica setup` writes client configs that start the server with
+  `uvx silica-eda@latest`, like the README and the Claude Code plugin, instead
+  of the path of the `silica` executable it ran from with `serve`. That path
+  broke when the environment it came from (a uvx cache or a virtualenv) went
+  away, and never picked up new releases. Each client's entry now follows its
+  current documentation: Claude Code is added with `--scope user`, Cursor
+  entries carry `"type": "stdio"`, OpenCode gets its `{"type": "local",
+  "command": [...]}` shape in `opencode.json` (it was `config.json` with the
+  wrong shape), and Zed and OpenCode are written only on the platforms whose
+  path their docs give. Elsewhere the wizard prints the block to add by hand.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added
