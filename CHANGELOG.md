@@ -7,6 +7,9 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- `silica setup` can add silica to Codex CLI (`codex mcp add`) and VS Code
+  (`code --add-mcp`, into the user profile), both running
+  `uvx silica-eda@latest`.
 - `silica --version` (`-V`) and `silica --help` (`-h`). They used to fail
   with "unknown command", which now goes to stderr instead of stdout.
 - `run_place_route` packs iCE40 and ECP5 designs into a bitstream that

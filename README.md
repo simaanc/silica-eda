@@ -205,13 +205,15 @@ or in `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project):
 |---|---|
 | Claude Code | Runs `claude mcp add --transport stdio --scope user silica -- uvx silica-eda@latest` |
 | Claude Desktop | `mcpServers` in `claude_desktop_config.json` (macOS, Windows, Linux) |
+| Codex CLI | Runs `codex mcp add silica -- uvx silica-eda@latest` |
+| VS Code (Copilot) | Runs `code --add-mcp '{"name":"silica","type":"stdio","command":"uvx","args":["silica-eda@latest"]}'`, which adds it to your user profile |
 | Cursor | `mcpServers` in `~/.cursor/mcp.json`, with `"type": "stdio"` |
 | Gemini CLI | `mcpServers` in `~/.gemini/settings.json` |
 | Windsurf | `mcpServers` in `~/.codeium/windsurf/mcp_config.json` |
 | OpenCode | `mcp` in `~/.config/opencode/opencode.json`, as `{"type": "local", "command": ["uvx", "silica-eda@latest"]}` (macOS, Linux) |
 | Zed | `context_servers` in `~/.config/zed/settings.json` (Linux) |
 
-Where a client's documentation gives no config path for your platform (Zed on macOS and Windows, OpenCode on Windows), or the existing file can't be read as plain JSON (for example a Zed `settings.json` with comments), the wizard leaves the file alone and prints the block to add by hand. Codex CLI and VS Code aren't in the wizard yet; use the commands above.
+Where a client's documentation gives no config path for your platform (Zed on macOS and Windows, OpenCode on Windows), or the existing file can't be read as plain JSON (for example a Zed `settings.json` with comments), the wizard leaves the file alone and prints the block to add by hand.
 
 **Optional extras.** `capture_serial` needs pyserial and `run_cocotb` needs cocotb. With uvx, add them to the arguments: `"args": ["--with", "pyserial", "silica-eda@latest"]` (or `--with cocotb`). With pip, install `silica-eda[serial]` or `silica-eda[cocotb]`.
 

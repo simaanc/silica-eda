@@ -26,7 +26,7 @@ def client_path(tmp_path, monkeypatch):
 def test_every_client_launches_uvx_latest():
     for key, client in CLIENTS.items():
         if client["config_type"] == "command":
-            assert client["command"][-3:] == ["--", "uvx", "silica-eda@latest"], key
+            assert "silica-eda@latest" in " ".join(client["command"]), key
         else:
             entry = setup._server_entry(client["entry"], "uvx")
             assert "serve" not in json.dumps(entry), key
@@ -82,6 +82,27 @@ def test_command_client_runs_claude_mcp_add(monkeypatch):
         "claude", "mcp", "add", "--transport", "stdio", "--scope", "user",
         "silica", "--", "uvx", "silica-eda@latest",
     ]
+
+
+def test_command_client_runs_codex_mcp_add(monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
+    with patch("silica.setup.shutil.which", return_value="/usr/bin/codex"), \
+         patch("silica.setup.subprocess.run", return_value=make_proc()) as run:
+        setup._inject_command_client("codex")
+    assert run.call_args.args[0] == [
+        "codex", "mcp", "add", "silica", "--", "uvx", "silica-eda@latest"]
+    assert "startup_timeout_sec" in capsys.readouterr().out
+
+
+def test_command_client_runs_code_add_mcp(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
+    with patch("silica.setup.shutil.which", return_value="/usr/bin/code"), \
+         patch("silica.setup.subprocess.run", return_value=make_proc()) as run:
+        setup._inject_command_client("vscode")
+    argv = run.call_args.args[0]
+    assert argv[:2] == ["code", "--add-mcp"]
+    assert json.loads(argv[2]) == {
+        "name": "silica", "type": "stdio", "command": "uvx", "args": ["silica-eda@latest"]}
 
 
 def test_other_client_block_uses_uvx(capsys):
