@@ -131,6 +131,9 @@ def test_no_expect_leaves_matched_unset(board):
     assert result["lines"][-1]["partial"] is True
 
 
+# The existence check is POSIX-only: Windows COM ports aren't filesystem paths,
+# so there the failure comes from pyserial (see the next test).
+@posix_only
 def test_missing_port_is_a_structured_error(tmp_path):
     port = str(tmp_path / "ttyUSB9")
     with patch.object(serial, "Serial") as opened:
@@ -138,6 +141,18 @@ def test_missing_port_is_a_structured_error(tmp_path):
     opened.assert_not_called()
     assert "does not exist" in result["error"]
     assert result["fix"]
+    assert result["lines"] == [] and result["bytes_received"] == 0
+
+
+def test_open_failure_is_a_structured_error(tmp_path):
+    # e.g. a COM port that doesn't exist on Windows: pyserial raises, no errno.
+    port = tmp_path / "ttyUSB1"
+    port.write_text("")
+    failure = serial.SerialException("could not open port 'COM9': FileNotFoundError")
+    with patch.object(serial, "Serial", side_effect=failure):
+        result = serial_capture.run(str(port), duration=1.0)
+    assert result["error"].startswith(f"Could not open serial port {port}")
+    assert "COM9" in result["error"]
     assert result["lines"] == [] and result["bytes_received"] == 0
 
 
