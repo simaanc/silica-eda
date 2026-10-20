@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from silica.adapters import _sim_output
 from silica.detect import resolve
 
 # VCS compile diagnostics — simple line-based pass for severity
@@ -58,6 +59,10 @@ def _run(
     if not vcs:
         return _not_found()
 
+    # vcs compiles in a temp dir, where a relative source path no longer
+    # points at the caller's file.
+    sources = [str(Path(f).resolve()) for f in (testbench, dut, *extra_sources)]
+
     with tempfile.TemporaryDirectory(prefix="silica_vcs_") as tmpdir:
         simv = str(Path(tmpdir) / "simv")
         csrc = str(Path(tmpdir) / "csrc")
@@ -70,7 +75,7 @@ def _run(
         ]
         if top:
             compile_cmd += ["-top", top]
-        compile_cmd += [testbench, dut, *extra_sources]
+        compile_cmd += sources
 
         cp = subprocess.run(
             compile_cmd,
@@ -100,7 +105,10 @@ def _run(
         if trace:
             sim_cmd += ["+vcs+vc+dumpfile+dump.vcd"]
 
-        sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
+        # Simulate in the DUT's directory either way, so relative paths in the
+        # testbench ($readmemh) don't depend on tracing; the VCD moves after.
+        sim_cwd = str(Path(dut).parent)
+        vcds_before = _sim_output.snapshot(sim_cwd) if trace_dir else {}
         rp = subprocess.run(
             sim_cmd,
             capture_output=True,
@@ -118,7 +126,7 @@ def _run(
 
         trace_vcd = None
         if trace_dir:
-            vcds = sorted(Path(trace_dir).glob("*.vcd"))
+            vcds = _sim_output.move_written(sim_cwd, vcds_before, trace_dir)
             trace_vcd = str(vcds[0]) if vcds else None
 
         return {

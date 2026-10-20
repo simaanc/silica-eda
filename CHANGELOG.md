@@ -25,6 +25,12 @@ All notable changes to silica-eda are listed here. The format follows
   adds a warning, because synthesis otherwise drops it without a trace.
 
 ### Fixed
+- `run_simulation` with VCS, Questa or Xcelium accepts relative source paths and
+  runs the simulation in the DUT's directory, like Icarus and Verilator, so
+  relative testbench paths such as `$readmemh("../fw/firmware.hex")` resolve
+  the same way with or without tracing. Questa and Xcelium always simulated
+  in a temp directory, so these paths never worked there. (Checked with mocked tool
+  calls only.)
 - `synthesize` with Yosys fills in `file` and `line` for errors and warnings
   when Yosys gives a location, either as a prefix (`top.sv:12: ERROR: ...`)
   or as an `at top.sv:12.5-12.9` clause. They were always `""` and `0`.

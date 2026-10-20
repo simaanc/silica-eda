@@ -110,3 +110,49 @@ def test_timeout_returns_error(mock_resolve, mock_run):
     result = questa.run("dut.sv", "tb.sv")
     assert result["exit_code"] == -1
     assert any("timed out" in e["message"] for e in result["errors"])
+
+
+# Mocked: these check the working directories and command lines silica
+# builds; they don't run Questa.
+@patch("silica.adapters.questa.subprocess.run")
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_relative_paths_and_working_dirs(mock_resolve, mock_run, tmp_path, monkeypatch):
+    from pathlib import Path
+
+    (tmp_path / "rtl").mkdir()
+    (tmp_path / "tb").mkdir()
+    monkeypatch.chdir(tmp_path)
+    rtl, tb = (tmp_path / "rtl").resolve(), (tmp_path / "tb").resolve()
+    mock_run.side_effect = [make_proc(returncode=0)] * 3
+    questa.run("rtl/dut.sv", "tb/tb.sv", top="tb", extra_sources=["rtl/sub.sv"])
+
+    vlib, vlog, vsim = mock_run.call_args_list
+    tmpdir = vlib.kwargs["cwd"]
+    assert vlib.args[0] == ["vlib", "work"]
+    # vlog compiles in the temp dir from absolute paths.
+    assert vlog.kwargs["cwd"] == tmpdir
+    assert vlog.args[0][-3:] == [str(tb / "tb.sv"), str(rtl / "dut.sv"), str(rtl / "sub.sv")]
+    # vsim runs in the DUT's directory; library, wlf and transcript stay in the temp dir.
+    assert vsim.kwargs["cwd"] == "rtl"
+    cmd = vsim.args[0]
+    assert cmd[cmd.index("-lib") + 1] == str(Path(tmpdir) / "work")
+    assert cmd[cmd.index("-wlf") + 1] == str(Path(tmpdir) / "vsim.wlf")
+    assert cmd[cmd.index("-l") + 1] == str(Path(tmpdir) / "transcript")
+    assert cmd[-1] == "tb"
+
+
+@patch("silica.adapters.questa.subprocess.run")
+@patch("silica.adapters.questa.resolve", return_value=FAKE_VSIM)
+def test_traced_sim_runs_in_dut_dir_with_absolute_vcd(mock_resolve, mock_run, tmp_path,
+                                                      monkeypatch):
+    (tmp_path / "rtl").mkdir()
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    mock_run.side_effect = [make_proc(returncode=0)] * 3
+    with patch("silica.adapters.questa.tempfile.mkdtemp", return_value=str(out)):
+        questa.run("rtl/dut.sv", "rtl/tb.sv", trace=True)
+    vsim = mock_run.call_args_list[2]
+    assert vsim.kwargs["cwd"] == "rtl"
+    do_script = vsim.args[0][vsim.args[0].index("-do") + 1]
+    assert f"vcd file {out / 'dump.vcd'}" in do_script

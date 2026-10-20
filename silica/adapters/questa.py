@@ -70,6 +70,9 @@ def _run(
         return _not_found()
 
     top_mod = top or Path(testbench).stem
+    # vlog compiles in a temp dir, where a relative source path no longer
+    # points at the caller's file.
+    sources = [str(Path(f).resolve()) for f in (testbench, dut, *extra_sources)]
 
     with tempfile.TemporaryDirectory(prefix="silica_questa_") as tmpdir:
         # Create work library
@@ -91,7 +94,7 @@ def _run(
                 "trace_vcd": None,
             }
 
-        compile_cmd = [vlog_bin, "-sv", testbench, dut, *extra_sources]
+        compile_cmd = [vlog_bin, "-sv", *sources]
         cp = subprocess.run(
             compile_cmd,
             capture_output=True,
@@ -126,13 +129,27 @@ def _run(
         do_cmds += ["run -all", "quit"]
         do_script = "; ".join(do_cmds)
 
-        sim_cmd = [vsim, "-c", "-do", do_script, f"work.{top_mod}"]
+        # Simulate in the DUT's directory, as the other simulators do, so
+        # relative paths in the testbench ($readmemh) resolve from there. The
+        # work library, waveform database and transcript stay in the temp dir.
+        # Unverified: no Questa install was available to confirm that -lib
+        # takes a library directory path; if it doesn't, vsim won't find the
+        # top unit and the run fails with a vsim error.
+        tmp = Path(tmpdir)
+        sim_cmd = [
+            vsim, "-c",
+            "-lib", str(tmp / "work"),
+            "-wlf", str(tmp / "vsim.wlf"),
+            "-l", str(tmp / "transcript"),
+            "-do", do_script,
+            top_mod,
+        ]
         rp = subprocess.run(
             sim_cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=tmpdir,
+            cwd=str(Path(dut).parent),
         )
 
         run_errors, run_warnings = _parse_output(rp.stdout + rp.stderr)
