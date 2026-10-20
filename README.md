@@ -173,7 +173,7 @@ Built for pointing an autonomous agent at a real repo:
 |---|---|
 | `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Accepts multiple design files / a `.f` filelist via `extra_sources`. Returns structured errors, optional VCD trace, and optional coverage (`coverage=True`, Verilator). |
 | `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. Needs the `cocotb` extra (see Quick start). |
-| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary. |
+| `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary, and (Yosys) the inferred memories with their mapping and whether each has init data. |
 | `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2, and Xilinx 7-series through openXC7's nextpnr-xilinx). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
 | `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
 | `capture_serial` | Read a board's UART for a set time, optionally sending text first. Returns timestamped lines and whether an `expect` regex matched. Opens only the port you name. Needs the `serial` extra. |

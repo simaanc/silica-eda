@@ -18,6 +18,11 @@ All notable changes to silica-eda are listed here. The format follows
   A missing or inaccessible port comes back as an error with the command
   that fixes it. Needs the new `serial` extra (`pip install
   "silica-eda[serial]"`).
+- `synthesize` with Yosys lists the inferred memories under `memories`: name,
+  depth, width, ports, how each was mapped (block RAM, distributed RAM,
+  logic, or optimized away) and whether it has init data. A read-only memory
+  with no init data (firmware loaded only under `` `ifdef SIM``, say) also
+  adds a warning, because synthesis otherwise drops it without a trace.
 
 ### Fixed
 - `synthesize` with Yosys says which file it could not open when a
