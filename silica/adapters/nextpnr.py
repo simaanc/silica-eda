@@ -38,12 +38,26 @@ _OUT_FLAG = {
 }
 
 _OUT_EXT = {
-    "ice40":    ".asc",
-    "ecp5":     ".textcfg",
+    "ice40":    ".bin",
+    "ecp5":     ".bit",
     "nexus":    ".fasm",
     "machxo2":  ".textcfg",
     "generic":  ".json",
     "xilinx":   ".bit",
+}
+
+# Architectures whose nextpnr output is packed into a bitstream afterwards:
+# arch -> extension of nextpnr's intermediate file.
+_INTERMEDIATE_EXT = {
+    "ice40":    ".asc",
+    "ecp5":     ".textcfg",
+    "xilinx":   ".fasm",
+}
+
+# Lattice packers from OSS CAD Suite: icestorm's icepack, Trellis's ecppack.
+_LATTICE_PACKER = {
+    "ice40":    "icepack",
+    "ecp5":     "ecppack",
 }
 
 _CONSTRAINT_FLAG = {
@@ -53,6 +67,12 @@ _CONSTRAINT_FLAG = {
     "machxo2":  "--lpf",
     "xilinx":   "--xdc",
 }
+
+# nextpnr-ecp5 has no --device option; it takes one flag per device, e.g.
+# --25k for LFE5U-25F or --um5g-85k for LFE5UM5G-85F.
+_ECP5_PART_RE = re.compile(r"^LFE5(U|UM|UM5G)-(12|25|45|85)F(?:-([678]))?", re.IGNORECASE)
+_ECP5_FLAG_RE = re.compile(r"^(?:um-|um5g-)?(?:12|25|45|85)k$")
+_ECP5_FAMILY_FLAG = {"U": "", "UM": "um-", "UM5G": "um5g-"}
 
 # Xilinx 7-series part prefix -> prjxray-db family directory.
 _XC7_FAMILY = {
@@ -109,11 +129,30 @@ def run(
                 "(e.g. ARTIX7_CHIPDB), as the openXC7 toolchain does."
             ))
 
+    ecp5_args = None
+    if arch == "ecp5":
+        ecp5_args = _ecp5_device_args(device)
+        if ecp5_args is None:
+            return _error_result(arch, device, (
+                f"Unknown ECP5 device '{device}'. Use a part such as LFE5U-25F, "
+                "LFE5UM-45F or LFE5UM5G-85F (a speed grade suffix like "
+                "LFE5U-25F-6 is passed as --speed), or a nextpnr-ecp5 device "
+                "flag such as 25k or um5g-85k."
+            ))
+
     workdir = Path(tempfile.mkdtemp(prefix="silica_nextpnr_"))
     out_ext = _OUT_EXT.get(arch, ".out")
     out_path = Path(output).resolve() if output else workdir / f"out{out_ext}"
-    # nextpnr-xilinx writes FASM; fpga-as turns it into the .bit at out_path.
-    pnr_out = workdir / "out.fasm" if arch == "xilinx" else out_path
+    # nextpnr writes FASM (xilinx) or a text config (ice40/ecp5); fpga-as,
+    # icepack or ecppack turns it into the bitstream at out_path. An output
+    # named like the intermediate file keeps it there, with the bitstream
+    # beside it.
+    pnr_out = out_path
+    mid_ext = _INTERMEDIATE_EXT.get(arch)
+    if mid_ext:
+        pnr_out = workdir / f"out{mid_ext}"
+        if out_path.suffix == mid_ext:
+            pnr_out, out_path = out_path, out_path.with_suffix(out_ext)
 
     cmd = [binary, "--json", str(netlist_path)]
 
@@ -122,6 +161,10 @@ def run(
     elif arch == "ice40":
         # ice40 uses named device flags: --hx8k, --up5k, etc.
         cmd.append(f"--{device}")
+        if package:
+            cmd += ["--package", package]
+    elif arch == "ecp5":
+        cmd += ecp5_args
         if package:
             cmd += ["--package", package]
     else:
@@ -152,8 +195,11 @@ def run(
 
     raw = cp.stdout + cp.stderr
     asm_warning = None
-    if arch == "xilinx" and cp.returncode == 0 and pnr_out.exists():
-        asm_warning, asm_log = _assemble_xc7(pnr_out, device, out_path, timeout)
+    if mid_ext and cp.returncode == 0 and pnr_out.exists():
+        if arch == "xilinx":
+            asm_warning, asm_log = _assemble_xc7(pnr_out, device, out_path, timeout)
+        else:
+            asm_warning, asm_log = _pack_lattice(arch, pnr_out, out_path, timeout)
         raw += asm_log
         if asm_warning:
             out_path = pnr_out
@@ -210,6 +256,19 @@ def _xilinx_chipdb(device: str) -> Path | None:
     return None
 
 
+def _ecp5_device_args(device: str) -> list[str] | None:
+    """nextpnr-ecp5 arguments for a part ("LFE5U-25F", "LFE5UM5G-85F-8") or a
+    device flag name ("25k", "um5g-85k"); None if neither."""
+    m = _ECP5_PART_RE.match(device.strip())
+    if m:
+        args = [f"--{_ECP5_FAMILY_FLAG[m.group(1).upper()]}{m.group(2)}k"]
+        if m.group(3):
+            args += ["--speed", m.group(3)]
+        return args
+    flag = device.strip().lower().lstrip("-")
+    return [f"--{flag}"] if _ECP5_FLAG_RE.match(flag) else None
+
+
 def _assemble_xc7(fasm: Path, part: str, out_path: Path, timeout: int) -> tuple[str | None, str]:
     """Assemble a nextpnr-xilinx FASM file into a .bit with openXC7's fpga-as.
 
@@ -242,6 +301,40 @@ def _assemble_xc7(fasm: Path, part: str, out_path: Path, timeout: int) -> tuple[
         # A truncated .bit would still program and report success.
         out_path.unlink(missing_ok=True)
         return f"fpga-as failed with exit code {cp.returncode}; output is FASM.", log
+    return None, log
+
+
+def _pack_lattice(arch: str, text_cfg: Path, out_path: Path,
+                  timeout: int) -> tuple[str | None, str]:
+    """Pack nextpnr's iCE40 .asc or ECP5 .textcfg into a bitstream with
+    icepack or ecppack.
+
+    Returns (warning, log). The warning is None when out_path was written;
+    otherwise it says why the text config is the final output."""
+    packer = _LATTICE_PACKER[arch]
+    binary = oss_cad_suite.which(packer)
+    if not binary:
+        return (
+            f"Output is nextpnr's {text_cfg.suffix} text config, not a bitstream: "
+            f"packing it needs {packer} on PATH (it ships with OSS CAD Suite: "
+            "https://github.com/YosysHQ/oss-cad-suite-build/releases).",
+            "",
+        )
+    try:
+        cp = subprocess.run(
+            [binary, str(text_cfg), str(out_path)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=oss_cad_suite.env_with_suite(),
+        )
+    except subprocess.TimeoutExpired:
+        out_path.unlink(missing_ok=True)
+        return f"{packer} timed out after {timeout}s; output is the text config.", ""
+    log = cp.stdout + cp.stderr
+    if cp.returncode != 0:
+        out_path.unlink(missing_ok=True)
+        return f"{packer} failed with exit code {cp.returncode}; output is the text config.", log
     return None, log
 
 

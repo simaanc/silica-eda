@@ -59,4 +59,6 @@ def test_synthesize_to_bitstream(tools, counter_v):
         assert pnr["exit_code"] == 0, pnr["errors"]
         assert pnr["output"] is not None
         assert os.path.exists(pnr["output"])
-        assert pnr["output"].endswith(".asc")
+        # icepack ships with OSS CAD Suite; without it the .asc is the output.
+        packed = oss_cad_suite.which("icepack") is not None
+        assert pnr["output"].endswith(".bin" if packed else ".asc")
