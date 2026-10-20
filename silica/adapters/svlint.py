@@ -6,10 +6,24 @@ import subprocess
 from silica.adapters._hints import install_hint
 from silica.detect import resolve
 
-# svlint output format:
+# svlint 0.9 output format (colored even when piped; colors are stripped first):
+# Fail: rule_name
+#    --> filename.sv:10:5
+#    ...
+#   |  ^^^^ hint  : hint text
+# Error: parse error
+#    --> filename.sv:3:1
+_ANSI_RE = re.compile(r"\x1b(?:\[[0-9;]*[A-Za-z]|\([A-Z])")
+_BLOCK_RE = re.compile(
+    r"^(Fail|Error):\s*(.+?)\s*\n\s*-->\s*(.+):(\d+):(\d+)\s*$",
+    re.MULTILINE,
+)
+_BLOCK_HINT_RE = re.compile(r"hint\s*:\s*(.+)$", re.MULTILINE)
+
+# Older output formats:
 # Fail: filename.sv: 10:5  rule_name
 #       hint text
-# or (newer): filename.sv:10:5: hint [rule]
+# or: filename.sv:10:5: hint [rule]
 _FAIL_RE = re.compile(
     r"^Fail:\s*(\S+):\s*(\d+):(\d+)\s+(\S+)",
     re.MULTILINE,
@@ -21,8 +35,23 @@ _HINT_RE = re.compile(
 
 
 def _parse(output: str) -> list[dict]:
+    output = _ANSI_RE.sub("", output)
     results: list[dict] = []
-    # Try newer format first
+    blocks = list(_BLOCK_RE.finditer(output))
+    for i, m in enumerate(blocks):
+        kind, rule, f, line, _col = m.groups()
+        end = blocks[i + 1].start() if i + 1 < len(blocks) else len(output)
+        hint = _BLOCK_HINT_RE.search(output, m.end(), end)
+        results.append({
+            "file": f.strip(),
+            "line": int(line),
+            "severity": "error" if kind == "Error" else "warning",
+            "rule_id": rule.strip() if kind == "Fail" else "svlint",
+            "message": hint.group(1).strip() if hint else rule.strip(),
+        })
+    if results:
+        return results
+    # Then the one-line format
     for m in _HINT_RE.finditer(output):
         f, line, _col, message, rule_id = m.groups()
         results.append({

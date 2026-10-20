@@ -10,6 +10,8 @@ All notable changes to silica-eda are listed here. The format follows
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.
+- `lint` with svlint 0.9 reports its findings. svlint now prints colored,
+  multi-line `Fail:` blocks even when piped, which the parser did not match.
 
 ## [0.3.1] - 2026-10-16
 
