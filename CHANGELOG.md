@@ -7,6 +7,14 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- A `doctor` tool that reports silica's version, whether a newer release is
+  on PyPI, the version of every open-source EDA tool silica can find
+  (Verilator, Verible, svlint, Icarus, GHDL, SymbiYosys, eqy, Yosys, the
+  nextpnr variants, openXC7's nextpnr-xilinx and fpga-as, openFPGALoader,
+  Surfer, GTKWave), the optional cocotb and pyserial extras, and which
+  commercial tools are on PATH. Each missing or outdated tool comes with a
+  fix for this platform. Commercial tools are looked up, never run. Set
+  `SILICA_NO_UPDATE_CHECK=1` to skip the PyPI check.
 - A `silica-eda` command, the same as `silica`, so `uvx silica-eda` starts
   the MCP server. uvx runs the executable named after the package, and
   `uvx silica-eda` used to fail with "An executable named `silica-eda` is
@@ -28,7 +36,24 @@ All notable changes to silica-eda are listed here. The format follows
   with no init data (firmware loaded only under `` `ifdef SIM``, say) also
   adds a warning, because synthesis otherwise drops it without a trace.
 
+### Changed
+- The instructions the server sends to MCP clients now cover every tool and
+  prompt, the order to use them in (lint, simulate, formal, synthesize,
+  place and route, program, serial check), what each step hands to the
+  next, and known pitfalls: relative paths, ROMs that lose their
+  `$readmemh` in synthesis, inconclusive proofs (`induction_failures`),
+  which FPGA flows produce a loadable bitstream, SRAM vs flash, serial
+  ports and permissions, the boot banner missed after programming, and
+  which adapters are only tested with mocks.
+
 ### Fixed
+- Tool descriptions that clients read now match what the tools do:
+  `get_project_structure` returns `rtl_files`, `constraint_files` and
+  `file_count` (not `files` and `top_candidates`); `program_device` takes a
+  `.bit` or `.bin`, not nextpnr's `.asc`/`.textcfg`, and "arty" is the 35T
+  board; `run_place_route` produces a programmable `.bit` only for Xilinx;
+  `run_simulation` notes that tracing needs `$dumpfile`/`$dumpvars` in the
+  testbench.
 - `run_simulation` with VCS, Questa or Xcelium accepts relative source paths and
   runs the simulation in the DUT's directory, like Icarus and Verilator, so
   relative testbench paths such as `$readmemh("../fw/firmware.hex")` resolve

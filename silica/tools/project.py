@@ -63,15 +63,23 @@ def _confine(file: str) -> tuple[Path | None, str | None]:
 def register(mcp: "MCPServer") -> None:
     @mcp.tool()
     def get_project_structure(root: str = ".") -> dict:
-        """Return the RTL file tree and detect the likely top-level module.
+        """List the project's RTL and constraint files.
+
+        Start here in an unfamiliar project to find the sources to pass to
+        lint, run_simulation and synthesize, and the constraint file for
+        run_place_route.
 
         Args:
             root: Directory to scan, inside the project (defaults to the
                   project root).
 
         Returns:
-            files: list of relative paths to RTL/constraint files
-            top_candidates: module names that are instantiated but not instances
+            root: the directory scanned (absolute)
+            rtl_files: relative paths of .v/.sv/.svh/.vh/.vhd/.vhdl files
+            constraint_files: relative paths of .xdc, .lpf, .sdc, .upf and
+                .pdc files (iCE40 .pcf files are not listed)
+            file_count: number of RTL files
+            error: present only when root escapes the project directory
         """
         root_path, escape = _confine(root)
         if escape:

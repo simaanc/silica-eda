@@ -315,6 +315,14 @@ iverilog -g2012 -o /tmp/uart_sim examples/uart/uart_tx_tb.sv examples/uart/uart_
 vvp /tmp/uart_sim
 ```
 
+## Versioning and compatibility
+
+silica follows [Semantic Versioning](https://semver.org/), applied to what MCP clients and agents depend on: tool names, their parameters, and the fields in their results. The same rules hold for 0.x releases.
+
+- **Within a major version** no tool is renamed or removed, no parameter is removed or made required, and no result field is removed or renamed. Minor releases may add tools, optional parameters and result fields.
+- **Deprecations** are announced in [CHANGELOG.md](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md) and in the affected tool's description at least one minor release before the change ships in the next major version.
+- **Every user-visible change** is listed in the changelog when it merges, under "Unreleased", and moves under the version heading at release.
+
 ## License
 
 silica is licensed under the [GNU Affero General Public License v3.0](https://github.com/simaanc/silica-eda/blob/main/LICENSE) (AGPL-3.0-only). You can use, modify and redistribute it, including commercially. If you distribute a modified version, or run one as a service that others interact with over a network, you must make your changes' source available under the same license.
