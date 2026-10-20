@@ -145,13 +145,16 @@ def test_parse_utilization():
     assert util["LCs"]["total"] == 7680
 
 
-@pytest.mark.parametrize("arch", ["ice40", "ecp5", "nexus", "machxo2", "generic"])
+@pytest.mark.parametrize("arch,device", [
+    ("ice40", "hx8k"), ("ecp5", "LFE5U-25F"), ("nexus", "LIFCL-40-9BG400C"),
+    ("machxo2", "LCMXO2-1200HC"), ("generic", "generic"),
+])
 @patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
 @patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value="/usr/bin/nextpnr-ice40")
 @patch("silica.adapters.nextpnr.subprocess.run")
-def test_all_arches(mock_run, mock_which, mock_env, arch, netlist_file):
+def test_all_arches(mock_run, mock_which, mock_env, arch, device, netlist_file):
     mock_run.return_value = make_proc(returncode=0)
-    result = nextpnr.run(netlist_file, arch=arch)
+    result = nextpnr.run(netlist_file, arch=arch, device=device)
     assert result["exit_code"] == 0
 
 
@@ -288,3 +291,42 @@ def test_xilinx_failed_assembly_leaves_no_bit(mock_run, mock_which, mock_env, ne
     assert result["output"].endswith(".fasm")
     assert not (Path(result["workdir"]) / "out.bit").exists()
     assert any("fpga-as failed" in w["message"] for w in result["warnings"])
+
+
+# ---------------------------------------------------------------------------
+# ecp5 device flags
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("device,args", [
+    ("LFE5U-25F", ["--25k"]),
+    ("LFE5UM-45F", ["--um-45k"]),
+    ("LFE5UM5G-85F-8", ["--um5g-85k", "--speed", "8"]),
+    ("lfe5u-12f", ["--12k"]),
+    ("25k", ["--25k"]),
+    ("um5g-45k", ["--um5g-45k"]),
+    ("hx8k", None),
+    ("LFE5U-30F", None),
+])
+def test_ecp5_device_args(device, args):
+    assert nextpnr._ecp5_device_args(device) == args
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+@patch("silica.adapters.nextpnr.subprocess.run")
+def test_ecp5_uses_device_flag_not_device_option(mock_run, mock_which, mock_env,
+                                                 netlist_file):
+    # nextpnr-ecp5 rejects --device ("unrecognised option '--device'").
+    mock_run.return_value = make_proc(returncode=0)
+    nextpnr.run(netlist_file, arch="ecp5", device="LFE5U-45F-6", package="CABGA381")
+    cmd = mock_run.call_args_list[0].args[0]
+    assert "--device" not in cmd
+    assert cmd[cmd.index("--45k") + 1:cmd.index("--45k") + 5] == [
+        "--speed", "6", "--package", "CABGA381"]
+
+
+@patch("silica.adapters.nextpnr.oss_cad_suite.which", side_effect=_which_all)
+def test_ecp5_unknown_device(mock_which, netlist_file):
+    result = nextpnr.run(netlist_file, arch="ecp5", device="hx8k")
+    assert result["exit_code"] == -1
+    assert "Unknown ECP5 device" in result["errors"][0]["message"]

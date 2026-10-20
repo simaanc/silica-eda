@@ -36,7 +36,9 @@ def register(mcp: "MCPServer") -> None:
                   "generic" | "xilinx".
             device: Device variant within the architecture:
                     ice40: "hx1k" | "hx4k" | "hx8k" | "up5k" | "lp1k" | "lp8k" | ...
-                    ecp5:  "LFE5U-12F" | "LFE5U-25F" | "LFE5U-45F" | "LFE5U-85F"
+                    ecp5:  "LFE5U-12F" | "LFE5U-25F" | "LFE5U-45F" | "LFE5U-85F",
+                           also LFE5UM-/LFE5UM5G- parts; a speed grade suffix
+                           (e.g. "LFE5U-25F-6") sets --speed.
                     xilinx: full 7-series part with speed grade, e.g.
                             "xc7a100tcsg324-1" (Arty A7-100T). Uses openXC7's
                             nextpnr-xilinx; its chip database is found through

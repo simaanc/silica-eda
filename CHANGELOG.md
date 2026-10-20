@@ -6,6 +6,11 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- ECP5 place and route failed with every device: silica passed `--device`,
+  which nextpnr-ecp5 doesn't accept. Parts such as `LFE5U-25F`, `LFE5UM-45F`
+  and `LFE5UM5G-85F-8` now map to nextpnr-ecp5's device flags (and `--speed`).
+
 ## [0.4.0] - 2026-10-20
 
 ### Added

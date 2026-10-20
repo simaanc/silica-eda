@@ -54,6 +54,12 @@ _CONSTRAINT_FLAG = {
     "xilinx":   "--xdc",
 }
 
+# nextpnr-ecp5 has no --device option; it takes one flag per device, e.g.
+# --25k for LFE5U-25F or --um5g-85k for LFE5UM5G-85F.
+_ECP5_PART_RE = re.compile(r"^LFE5(U|UM|UM5G)-(12|25|45|85)F(?:-([678]))?", re.IGNORECASE)
+_ECP5_FLAG_RE = re.compile(r"^(?:um-|um5g-)?(?:12|25|45|85)k$")
+_ECP5_FAMILY_FLAG = {"U": "", "UM": "um-", "UM5G": "um5g-"}
+
 # Xilinx 7-series part prefix -> prjxray-db family directory.
 _XC7_FAMILY = {
     "xc7a": "artix7",
@@ -109,6 +115,17 @@ def run(
                 "(e.g. ARTIX7_CHIPDB), as the openXC7 toolchain does."
             ))
 
+    ecp5_args = None
+    if arch == "ecp5":
+        ecp5_args = _ecp5_device_args(device)
+        if ecp5_args is None:
+            return _error_result(arch, device, (
+                f"Unknown ECP5 device '{device}'. Use a part such as LFE5U-25F, "
+                "LFE5UM-45F or LFE5UM5G-85F (a speed grade suffix like "
+                "LFE5U-25F-6 is passed as --speed), or a nextpnr-ecp5 device "
+                "flag such as 25k or um5g-85k."
+            ))
+
     workdir = Path(tempfile.mkdtemp(prefix="silica_nextpnr_"))
     out_ext = _OUT_EXT.get(arch, ".out")
     out_path = Path(output).resolve() if output else workdir / f"out{out_ext}"
@@ -122,6 +139,10 @@ def run(
     elif arch == "ice40":
         # ice40 uses named device flags: --hx8k, --up5k, etc.
         cmd.append(f"--{device}")
+        if package:
+            cmd += ["--package", package]
+    elif arch == "ecp5":
+        cmd += ecp5_args
         if package:
             cmd += ["--package", package]
     else:
@@ -208,6 +229,19 @@ def _xilinx_chipdb(device: str) -> Path | None:
         if d and (Path(d) / f"{dbpart}.bin").is_file():
             return Path(d) / f"{dbpart}.bin"
     return None
+
+
+def _ecp5_device_args(device: str) -> list[str] | None:
+    """nextpnr-ecp5 arguments for a part ("LFE5U-25F", "LFE5UM5G-85F-8") or a
+    device flag name ("25k", "um5g-85k"); None if neither."""
+    m = _ECP5_PART_RE.match(device.strip())
+    if m:
+        args = [f"--{_ECP5_FAMILY_FLAG[m.group(1).upper()]}{m.group(2)}k"]
+        if m.group(3):
+            args += ["--speed", m.group(3)]
+        return args
+    flag = device.strip().lower().lstrip("-")
+    return [f"--{flag}"] if _ECP5_FLAG_RE.match(flag) else None
 
 
 def _assemble_xc7(fasm: Path, part: str, out_path: Path, timeout: int) -> tuple[str | None, str]:
