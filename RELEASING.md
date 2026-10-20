@@ -12,8 +12,17 @@ checks the published package.
   repository `silica-eda`, workflow `publish.yml` and environment `pypi`. The
   workflow filename is part of the match, so don't rename the file.
 - **GitHub environment.** The repository needs an environment named `pypi`
-  (*Settings* → *Environments*). Adding required reviewers there makes every
-  publish wait for an approval.
+  (*Settings* → *Environments*). Under *Deployment branches and tags* it must
+  allow the release tags: add a tag rule `v*.*.*`. With only a `main` branch
+  rule, the publish job is refused, because it runs on the tag, not on a
+  branch. The same rule from the command line:
+
+  ```bash
+  gh api -X POST repos/simaanc/silica-eda/environments/pypi/deployment-branch-policies \
+    -f name='v*.*.*' -f type=tag
+  ```
+
+  Adding required reviewers there makes every publish wait for an approval.
 
 ## Cutting a release
 
