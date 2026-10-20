@@ -35,7 +35,9 @@ checks the published package.
    uv run python scripts/bump_version.py minor     # or major, patch, or e.g. 0.4.0
    ```
 
-   This updates `pyproject.toml` and `uv.lock`, moves the "Unreleased" entries
+   This updates `pyproject.toml`, `uv.lock` and the Claude Code plugin's
+   `.claude-plugin/plugin.json` (a test fails if the plugin and package
+   versions differ), moves the "Unreleased" entries
    under `## [X.Y.Z] - <today>`, adds the PyPI link at the bottom of the
    changelog, and prints the commands for the next steps. It doesn't commit,
    tag or push anything.

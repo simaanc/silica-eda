@@ -1,6 +1,7 @@
 """Tests for scripts/bump_version.py."""
 
 import importlib.util
+import json
 import shutil
 from pathlib import Path
 
@@ -33,6 +34,9 @@ CHANGELOG = """\
 def repo(tmp_path):
     shutil.copy(ROOT / "pyproject.toml", tmp_path / "pyproject.toml")
     shutil.copy(ROOT / "uv.lock", tmp_path / "uv.lock")
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    shutil.copy(ROOT / ".claude-plugin" / "plugin.json", plugin_dir / "plugin.json")
     (tmp_path / "CHANGELOG.md").write_text(CHANGELOG, encoding="utf-8")
     return tmp_path
 
@@ -64,6 +68,8 @@ def test_bump_updates_all_files(repo, capsys):
 
     assert _version(repo) == new
     assert f'name = "silica-eda"\nversion = "{new}"' in (repo / "uv.lock").read_text()
+    plugin = json.loads((repo / ".claude-plugin" / "plugin.json").read_text())
+    assert plugin["version"] == new
     changelog = (repo / "CHANGELOG.md").read_text()
     assert f"## [Unreleased]\n\n## [{new}] - 2026-11-02\n\n### Added\n- A thing." in changelog
     assert f"[{new}]: https://pypi.org/project/silica-eda/{new}/" in changelog
@@ -74,7 +80,7 @@ def test_bump_updates_all_files(repo, capsys):
 def test_empty_unreleased_changes_nothing(repo, capsys):
     (repo / "CHANGELOG.md").write_text(
         CHANGELOG.replace("### Added\n- A thing.\n\n", ""), encoding="utf-8")
-    before = {p.name: p.read_text() for p in repo.iterdir()}
+    before = {p: p.read_text() for p in repo.rglob("*") if p.is_file()}
     assert bump.main(["minor", "--root", str(repo)]) == 1
     assert "nothing to release" in capsys.readouterr().err
-    assert {p.name: p.read_text() for p in repo.iterdir()} == before
+    assert {p: p.read_text() for p in repo.rglob("*") if p.is_file()} == before
