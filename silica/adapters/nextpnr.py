@@ -149,13 +149,16 @@ def run(
 
 
 def _parse_timing(raw: str) -> dict:
-    clocks = []
+    # nextpnr reports each clock after placement and again after routing;
+    # the last report is the routed result, so it replaces earlier ones.
+    by_clock: dict[str, dict] = {}
     for m in _FREQ_RE.finditer(raw):
-        clocks.append({
+        by_clock[m.group(1)] = {
             "clock": m.group(1),
             "max_freq_mhz": float(m.group(2)),
             "pass": m.group(3) == "PASS",
-        })
+        }
+    clocks = list(by_clock.values())
     failing = sum(1 for c in clocks if not c["pass"])
     return {"clocks": clocks, "wns": 0.0, "failing_endpoints": failing}
 

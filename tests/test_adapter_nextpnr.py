@@ -20,6 +20,22 @@ ERROR: Failed to place design
 """
 
 
+# nextpnr-ice40: one report after placement, then the routed result.
+NEXTPNR_PLACE_THEN_ROUTE = """\
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 98.04 MHz (FAIL at 100.00 MHz)
+Info: Routing..
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 146.58 MHz (PASS at 100.00 MHz)
+"""
+
+
+def test_parse_timing_keeps_routed_report_per_clock():
+    timing = nextpnr._parse_timing(NEXTPNR_PLACE_THEN_ROUTE)
+    assert timing["clocks"] == [
+        {"clock": "clk$SB_IO_IN_$glb_clk", "max_freq_mhz": 146.58, "pass": True},
+    ]
+    assert timing["failing_endpoints"] == 0
+
+
 @patch("silica.adapters.nextpnr.oss_cad_suite.which", return_value=None)
 def test_not_found(mock_which, netlist_file):
     result = nextpnr.run(netlist_file)

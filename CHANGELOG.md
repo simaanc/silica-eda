@@ -25,6 +25,9 @@ All notable changes to silica-eda are listed here. The format follows
   exits 0 even when the FPGA never asserts DONE (for example, after a
   bitstream whose header declares a zero length), so the tool returned
   `success: true` for a board that was left unconfigured.
+- `run_place_route` lists each clock once, with its routed result.
+  nextpnr reports every clock after placement and again after routing, and
+  both entries were returned, with the placement estimate first.
 
 ## [0.3.1] - 2026-10-16
 
