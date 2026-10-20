@@ -174,8 +174,9 @@ Built for pointing an autonomous agent at a real repo:
 | `run_simulation` | Simulate RTL. Auto-selects from Verilator, Icarus, GHDL, VCS, Questa, Xcelium. Accepts multiple design files / a `.f` filelist via `extra_sources`. Returns structured errors, optional VCD trace, and optional coverage (`coverage=True`, Verilator). |
 | `run_cocotb` | Run a cocotb (Python) testbench against an HDL design via cocotb's runner. Returns per-test pass/fail. Needs the `cocotb` extra (see Quick start). |
 | `synthesize` | Synthesize to gates. Auto-selects from Yosys, Vivado, Quartus, DC Shell. Accepts multiple files / a `.f` filelist. Returns utilization and timing summary. |
-| `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
+| `run_place_route` | Place and route an FPGA netlist. Auto-selects from nextpnr (ice40, ECP5, Nexus, MachXO2, and Xilinx 7-series through openXC7's nextpnr-xilinx). Returns timing summary and utilization. Output bitstream path is passed directly to `program_device`. |
 | `program_device` | Program a bitstream to an FPGA. Auto-selects from openFPGALoader. Supports SRAM and SPI flash targets. |
+| `capture_serial` | Read a board's UART for a set time, optionally sending text first. Returns timestamped lines and whether an `expect` regex matched. Opens only the port you name. Needs the `serial` extra. |
 | `lint` | Static analysis. Auto-selects from Verible, Verilator, svlint, SpyGlass. Lints multiple files / a `.f` filelist. Returns structured warnings. |
 | `format_rtl` | Auto-format SystemVerilog/Verilog with verible-verilog-format. Diff-first (dry_run) like `write_rtl`; refuses to mangle on syntax errors. |
 | `run_formal` | Formal verification and equivalence checking. Auto-selects from SymbiYosys, eqy, JasperGold, VC Formal. Returns pass/fail/error with counterexample traces. |
@@ -187,6 +188,34 @@ Built for pointing an autonomous agent at a real repo:
 | `get_project_structure` | Scan for RTL and constraint files. |
 | `search_rtl` | Grep across project RTL with context. |
 | `get_constraints` | Read constraint files (.xdc, .sdc, .lpf). |
+
+## Checking a design on hardware
+
+`program_device` and `capture_serial` close the loop on a real board: program it, then read what the design prints. `capture_serial` needs pyserial, from the `serial` extra:
+
+```bash
+pip install "silica-eda[serial]"
+```
+
+A typical check after `run_place_route` has produced a bitstream, here checking that the firmware on an Arty A7-100T echoes what it receives:
+
+```text
+program_device(bitstream="build/soc.bit", board="arty_a7_100t")
+  -> {"success": true, ...}
+
+capture_serial(port="/dev/serial/by-id/usb-Digilent_Digilent_USB_Device_<serial>-if01-port0",
+               baud=115200, duration=6, send="hello silica\r", send_delay=0.5,
+               expect="hello silica")
+  -> {"matched": true, "match": "hello silica", "elapsed_s": 0.53,
+      "lines": [{"t": 0.526, "text": "hello silica"}], ...}
+```
+
+Name the port explicitly; silica never scans for serial devices. On boards with an FTDI JTAG+UART bridge (Digilent Arty, Basys, Nexys) the UART is the second interface, `if01`. The design starts running as soon as programming finishes, so a banner printed at boot is usually gone before a capture opened afterwards: send something the firmware answers (as above), or press the board's reset button during the capture. If the port is missing or your user can't open it, the result carries an `error` and a `fix` such as:
+
+```text
+sudo setfacl -m u:you:rw /dev/ttyUSB1   (temporary: lasts until the device is unplugged);
+permanent: sudo usermod -aG uucp you, then log out and back in
+```
 
 ## Workflow Skills
 
