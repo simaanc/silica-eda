@@ -50,6 +50,18 @@ def test_verilator_named(mock_run, lint_tool):
     assert result["tool"] == "verilator"
 
 
+@patch("silica.adapters.verilator.lint_only", return_value={
+    **VERILATOR_LINT,
+    "exit_code": 1,
+    "errors": [{"file": "dut.sv", "line": 7, "severity": "error",
+                "message": "syntax error, unexpected endmodule"}],
+})
+def test_verilator_errors_are_reported(mock_run, lint_tool):
+    result = lint_tool("dut.sv", tool="verilator")
+    assert [w["severity"] for w in result["warnings"]] == ["error", "warning"]
+    assert result["warnings"][0]["line"] == 7
+
+
 @patch("silica.adapters.svlint.run", return_value=LINT_CLEAN)
 def test_svlint_named(mock_run, lint_tool):
     result = lint_tool("dut.sv", tool="svlint")

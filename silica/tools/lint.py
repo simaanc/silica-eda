@@ -113,9 +113,11 @@ def _lint_one(tool: str, file: str, ruleset: str, timeout: int) -> dict:
         if "error" in result:
             return {"warnings": [], "tool": "verilator", "raw_output": "",
                     "error": result["error"]}
+        # Errors (syntax, missing modules) go in the same list as warnings,
+        # told apart by their severity, as svlint's are.
         warnings = [
             {**w, "rule_id": "verilator"}
-            for w in result.get("warnings", [])
+            for w in result.get("errors", []) + result.get("warnings", [])
         ]
         return {
             "warnings": warnings,

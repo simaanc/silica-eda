@@ -35,6 +35,9 @@ All notable changes to silica-eda are listed here. The format follows
 - `run_place_route` lists each clock once, with its routed result.
   nextpnr reports every clock after placement and again after routing, and
   both entries were returned, with the placement estimate first.
+- `lint` with Verilator reports errors. Only Verilator's warnings were
+  passed through, so a syntax error or a missing module came back as a clean
+  result; errors now appear in `warnings` with `severity: "error"`.
 
 ## [0.3.1] - 2026-10-16
 
