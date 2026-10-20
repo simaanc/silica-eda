@@ -57,3 +57,44 @@ def test_parse_output_warning():
     errors, warnings = xcelium._parse_output(XCELIUM_WARNING)
     assert len(warnings) == 1
     assert warnings[0]["severity"] == "warning"
+
+
+# Mocked: these check the working directory and command line silica builds;
+# they don't run Xcelium.
+@patch("silica.adapters.xcelium.subprocess.run")
+@patch("silica.adapters.xcelium.resolve", return_value=FAKE_BIN)
+def test_runs_in_dut_dir_with_absolute_sources(mock_resolve, mock_run, tmp_path, monkeypatch):
+    from pathlib import Path
+
+    (tmp_path / "rtl").mkdir()
+    (tmp_path / "tb").mkdir()
+    monkeypatch.chdir(tmp_path)
+    rtl, tb = (tmp_path / "rtl").resolve(), (tmp_path / "tb").resolve()
+    mock_run.return_value = make_proc(returncode=0)
+    xcelium.run("rtl/dut.sv", "tb/tb.sv", top="tb", extra_sources=["rtl/sub.sv"])
+
+    call = mock_run.call_args
+    assert call.kwargs["cwd"] == "rtl"
+    cmd = call.args[0]
+    assert cmd[-3:] == [str(tb / "tb.sv"), str(rtl / "dut.sv"), str(rtl / "sub.sv")]
+    # The build directory and log go to a temp dir, not the source tree.
+    libdir = Path(cmd[cmd.index("-xmlibdirpath") + 1])
+    assert libdir.name.startswith("silica_xcelium_")
+    assert cmd[cmd.index("-l") + 1] == str(libdir / "xrun.log")
+
+
+@patch("silica.adapters.xcelium.subprocess.run")
+@patch("silica.adapters.xcelium.resolve", return_value=FAKE_BIN)
+def test_traced_run_keeps_dut_dir_and_absolute_vcd(mock_resolve, mock_run, tmp_path,
+                                                   monkeypatch):
+    (tmp_path / "rtl").mkdir()
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    mock_run.return_value = make_proc(returncode=0)
+    with patch("silica.adapters.xcelium.tempfile.mkdtemp", return_value=str(out)):
+        xcelium.run("rtl/dut.sv", "rtl/tb.sv", trace=True)
+    call = mock_run.call_args
+    assert call.kwargs["cwd"] == "rtl"
+    probe = call.args[0][call.args[0].index("-input") + 1]
+    assert f"database -open -vcd {out / 'dump.vcd'}" in probe

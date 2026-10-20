@@ -65,8 +65,19 @@ def _run(
     top_mod = top or Path(testbench).stem
     trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
+    # xrun compiles and simulates in one step. Run it in the DUT's directory,
+    # as the other simulators do, so relative paths in the testbench
+    # ($readmemh) resolve from there; give it absolute source paths, and keep
+    # the xcelium.d build directory and the log in the temp dir.
+    # Unverified: no Xcelium install was available to confirm -xmlibdirpath;
+    # xrun may still write xrun.history (and xrun.key) into the DUT's directory.
+    sources = [str(Path(f).resolve()) for f in (testbench, dut, *extra_sources)]
+
     with tempfile.TemporaryDirectory(prefix="silica_xcelium_") as tmpdir:
-        cmd = [xrun, "-sv", "-64bit", "-top", top_mod, testbench, dut, *extra_sources]
+        cmd = [xrun, "-sv", "-64bit",
+               "-xmlibdirpath", tmpdir,
+               "-l", str(Path(tmpdir) / "xrun.log"),
+               "-top", top_mod, *sources]
         if trace:
             vcd_path = str(Path(trace_dir) / "dump.vcd") if trace_dir else "dump.vcd"
             cmd += [
@@ -81,7 +92,7 @@ def _run(
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=tmpdir,
+            cwd=str(Path(dut).parent),
         )
 
     combined = cp.stdout + cp.stderr

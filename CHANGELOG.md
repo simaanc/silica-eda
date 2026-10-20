@@ -14,11 +14,11 @@ All notable changes to silica-eda are listed here. The format follows
   for `program_device`; otherwise it is the FASM file, with a warning.
 
 ### Fixed
-- `run_simulation` with VCS or Questa accepts relative source paths and
+- `run_simulation` with VCS, Questa or Xcelium accepts relative source paths and
   runs the simulation in the DUT's directory, like Icarus and Verilator, so
   relative testbench paths such as `$readmemh("../fw/firmware.hex")` resolve
-  the same way with or without tracing. Questa always simulated in a temp
-  directory, so these paths never worked there. (Checked with mocked tool
+  the same way with or without tracing. Questa and Xcelium always simulated
+  in a temp directory, so these paths never worked there. (Checked with mocked tool
   calls only.)
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
