@@ -7,6 +7,10 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- A `silica-eda` command, the same as `silica`, so `uvx silica-eda` starts
+  the MCP server. uvx runs the executable named after the package, and
+  `uvx silica-eda` used to fail with "An executable named `silica-eda` is
+  not provided".
 - `run_place_route` places and routes Xilinx 7-series parts with
   `arch="xilinx"` through openXC7's nextpnr-xilinx, taking an `.xdc`
   constraint file and a part such as `xc7a100tcsg324-1`. When openXC7's
