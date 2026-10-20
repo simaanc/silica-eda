@@ -132,6 +132,9 @@ def _run(
         # Simulate in the DUT's directory, as the other simulators do, so
         # relative paths in the testbench ($readmemh) resolve from there. The
         # work library, waveform database and transcript stay in the temp dir.
+        # Unverified: no Questa install was available to confirm that -lib
+        # takes a library directory path; if it doesn't, vsim won't find the
+        # top unit and the run fails with a vsim error.
         tmp = Path(tmpdir)
         sim_cmd = [
             vsim, "-c",
