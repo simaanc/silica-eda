@@ -14,6 +14,10 @@ All notable changes to silica-eda are listed here. The format follows
   for `program_device`; otherwise it is the FASM file, with a warning.
 
 ### Fixed
+- `run_simulation` with VCS accepts relative source paths and keeps the
+  simulation in the DUT's directory when tracing, so relative testbench
+  paths such as `$readmemh("../fw/firmware.hex")` resolve the same way as
+  without tracing. (Checked with mocked tool calls only.)
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.
