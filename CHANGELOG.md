@@ -7,6 +7,14 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- A `doctor` tool that reports silica's version, whether a newer release is
+  on PyPI, the version of every open-source EDA tool silica can find
+  (Verilator, Verible, svlint, Icarus, GHDL, SymbiYosys, eqy, Yosys, the
+  nextpnr variants, openXC7's nextpnr-xilinx and fpga-as, openFPGALoader,
+  Surfer, GTKWave), the optional cocotb and pyserial extras, and which
+  commercial tools are on PATH. Each missing or outdated tool comes with a
+  fix for this platform. Commercial tools are looked up, never run. Set
+  `SILICA_NO_UPDATE_CHECK=1` to skip the PyPI check.
 - A `silica-eda` command, the same as `silica`, so `uvx silica-eda` starts
   the MCP server. uvx runs the executable named after the package, and
   `uvx silica-eda` used to fail with "An executable named `silica-eda` is

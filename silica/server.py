@@ -67,6 +67,7 @@ def cdc_review() -> str:
 from silica.tools import (  # noqa: E402
     cocotb,
     coverage,
+    doctor,
     formal,
     lint,
     place_route,
@@ -91,3 +92,4 @@ waveform.register(mcp)
 coverage.register(mcp)
 cocotb.register(mcp)
 serial_capture.register(mcp)
+doctor.register(mcp)
