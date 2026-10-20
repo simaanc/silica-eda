@@ -76,7 +76,8 @@ jobs:
       - run: uv sync --extra cocotb
 
       # Tools absent from the suite (verible, svlint, commercial) self-skip;
-      # -rs surfaces the skip reasons in the log.
+      # -rs surfaces the skip reasons in the log. Verible and svlint are
+      # tested by the CI workflow's lint-tools job instead.
       - run: uv run pytest tests/integration/ -q -rs
         env:
           SILICA_OSS_CAD_SUITE: ~/oss-cad-suite
