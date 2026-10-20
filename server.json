@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.simaanc/silica-eda",
+  "title": "Silica",
+  "description": "RTL and FPGA tools: lint, simulate, formal, synthesize, place and route, program a board.",
+  "repository": {
+    "url": "https://github.com/simaanc/silica-eda",
+    "source": "github"
+  },
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "silica-eda",
+      "version": "0.3.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

@@ -7,6 +7,10 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- A `server.json` for the official MCP registry, publishing silica as
+  `io.github.simaanc/silica-eda` (the PyPI package, run with `uvx`). The
+  README carries the `mcp-name` line the registry uses to verify the PyPI
+  package.
 - silica installs as a Claude Code plugin, and the repository is its own
   marketplace: `/plugin marketplace add simaanc/silica-eda`, then
   `/plugin install silica-eda@silica-eda`. The plugin runs the server with
