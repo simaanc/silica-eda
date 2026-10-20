@@ -25,7 +25,10 @@ def register(mcp: "MCPServer") -> None:
         """Place and route an FPGA netlist and return timing and utilization.
 
         Takes a Yosys JSON netlist (from synthesize with target "ice40"/"ecp5"/
-        "xilinx"/etc.) and produces a bitstream/config file ready for programming.
+        "xilinx"/etc.). For xilinx with openXC7's fpga-as available, output is
+        a .bit ready for program_device. For ice40/ecp5 the output is nextpnr's
+        text config (.asc/.textcfg), which still needs packing (icepack /
+        ecppack, not run by silica) before openFPGALoader can load it.
 
         Args:
             netlist: Path to Yosys JSON netlist (produced by the synthesize tool).
@@ -54,7 +57,7 @@ def register(mcp: "MCPServer") -> None:
             tool, target, exit_code,
             timing_summary {clocks [{clock, max_freq_mhz, pass}], wns, failing_endpoints},
             utilization {<cell_type>: {used, total, pct}},
-            output (path to bitstream/config file — pass to program_device),
+            output (path to the .bit (xilinx) or config file),
             workdir, warnings, errors, raw_output
         """
         if tool == "auto":

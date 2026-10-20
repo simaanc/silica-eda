@@ -37,6 +37,13 @@ All notable changes to silica-eda are listed here. The format follows
   adds a warning, because synthesis otherwise drops it without a trace.
 
 ### Fixed
+- Tool descriptions that clients read now match what the tools do:
+  `get_project_structure` returns `rtl_files`, `constraint_files` and
+  `file_count` (not `files` and `top_candidates`); `program_device` takes a
+  `.bit` or `.bin`, not nextpnr's `.asc`/`.textcfg`, and "arty" is the 35T
+  board; `run_place_route` produces a programmable `.bit` only for Xilinx;
+  `run_simulation` notes that tracing needs `$dumpfile`/`$dumpvars` in the
+  testbench.
 - `run_simulation` with VCS, Questa or Xcelium accepts relative source paths and
   runs the simulation in the DUT's directory, like Icarus and Verilator, so
   relative testbench paths such as `$readmemh("../fw/firmware.hex")` resolve

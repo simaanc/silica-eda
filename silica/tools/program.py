@@ -20,18 +20,30 @@ def register(mcp: "MCPServer") -> None:
         tool: str = "auto",
         timeout: int = 60,
     ) -> dict:
-        """Program a bitstream to an FPGA device.
+        """Program a bitstream to an FPGA device with openFPGALoader.
+
+        Loads volatile SRAM by default, which is safe to repeat. For Xilinx
+        devices success means the FPGA asserted DONE; a rejected bitstream is
+        reported as a failure even though openFPGALoader exits 0. The design
+        starts running as soon as loading finishes, so boot output is usually
+        missed by a serial capture started afterwards (see capture_serial).
 
         Args:
-            bitstream: Path to the bitstream file produced by run_place_route.
-                       Accepts .asc (ice40), .textcfg (ecp5), .bit/.bin (Xilinx/Intel).
-            board: Board preset name, e.g. "ice40_hx8k_b_evn", "arty", "basys3",
-                   "cmod_a7", "nexys4ddr". Run openFPGALoader --list-boards for all.
+            bitstream: Path to a loadable bitstream: .bit (Xilinx, e.g. from
+                       run_place_route with arch="xilinx"; ECP5 after ecppack)
+                       or .bin (iCE40 after icepack). nextpnr's .asc/.textcfg
+                       text configs can't be loaded directly.
+            board: Board preset name, e.g. "arty_a7_100t", "arty_a7_35t",
+                   "basys3", "cmod_a7", "nexys4ddr", "ice40_hx8k_b_evn".
+                   Plain "arty" is the 35T. Run openFPGALoader --list-boards
+                   for all.
             cable: JTAG cable, e.g. "ft2232", "digilent_hs2", "jlink", "olimex".
                    Run openFPGALoader --list-cables for all options.
             device: Explicit FPGA part number override, e.g. "xc7a35t". Optional.
-            spi_flash: When True, program SPI flash (persistent across power cycles)
-                       instead of SRAM (volatile, erased on power cycle). Default False.
+            spi_flash: When True, program SPI flash (persistent across power
+                       cycles), replacing whatever design the board boots.
+                       Only do this when the user asks. Default False: SRAM
+                       (volatile, erased on power cycle).
             tool: "auto" | "openfpgaloader". Auto uses config priority order.
             timeout: Seconds before killing the programmer.
 

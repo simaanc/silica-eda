@@ -48,6 +48,11 @@ def register(mcp: "MCPServer") -> None:
     ) -> dict:
         """Run RTL simulation and return structured diagnostics.
 
+        The simulator runs in the DUT file's directory, so relative paths in
+        the testbench (e.g. $readmemh("../fw/firmware.hex")) resolve from
+        there, with or without trace/coverage. A failing $fatal/$error comes
+        back in errors with its file, line and message.
+
         Args:
             file: Path to the DUT source file (.sv / .v for Verilog, .vhd for
                   VHDL). May instead be a ``.f`` filelist (one source path per
@@ -58,8 +63,10 @@ def register(mcp: "MCPServer") -> None:
                        an alias for "icarus". Auto uses config priority order.
             top: Top module/entity name (inferred from testbench filename if omitted).
             timeout: Seconds before killing the simulator process.
-            trace: When True, capture a VCD waveform trace. Returns trace_vcd path
-                   in the result dict. Pass that path to launch_waveform to open it.
+            trace: When True, collect the VCD the testbench writes (it must call
+                   $dumpfile/$dumpvars) into a persistent directory and return
+                   its path as trace_vcd. Read it with read_waveform, or open it
+                   with launch_waveform.
             extra_sources: Additional design files (submodules, packages)
                    compiled alongside the DUT. Each entry may itself be a ``.f``
                    filelist, which is expanded in place.
