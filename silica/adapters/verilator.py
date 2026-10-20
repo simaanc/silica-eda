@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from silica import oss_cad_suite
+from silica.adapters import _sim_output
 from silica.adapters._hints import install_hint
 
 
@@ -177,11 +178,16 @@ def _run(
         out_dir = (tempfile.mkdtemp(prefix="silica_trace_")
                    if (trace or coverage) else None)
 
-        # Run the simulation binary; CWD is out_dir so dump.vcd / coverage.dat
-        # land there.
-        sim_cwd = out_dir if out_dir else str(Path(dut).parent)
+        # Run in the DUT's directory either way, so relative paths in the
+        # testbench ($readmemh) don't depend on tracing or coverage. VCDs move
+        # to out_dir afterwards; coverage.dat is written there directly.
+        sim_cwd = str(Path(dut).parent)
+        sim_cmd = [str(sim_bin)]
+        if coverage:
+            sim_cmd.append(f"+verilator+coverage+file+{Path(out_dir) / 'coverage.dat'}")
+        vcds_before = _sim_output.snapshot(sim_cwd) if trace else {}
         rp = subprocess.run(
-            [str(sim_bin)],
+            sim_cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -206,7 +212,7 @@ def _run(
         coverage_dat = None
         if out_dir:
             if trace:
-                vcds = sorted(Path(out_dir).glob("*.vcd"))
+                vcds = _sim_output.move_written(sim_cwd, vcds_before, out_dir)
                 trace_vcd = str(vcds[0]) if vcds else None
             if coverage:
                 dat = Path(out_dir) / "coverage.dat"

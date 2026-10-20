@@ -132,8 +132,10 @@ def test_coverage_flag_and_dat_captured(mock_run, mock_which, mock_env, tmp_path
 
     def side_effect(cmd, *a, **k):
         calls["n"] += 1
-        if calls["n"] == 2:  # the simulation run — write coverage.dat into cwd
-            Path(k["cwd"], "coverage.dat").write_text("SP\n")
+        if calls["n"] == 2:  # the simulation run — write where the plusarg says
+            prefix = "+verilator+coverage+file+"
+            dat = next(a for a in cmd if a.startswith(prefix))[len(prefix):]
+            Path(dat).write_text("SP\n")
         return make_proc(returncode=0)
 
     mock_run.side_effect = side_effect
@@ -187,3 +189,30 @@ def test_failed_traced_compile_leaves_no_trace_dir(mock_run, mock_which, mock_en
     result = verilator.run("dut.sv", "tb.sv", trace=True)
     assert result["exit_code"] == 1
     assert not any("trace" in str(kall) for kall in mock_mkdtemp.call_args_list)
+
+
+@patch("silica.adapters.verilator.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.verilator.oss_cad_suite.which", return_value=FAKE_BIN)
+@patch("silica.adapters.verilator.subprocess.run")
+def test_traced_run_uses_dut_dir_and_moves_vcd(mock_run, mock_which, mock_env, tmp_path):
+    from pathlib import Path
+
+    src = tmp_path / "src"
+    out = tmp_path / "out"
+    src.mkdir()
+    out.mkdir()
+    (src / "old.vcd").write_text("untouched")
+
+    def side_effect(cmd, *a, **k):
+        if "cwd" in k:  # the simulation run
+            assert k["cwd"] == str(src)
+            Path(k["cwd"], "tb.vcd").write_text("$enddefinitions $end\n")
+        return make_proc(returncode=0)
+
+    mock_run.side_effect = side_effect
+    with patch("silica.adapters.verilator.tempfile.mkdtemp", return_value=str(out)):
+        result = verilator.run(str(src / "dut.sv"), str(src / "tb.sv"), trace=True)
+
+    assert result["trace_vcd"] == str(out / "tb.vcd")
+    assert not (src / "tb.vcd").exists()
+    assert (src / "old.vcd").read_text() == "untouched"

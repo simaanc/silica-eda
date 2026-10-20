@@ -41,6 +41,11 @@ All notable changes to silica-eda are listed here. The format follows
 - `lint` with Verilator elaborates `file` and `extra_files` together. Each
   file used to be linted on its own, so a top-level module reported every
   submodule as missing and a multi-file design could not be linted.
+- `run_simulation` with `trace` (or Verilator `coverage`) no longer breaks
+  relative paths in the testbench. Traced runs used to execute in a temporary
+  directory, so a `$readmemh("../fw/firmware.hex")` that worked untraced
+  failed to open its file. Every run now starts in the DUT's directory, and
+  the VCD and `coverage.dat` still end up in the persistent output directory.
 
 ## [0.3.1] - 2026-10-16
 
