@@ -18,7 +18,7 @@ CLIENTS = {
         },
         "detect_binary": None,
         "url": "https://claude.ai/download",
-        "docs": "https://docs.claude.ai/",
+        "docs": "https://modelcontextprotocol.io/docs/develop/connect-local-servers",
         "restart_note": "Fully quit and relaunch Claude Desktop (Cmd+Q) after config update",
     },
     "claude_code": {
@@ -69,7 +69,7 @@ CLIENTS = {
         },
         "detect_binary": "windsurf",
         "url": "https://windsurf.com",
-        "docs": "https://docs.windsurf.com/windsurf/mcp",
+        "docs": "https://docs.windsurf.com/windsurf/cascade/mcp",
         "restart_note": "Restart Windsurf after config update",
     },
     "opencode": {
@@ -83,7 +83,7 @@ CLIENTS = {
         },
         "detect_binary": "opencode",
         "url": "https://opencode.ai",
-        "docs": "https://opencode.ai/docs/mcp",
+        "docs": "https://opencode.ai/docs/mcp-servers/",
         "restart_note": "Restart OpenCode after config update",
     },
     "gemini_cli": {
@@ -97,7 +97,7 @@ CLIENTS = {
         },
         "detect_binary": "gemini",
         "url": "https://github.com/google-gemini/gemini-cli",
-        "docs": "https://github.com/google-gemini/gemini-cli/blob/main/docs/mcp.md",
+        "docs": "https://geminicli.com/docs/tools/mcp-server/",
         "restart_note": "Restart Gemini CLI after config update",
     },
 }
