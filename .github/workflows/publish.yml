@@ -2,6 +2,7 @@ name: Publish to PyPI
 
 # Releases are cut by pushing a vMAJOR.MINOR.PATCH tag on main after the
 # release PR (from scripts/bump_version.py) has merged; see RELEASING.md.
+# After PyPI, the registry job publishes server.json to the MCP registry.
 # The workflow filename and the "pypi" environment are what PyPI's trusted
 # publisher for silica-eda is registered against, so keep both.
 on:
@@ -102,3 +103,77 @@ jobs:
             --server "uvx --refresh silica-eda==$VERSION" \
             --expect-from "uv run silica serve" \
             --retries 10 --retry-delay 30
+
+  # Publish server.json to the official MCP registry once PyPI serves the
+  # release: the registry checks the PyPI package, and the mcp-name line in
+  # its description, before it accepts the entry. GitHub OIDC proves that the
+  # workflow belongs to simaanc, which owns the io.github.simaanc/ namespace,
+  # so there is no stored token. See RELEASING.md.
+  registry:
+    needs: [build, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      # Pinned with its checksum from the release's registry_<ver>_checksums.txt.
+      # Bump it when the registry rejects logins with "invalid audience".
+      MCP_PUBLISHER_VERSION: 1.8.1
+      MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check server.json matches the tag
+        run: |
+          for v in "$(jq -r .version server.json)" "$(jq -r '.packages[0].version' server.json)"; do
+            if [ "$v" != "$VERSION" ]; then
+              echo "::error::server.json names version $v, but the tag is v$VERSION"
+              exit 1
+            fi
+          done
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sSfLo mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      # Registry versions are immutable and a duplicate publish is an error,
+      # so a re-run after a successful publish skips instead of failing.
+      - name: Check whether this version is already in the registry
+        id: existing
+        run: |
+          NAME=$(jq -r .name server.json)
+          URL="https://registry.modelcontextprotocol.io/v0.1/servers/${NAME/\//%2F}/versions/$VERSION"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL")
+          case "$code" in
+            200) echo "::notice::$NAME $VERSION is already in the registry; skipping publish"
+                 echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "::error::registry lookup returned HTTP $code"; exit 1 ;;
+          esac
+
+      - name: Publish to the MCP registry
+        if: steps.existing.outputs.published == 'false'
+        run: |
+          ./mcp-publisher validate
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+      - name: Check the registry serves the release
+        env:
+          URL: ${{ steps.existing.outputs.url }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sf "$URL" | jq -e --arg v "$VERSION" '.server.version == $v' > /dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::the registry does not list version $VERSION at $URL"
+          exit 1
