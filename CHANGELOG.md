@@ -6,6 +6,8 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
 ### Added
 - A `server.json` for the official MCP registry, publishing silica as
   `io.github.simaanc/silica-eda` (the PyPI package, run with `uvx`). The
@@ -282,6 +284,7 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 waveform viewer launch, and the `silica setup` wizard.
 
 [Unreleased]: https://github.com/simaanc/silica-eda/commits/main
+[0.4.0]: https://pypi.org/project/silica-eda/0.4.0/
 [0.3.1]: https://pypi.org/project/silica-eda/0.3.1/
 [0.3.0]: https://pypi.org/project/silica-eda/0.3.0/
 [0.2.0]: https://pypi.org/project/silica-eda/0.2.0/
