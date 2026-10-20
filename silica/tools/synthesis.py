@@ -1,5 +1,6 @@
 """MCP tool: synthesize."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -69,6 +70,9 @@ def register(mcp: "MCPServer") -> None:
             files = expand_sources(files)
         except OSError as exc:
             return _synth_error(tool, target, f"Could not read filelist: {exc}")
+        # Every synthesis adapter runs its tool in a temp directory, where a
+        # relative path no longer points at the caller's file.
+        files = [str(Path(f).resolve()) for f in files]
 
         if tool == "auto":
             chosen = pick("synthesis")

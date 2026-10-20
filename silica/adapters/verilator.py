@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from silica import oss_cad_suite
+from silica.adapters import _sim_output
 from silica.adapters._hints import install_hint
 
 
@@ -41,6 +42,15 @@ _DIAG_RE = re.compile(
     r"^%(Error|Warning)(?:-\w+)?:\s*((?:[A-Za-z]:)?[^:]+):(\d+)(?::\d+)?:\s*(.+)$",
     re.MULTILINE,
 )
+# The simulation binary prints assertion failures and $error/$fatal to stdout,
+# prefixed with the sim time:
+#   [1327395000] %Fatal: tb.sv:102: Assertion failed in tb: LEDs 1 at tick 16
+#   %Error: tb.sv:102: Verilog $stop
+_RUNTIME_RE = re.compile(
+    r"^(?:\[\d+\]\s*)?%(Fatal|Error|Warning)(?:-\w+)?:\s*"
+    r"((?:[A-Za-z]:)?[^:]+):(\d+)(?::\d+)?:\s*(.+)$",
+    re.MULTILINE,
+)
 # Summary lines like "%Error: Exiting due to 1 error(s)" have no file — skip them.
 _SUMMARY_RE = re.compile(r"^%(Error|Warning)(?:-\w+)?:\s*[A-Z]", re.MULTILINE)
 
@@ -60,6 +70,20 @@ def _parse_output(stderr: str) -> tuple[list[dict], list[dict]]:
             errors.append(entry)
         else:
             warnings.append(entry)
+    return errors, warnings
+
+
+def _parse_runtime(text: str) -> tuple[list[dict], list[dict]]:
+    errors: list[dict] = []
+    warnings: list[dict] = []
+    for m in _RUNTIME_RE.finditer(text):
+        entry: dict[str, Any] = {
+            "file": m.group(2).strip(),
+            "line": int(m.group(3)),
+            "severity": "warning" if m.group(1) == "Warning" else "error",
+            "message": m.group(4).strip(),
+        }
+        (warnings if m.group(1) == "Warning" else errors).append(entry)
     return errors, warnings
 
 
@@ -177,11 +201,16 @@ def _run(
         out_dir = (tempfile.mkdtemp(prefix="silica_trace_")
                    if (trace or coverage) else None)
 
-        # Run the simulation binary; CWD is out_dir so dump.vcd / coverage.dat
-        # land there.
-        sim_cwd = out_dir if out_dir else str(Path(dut).parent)
+        # Run in the DUT's directory either way, so relative paths in the
+        # testbench ($readmemh) don't depend on tracing or coverage. VCDs move
+        # to out_dir afterwards; coverage.dat is written there directly.
+        sim_cwd = str(Path(dut).parent)
+        sim_cmd = [str(sim_bin)]
+        if coverage:
+            sim_cmd.append(f"+verilator+coverage+file+{Path(out_dir) / 'coverage.dat'}")
+        vcds_before = _sim_output.snapshot(sim_cwd) if trace else {}
         rp = subprocess.run(
-            [str(sim_bin)],
+            sim_cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -189,7 +218,7 @@ def _run(
             env=env,
         )
 
-        run_errors, run_warnings = _parse_output(rp.stderr)
+        run_errors, run_warnings = _parse_runtime(rp.stdout + rp.stderr)
         all_errors = errors + run_errors
         all_warnings = warnings + run_warnings
 
@@ -206,7 +235,7 @@ def _run(
         coverage_dat = None
         if out_dir:
             if trace:
-                vcds = sorted(Path(out_dir).glob("*.vcd"))
+                vcds = _sim_output.move_written(sim_cwd, vcds_before, out_dir)
                 trace_vcd = str(vcds[0]) if vcds else None
             if coverage:
                 dat = Path(out_dir) / "coverage.dat"
@@ -260,15 +289,19 @@ def coverage_info(dat_file: str, timeout: int = 30) -> dict:
     return {"info": text}
 
 
-def lint_only(file: str, timeout: int = 30) -> dict:
-    """Run verilator --lint-only for a quick syntax/semantic check."""
+def lint_only(file: str, timeout: int = 30, extra_files: list[str] | None = None) -> dict:
+    """Run verilator --lint-only for a quick syntax/semantic check.
+
+    extra_files are elaborated together with file, so a top-level module can
+    find its submodules."""
     binary = _find_verilator()
     if not binary:
         return _not_found()
 
     try:
         cp = subprocess.run(
-            [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file],
+            [binary, "--lint-only", "-Wall", "-Wno-TIMESCALEMOD", file,
+             *(extra_files or [])],
             capture_output=True,
             text=True,
             timeout=timeout,

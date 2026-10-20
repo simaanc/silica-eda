@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from silica import oss_cad_suite
+from silica.adapters import _sim_output
 from silica.adapters._hints import install_hint
 
 # filename.sv:10: error: some message
@@ -17,6 +18,28 @@ _DIAG_RE = re.compile(
     r"^((?:[A-Za-z]:)?[^:]+):(\d+):\s*(?:(error|warning|note):\s*)?(.+)$",
     re.MULTILINE,
 )
+
+# vvp prints $error/$fatal/$warning and its own runtime errors to stdout:
+#   FATAL: tb.sv:102: LEDs 1 at tick 16, expected 0
+#   ERROR: soc.sv:80: $readmemh: Unable to open fw.hex for reading.
+_RUNTIME_RE = re.compile(
+    r"^(ERROR|FATAL|WARNING): ((?:[A-Za-z]:)?[^:]+):(\d+): (.+)$",
+    re.MULTILINE,
+)
+
+
+def _parse_runtime(text: str) -> tuple[list[dict], list[dict]]:
+    errors: list[dict] = []
+    warnings: list[dict] = []
+    for m in _RUNTIME_RE.finditer(text):
+        entry: dict[str, Any] = {
+            "file": m.group(2).strip(),
+            "line": int(m.group(3)),
+            "severity": "warning" if m.group(1) == "WARNING" else "error",
+            "message": m.group(4).strip(),
+        }
+        (warnings if m.group(1) == "WARNING" else errors).append(entry)
+    return errors, warnings
 
 
 def _parse_output(text: str) -> tuple[list[dict], list[dict]]:
@@ -120,8 +143,10 @@ def _run(
         # Created only after a successful compile so failed runs don't leak dirs.
         trace_dir = tempfile.mkdtemp(prefix="silica_trace_") if trace else None
 
-        # If tracing, run vvp in trace_dir so $dumpfile relative paths land there.
-        sim_cwd = trace_dir if trace_dir else str(Path(dut).parent)
+        # Run in the DUT's directory either way, so relative paths in the
+        # testbench ($readmemh) don't depend on tracing; VCDs move afterwards.
+        sim_cwd = str(Path(dut).parent)
+        vcds_before = _sim_output.snapshot(sim_cwd) if trace_dir else {}
         rp = subprocess.run(
             [vvp, str(sim_out)],
             capture_output=True,
@@ -131,7 +156,7 @@ def _run(
             env=env,
         )
 
-        run_errors, run_warnings = _parse_output(rp.stderr)
+        run_errors, run_warnings = _parse_runtime(rp.stdout + rp.stderr)
         all_errors = compile_errors + run_errors
         all_warnings = compile_warnings + run_warnings
 
@@ -145,7 +170,7 @@ def _run(
 
         trace_vcd = None
         if trace_dir:
-            vcds = sorted(Path(trace_dir).glob("*.vcd"))
+            vcds = _sim_output.move_written(sim_cwd, vcds_before, trace_dir)
             trace_vcd = str(vcds[0]) if vcds else None
 
         return {

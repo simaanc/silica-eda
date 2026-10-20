@@ -50,6 +50,32 @@ def test_verilator_named(mock_run, lint_tool):
     assert result["tool"] == "verilator"
 
 
+@patch("silica.adapters.verilator.lint_only", return_value={
+    **VERILATOR_LINT,
+    "exit_code": 1,
+    "errors": [{"file": "dut.sv", "line": 7, "severity": "error",
+                "message": "syntax error, unexpected endmodule"}],
+})
+def test_verilator_errors_are_reported(mock_run, lint_tool):
+    result = lint_tool("dut.sv", tool="verilator")
+    assert [w["severity"] for w in result["warnings"]] == ["error", "warning"]
+    assert result["warnings"][0]["line"] == 7
+
+
+@patch("silica.adapters.verilator.lint_only", return_value=VERILATOR_LINT)
+def test_verilator_lints_files_together(mock_run, lint_tool):
+    lint_tool("top.sv", tool="verilator", extra_files=["sub_a.sv", "sub_b.sv"])
+    mock_run.assert_called_once()
+    assert mock_run.call_args.args[0] == "top.sv"
+    assert mock_run.call_args.kwargs["extra_files"] == ["sub_a.sv", "sub_b.sv"]
+
+
+@patch("silica.adapters.verible.run", return_value=LINT_CLEAN)
+def test_verible_lints_files_one_at_a_time(mock_run, lint_tool):
+    lint_tool("top.sv", tool="verible", extra_files=["sub_a.sv"])
+    assert [c.args[0] for c in mock_run.call_args_list] == ["top.sv", "sub_a.sv"]
+
+
 @patch("silica.adapters.svlint.run", return_value=LINT_CLEAN)
 def test_svlint_named(mock_run, lint_tool):
     result = lint_tool("dut.sv", tool="svlint")

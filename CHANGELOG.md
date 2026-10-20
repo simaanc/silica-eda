@@ -35,6 +35,29 @@ All notable changes to silica-eda are listed here. The format follows
 - `run_place_route` lists each clock once, with its routed result.
   nextpnr reports every clock after placement and again after routing, and
   both entries were returned, with the placement estimate first.
+- `lint` with Verilator reports errors. Only Verilator's warnings were
+  passed through, so a syntax error or a missing module came back as a clean
+  result; errors now appear in `warnings` with `severity: "error"`.
+- `lint` with Verilator elaborates `file` and `extra_files` together. Each
+  file used to be linted on its own, so a top-level module reported every
+  submodule as missing and a multi-file design could not be linted.
+- `run_simulation` with `trace` (or Verilator `coverage`) no longer breaks
+  relative paths in the testbench. Traced runs used to execute in a temporary
+  directory, so a `$readmemh("../fw/firmware.hex")` that worked untraced
+  failed to open its file. Every run now starts in the DUT's directory, and
+  the VCD and `coverage.dat` still end up in the persistent output directory.
+- `run_simulation` reports why a simulation failed. Icarus and Verilator print
+  `$fatal`, `$error` and runtime errors such as a missing `$readmemh` file on
+  stdout, which was not parsed, so `errors` only said "Simulation exited with
+  code 1" (and an Icarus `$error`, which exits 0, was not reported at all).
+- `synthesize` accepts relative source paths. The synthesis tools run in a
+  temporary directory, so `files=["rtl/top.sv"]` failed with "File not
+  found" even though `lint` and `run_simulation` took the same paths.
+- `run_formal` with sby no longer lists an unproven induction step as a
+  failure. An UNKNOWN prove (base case passes, k-induction does not close)
+  used to fill `failures` and `traces` as if a bug had been found. Those
+  entries now go in `induction_failures` and `induction_traces`, and
+  `failures` holds only reachable counterexamples.
 
 ## [0.3.1] - 2026-10-16
 

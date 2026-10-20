@@ -135,3 +135,74 @@ def test_generate_sby_allows_repeated_same_path():
     # The same file listed twice is harmless — no clobber.
     content = sby.generate_sby(["dut.sv", "dut.sv"], "top")
     assert "[files]" in content
+
+
+# sby 0.70 summaries, trimmed. {d} is the run's workdir.
+SBY_UNKNOWN_INDUCTION_OUTPUT = """\
+SBY 18:44:27 [{d}] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY 18:44:27 [{d}] summary: engine_0 (smtbmc z3) returned FAIL for induction
+SBY 18:44:27 [{d}] summary: counterexample trace [induction]: {d}/engine_0/trace_induct.vcd
+SBY 18:44:27 [{d}] summary:   failed assertion top._witness_.check_assert_top_sv_65_18 \
+at top.sv:65.13-65.35
+SBY 18:44:27 [{d}] DONE (UNKNOWN, rc=4)
+"""
+
+SBY_FAIL_BOTH_OUTPUT = """\
+SBY 18:39:02 [{d}] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY 18:39:02 [{d}] summary: engine_0 (smtbmc z3) returned FAIL for induction
+SBY 18:39:02 [{d}] summary: counterexample trace [basecase]: {d}/engine_0/trace.vcd
+SBY 18:39:02 [{d}] summary:   failed assertion top._witness_.check_assert_top_sv_31_11 \
+at top.sv:31.55-31.79 step 45
+SBY 18:39:02 [{d}] summary: counterexample trace [induction]: {d}/engine_0/trace_induct.vcd
+SBY 18:39:02 [{d}] summary:   failed assertion top._witness_.check_assert_top_sv_31_11 \
+at top.sv:31.55-31.79
+SBY 18:39:02 [{d}] DONE (FAIL, rc=2)
+"""
+
+
+def _traces_in(tmp_path):
+    (tmp_path / "engine_0").mkdir()
+    for name in ("trace.vcd", "trace_induct.vcd"):
+        (tmp_path / "engine_0" / name).write_text("")
+    return str(tmp_path)
+
+
+@patch("silica.adapters.sby.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.sby.oss_cad_suite.which", return_value="/usr/bin/sby")
+@patch("silica.adapters.sby.subprocess.run")
+def test_unknown_induction_is_not_a_failure(mock_run, mock_which, mock_env, sby_file, tmp_path):
+    d = _traces_in(tmp_path)
+    mock_run.return_value = make_proc(
+        stdout=SBY_UNKNOWN_INDUCTION_OUTPUT.format(d=d), returncode=4)
+    result = sby.run(sby_file)
+    assert result["status"] == "UNKNOWN"
+    assert result["failures"] == []
+    assert result["traces"] == []
+    assert result["induction_failures"] == [
+        {"property": "top._witness_.check_assert_top_sv_65_18", "file": "top.sv", "line": 65},
+    ]
+    assert result["induction_traces"] == [f"{d}/engine_0/trace_induct.vcd"]
+
+
+@patch("silica.adapters.sby.oss_cad_suite.env_with_suite", return_value={})
+@patch("silica.adapters.sby.oss_cad_suite.which", return_value="/usr/bin/sby")
+@patch("silica.adapters.sby.subprocess.run")
+def test_fail_keeps_basecase_and_induction_apart(mock_run, mock_which, mock_env, sby_file,
+                                                tmp_path):
+    d = _traces_in(tmp_path)
+    mock_run.return_value = make_proc(stdout=SBY_FAIL_BOTH_OUTPUT.format(d=d), returncode=2)
+    result = sby.run(sby_file)
+    assert result["status"] == "FAIL"
+    assert [f["line"] for f in result["failures"]] == [31]
+    assert result["traces"] == [f"{d}/engine_0/trace.vcd"]
+    assert [f["line"] for f in result["induction_failures"]] == [31]
+    assert result["induction_traces"] == [f"{d}/engine_0/trace_induct.vcd"]
+
+
+@pytest.mark.parametrize("result", [
+    sby._not_found(),
+    sby.run("/nonexistent/path/check.sby"),
+])
+def test_error_results_carry_induction_keys(result):
+    assert result["induction_failures"] == []
+    assert result["induction_traces"] == []

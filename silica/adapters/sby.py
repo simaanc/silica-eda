@@ -16,8 +16,10 @@ _ASSERT_FAIL_RE = re.compile(
 _SUMMARY_FAIL_RE = re.compile(
     r"summary:\s+failed assertion (\S+) at (\S+):(\d+)"
 )
+# "[basecase]" / "[bmc]" traces are real counterexamples; an "[induction]"
+# trace only shows the induction step starting from an unreachable state.
 _TRACE_RE = re.compile(
-    r"summary: counterexample trace \[.*?\]: (.+\.(?:vcd|yw))"
+    r"summary: counterexample trace \[(.*?)\]: (.+\.(?:vcd|yw))"
 )
 _WARNING_RE = re.compile(
     r"(?:base|prep): (\S+):(\d+): Warning: (.+)"
@@ -63,8 +65,11 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
     Returns a FormalResult dict:
         status: "PASS" | "FAIL" | "ERROR" | "UNKNOWN"
         rc: exit code (0=PASS, 2=FAIL, 16=ERROR)
-        failures: [{module, property, file, line}]
+        failures: [{module, property, file, line}] — reachable violations only
         traces: [path to counterexample VCD]
+        induction_failures: [{property, file, line}] — assertions the
+            k-induction step could not prove (an UNKNOWN prove), not bugs
+        induction_traces: [path to the induction-step VCD]
         warnings: [{file, line, message}]
         errors: [{file, line, message}]
         workdir: path to sby work directory (persists for trace viewing)
@@ -81,6 +86,8 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
             "rc": -1,
             "failures": [],
             "traces": [],
+            "induction_failures": [],
+            "induction_traces": [],
             "warnings": [],
             "errors": [{"file": sby_file, "line": 0, "message": f"File not found: {sby_file}"}],
             "workdir": "",
@@ -112,6 +119,8 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
             "rc": -1,
             "failures": [],
             "traces": [],
+            "induction_failures": [],
+            "induction_traces": [],
             "warnings": [],
             "errors": [{"file": sby_file, "line": 0, "message": f"sby timed out after {timeout}s"}],
             "workdir": workdir,
@@ -127,22 +136,32 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
     if m:
         status = m.group(1)
 
-    # Parse failures from summary lines (most reliable — deduped by sby)
-    failures = []
+    # Parse failures and traces from the summary (most reliable — deduped by
+    # sby). Each "failed assertion" line follows the trace it belongs to;
+    # those under an induction trace go to induction_* so an UNKNOWN proof
+    # doesn't read as a failure.
+    failures: list[dict] = []
+    traces: list[str] = []
+    induction_failures: list[dict] = []
+    induction_traces: list[str] = []
     seen_props: set[str] = set()
-    for m in _SUMMARY_FAIL_RE.finditer(raw):
-        prop, file_, line = m.group(1), m.group(2), int(m.group(3))
-        key = f"{prop}@{file_}:{line}"
-        if key not in seen_props:
-            seen_props.add(key)
-            failures.append({"property": prop, "file": file_, "line": line})
-
-    # Parse counterexample trace paths
-    traces = []
-    for m in _TRACE_RE.finditer(raw):
-        path = m.group(1).strip()
-        if Path(path).exists():
-            traces.append(path)
+    in_induction = False
+    for text in raw.splitlines():
+        m = _TRACE_RE.search(text)
+        if m:
+            in_induction = m.group(1) == "induction"
+            path = m.group(2).strip()
+            if Path(path).exists():
+                (induction_traces if in_induction else traces).append(path)
+            continue
+        m = _SUMMARY_FAIL_RE.search(text)
+        if m:
+            prop, file_, line = m.group(1), m.group(2), int(m.group(3))
+            key = f"{in_induction}:{prop}@{file_}:{line}"
+            if key not in seen_props:
+                seen_props.add(key)
+                entry = {"property": prop, "file": file_, "line": line}
+                (induction_failures if in_induction else failures).append(entry)
 
     # Parse warnings and errors from Yosys elaboration
     warnings = []
@@ -159,6 +178,8 @@ def run(sby_file: str, task: str | None = None, timeout: int = 300) -> dict:
         "rc": rc,
         "failures": failures,
         "traces": traces,
+        "induction_failures": induction_failures,
+        "induction_traces": induction_traces,
         "warnings": warnings,
         "errors": errors,
         "workdir": workdir,
@@ -232,6 +253,8 @@ def _not_found() -> dict:
         "rc": -1,
         "failures": [],
         "traces": [],
+        "induction_failures": [],
+        "induction_traces": [],
         "warnings": [],
         "errors": [{"file": "", "line": 0, "message": f"sby not found.\n{install_hint('sby')}"}],
         "workdir": "",

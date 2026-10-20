@@ -53,7 +53,7 @@ Walk the trace forward from `t=0` and decide which of these you are looking at:
 ### Step 6 — UNKNOWN: depth and induction problems
 
 - `mode="bmc"` UNKNOWN: the bound was too shallow to reach anything interesting. Raise `depth` (bugs are usually shallow; if 40–60 cycles finds nothing, the property is probably fine at BMC depth).
-- `mode="prove"` UNKNOWN with base case passing: **k-induction failed to close** — the invariant is not inductive. Add helper assertions that pin down reachable state (relationships between counters, one-hot-ness of FSM state) so the induction step can't start from an unreachable state.
+- `mode="prove"` UNKNOWN with base case passing: **k-induction failed to close** — the invariant is not inductive. Add helper assertions that pin down reachable state (relationships between counters, one-hot-ness of FSM state) so the induction step can't start from an unreachable state. `induction_failures` says which assertion the induction step broke; these are not reachable failures.
 - On Windows, eqy equivalence falls back to bounded induction and echoes `induction_depth`; UNKNOWN there may just mean the bound was too shallow — raise `depth` before concluding anything.
 - Timeout (`"timed out"` in errors): raise `timeout`, reduce `depth`, or try another engine (`engine="smtbmc bitwuzla"`).
 
@@ -158,6 +158,10 @@ Walk the trace forward from `t=0` and decide which of these you are looking at:
   "rc": 4,
   "failures": [],
   "traces": [],
+  "induction_failures": [
+    {"property": "fifo._witness_.check_assert_fifo_sv_41_3", "file": "fifo.sv", "line": 41}
+  ],
+  "induction_traces": ["/tmp/silica_sby_fifo/engine_0/trace_induct.vcd"],
   "warnings": [],
   "errors": [],
   "workdir": "/tmp/silica_sby_fifo",
@@ -167,7 +171,7 @@ Walk the trace forward from `t=0` and decide which of these you are looking at:
 
 **Correct reasoning**:
 
-1. No counterexample and no failure — BMC (base case) passed, so no bug is reachable within 20 cycles. The **induction step** failed: starting from an arbitrary state satisfying the assertions, the solver can violate the property.
+1. No counterexample and no failure — BMC (base case) passed, so no bug is reachable within 20 cycles. The **induction step** failed: starting from an arbitrary state satisfying the assertions, the solver can violate the property. `induction_failures` names the assertion it broke, and `induction_traces[0]` shows the (unreachable) starting state — useful for spotting which registers disagree.
 2. The classic cause in a FIFO: `count`, `wr_ptr`, and `rd_ptr` are separate registers. In an *unreachable* state where `count` disagrees with the pointer difference, one more push wraps `count` past `DEPTH`. Induction starts from exactly such states unless an invariant excludes them.
 3. Do not raise `depth` first — an invariant that isn't inductive stays non-inductive at depth 50. Add a helper assertion tying the redundant state together.
 
