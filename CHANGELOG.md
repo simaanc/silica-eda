@@ -17,6 +17,10 @@ All notable changes to silica-eda are listed here. The format follows
   testbench signal stopped the run with exit code 1 and an empty `errors`
   list. Warnings are still returned in `warnings`, and a failed build with no
   parsed diagnostic now carries an error entry.
+- `synthesize` with Yosys reports real utilization for FPGA targets. LUTs,
+  flip-flops, block RAM and DSPs mapped to ice40, ecp5, gowin and xilinx
+  primitives were not counted, so those targets always reported zero, and
+  the generic target counted every flip-flop about four times.
 
 ## [0.3.1] - 2026-10-16
 
