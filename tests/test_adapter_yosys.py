@@ -165,7 +165,7 @@ def test_parse_warnings():
 def test_target_selects_synth_command(mock_which, mock_run, target, expected_cmd):
     mock_run.return_value = make_proc(returncode=0)
     yosys.run("top", ["dut.sv"], target=target)
-    call_args = mock_run.call_args[0][0]
+    call_args = mock_run.call_args_list[0].args[0]
     script = call_args[2]
     assert expected_cmd in script
 
@@ -184,7 +184,7 @@ def _run_writing_netlist(*args, **kwargs):
 def test_fpga_target_requests_json_netlist(mock_which, mock_run, target):
     mock_run.return_value = make_proc(returncode=0)
     yosys.run("top", ["dut.sv"], target=target)
-    script = mock_run.call_args[0][0][2]
+    script = mock_run.call_args_list[0].args[0][2]
     assert "-json netlist.json" in script
 
 
@@ -193,7 +193,7 @@ def test_fpga_target_requests_json_netlist(mock_which, mock_run, target):
 def test_generic_target_has_no_json_flag(mock_which, mock_run):
     mock_run.return_value = make_proc(stdout=STAT_OUTPUT, returncode=0)
     result = yosys.run("top", ["dut.sv"], target="generic")
-    script = mock_run.call_args[0][0][2]
+    script = mock_run.call_args_list[0].args[0][2]
     assert "-json" not in script
     assert result["netlist"] is None
 
@@ -227,3 +227,89 @@ def test_fpga_success_without_json_file_returns_no_netlist(mock_which, mock_run)
     result = yosys.run("top", ["dut.sv"], target="ice40")
     assert result["exit_code"] == 0
     assert result["netlist"] is None
+
+
+# --- inferred memories --------------------------------------------------------
+
+# Trimmed from `write_json -selected -compat-int` after memory_collect
+# (yosys 0.70). INIT is one 0/1/x character per bit.
+MEM_REPORT = {
+    "modules": {
+        "soc": {"cells": {
+            "ram": {"type": "$mem_v2", "parameters": {
+                "MEMID": "\\ram", "SIZE": 4, "WIDTH": 8, "RD_PORTS": 1, "WR_PORTS": 1,
+                "INIT": "00000001" + "x" * 24}},
+            "fifo": {"type": "$mem_v2", "parameters": {
+                "MEMID": "\\fifo", "SIZE": 16, "WIDTH": 8, "RD_PORTS": 1, "WR_PORTS": 1,
+                "INIT": "x" * 128}},
+            "tbl": {"type": "$mem_v2", "parameters": {
+                "MEMID": "\\tbl", "SIZE": 2, "WIDTH": 4, "RD_PORTS": 1, "WR_PORTS": 0,
+                "INIT": "01011010"}},
+            "boot": {"type": "$mem_v2", "parameters": {
+                "MEMID": "\\boot", "SIZE": 256, "WIDTH": 32, "RD_PORTS": 1, "WR_PORTS": 0,
+                "INIT": "x" * 8192}},
+        }},
+    },
+}
+MEM_LOG = """\
+4.32. Executing MEMORY_LIBMAP pass (mapping memories to cells).
+mapping memory soc.ram via $__XILINX_BLOCKRAM_TDP_
+mapping memory soc.fifo via $__XILINX_LUTRAM_SDP_
+4.36. Executing MEMORY_MAP pass (converting memories to logic and flip-flops).
+Mapping memory \\tbl in module \\soc:
+"""
+
+
+def test_parse_memories_types_and_init():
+    mems = {m["name"]: m for m in yosys._parse_memories(MEM_REPORT, MEM_LOG)}
+    assert (mems["soc.ram"]["type"], mems["soc.ram"]["has_init"]) == ("block_ram", True)
+    assert mems["soc.ram"]["mapped_to"] == "$__XILINX_BLOCKRAM_TDP_"
+    assert mems["soc.ram"]["bits"] == 32
+    assert (mems["soc.fifo"]["type"], mems["soc.fifo"]["has_init"]) == ("distributed_ram", False)
+    assert (mems["soc.tbl"]["type"], mems["soc.tbl"]["has_init"]) == ("logic", True)
+    assert (mems["soc.boot"]["type"], mems["soc.boot"]["has_init"]) == ("removed", False)
+
+
+def test_memory_warnings_only_for_empty_roms():
+    mems = yosys._parse_memories(MEM_REPORT, MEM_LOG)
+    warnings = yosys._memory_warnings(mems)
+    assert len(warnings) == 1
+    assert "soc.boot" in warnings[0]["message"]
+    assert "removed" in warnings[0]["message"]
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_run_reports_memories_from_second_pass(mock_which, mock_run):
+    import json
+
+    def side_effect(cmd, **kwargs):
+        if "write_json -selected" in cmd[-1]:
+            Path(kwargs["cwd"], "memories.json").write_text(json.dumps(MEM_REPORT))
+            return make_proc(returncode=0)
+        assert "memory_collect" not in cmd[-1]  # synthesis itself is untouched
+        return make_proc(stdout=MEM_LOG + STAT_OUTPUT, returncode=0)
+
+    mock_run.side_effect = side_effect
+    result = yosys.run("soc", ["soc.sv"], target="xilinx")
+    assert [m["name"] for m in result["memories"]] == ["soc.ram", "soc.fifo", "soc.tbl", "soc.boot"]
+    assert any("soc.boot" in w["message"] for w in result["warnings"])
+
+
+# yosys 0.70 reading a $readmemh whose file doesn't exist.
+YOSYS_READMEMH_ERROR = """\
+1. Executing Verilog-2005 frontend: /work/rom.v
+Parsing Verilog input from `/work/rom.v' to AST representation.
+/work/rom.v:4: ERROR:Can not open file `fw_nope.hex` for \\$readmemh.
+"""
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_readmemh_wrong_path_error_names_the_file(mock_which, mock_run):
+    mock_run.return_value = make_proc(stdout=YOSYS_READMEMH_ERROR, returncode=1)
+    result = yosys.run("rom", ["rom.v"], target="xilinx")
+    assert result["exit_code"] == 1
+    assert "fw_nope.hex" in result["errors"][0]["message"]
+    assert result["memories"] == []
+    mock_run.assert_called_once()  # no memory pass after a failed synthesis

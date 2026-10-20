@@ -1,5 +1,6 @@
 """Yosys adapter — synthesis and utilization reporting."""
 
+import json
 import re
 import shutil
 import subprocess
@@ -42,6 +43,17 @@ _CELL_RE_ABSTRACT = re.compile(r"^\s+(\$[\w:]+)\s+(\d+)\s*$", re.MULTILINE)
 _CELL_RE_MAPPED = re.compile(r"^\s+(\d+)\s+(\$[\w:]+|\w[\w:]*)\s*$", re.MULTILINE)
 _WARNING_RE = re.compile(r"^Warning:\s*(.+)$", re.MULTILINE)
 
+# Inferred memories come from yosys's own $mem_v2 cells (size, init data),
+# collected by a second yosys run, and from the synthesis log of how each one
+# was mapped: memory_libmap names the primitive, and memory_map reports the
+# ones turned into flip-flops and logic. The collection can't share the
+# synthesis run: even on a saved copy of the design it advances yosys's
+# auto-name counter, which changes how ABC maps the real design.
+_MEM_REPORT = "memories.json"
+_LIBMAP_RE = re.compile(r"^mapping memory (\S+) via (\S+)$", re.MULTILINE)
+_MEMMAP_RE = re.compile(r"^Mapping memory \\?(\S+) in module \\?(\S+):$", re.MULTILINE)
+_DISTRIBUTED_RAM = ("LUTRAM", "DPR16X4")
+
 # Targets whose synth_<arch> command supports -json and whose netlist
 # nextpnr (or a vendor P&R flow) can consume.
 _FPGA_TARGETS = {"ice40", "ecp5", "xilinx", "gowin"}
@@ -83,6 +95,96 @@ def _count_cells(stat_output: str) -> dict:
             "lut_pct": 0.0, "ff_pct": 0.0}
 
 
+def _collect_memories(binary: str, read_cmds: list[str], top: str, timeout: int,
+                      cwd: str) -> dict:
+    """Run yosys again to write the design's $mem_v2 cells as JSON; {} on failure."""
+    script = "; ".join(read_cmds + [
+        f"hierarchy -top {top}",
+        "proc",
+        "opt_clean",
+        "memory_collect",
+        "select t:$mem_v2",
+        f"write_json -selected -compat-int {_MEM_REPORT}",
+    ])
+    try:
+        cp = subprocess.run(
+            [binary, "-q", "-p", script],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=cwd,
+            env=oss_cad_suite.env_with_suite(),
+        )
+        report = Path(cwd) / _MEM_REPORT
+        if cp.returncode != 0 or not report.exists():
+            return {}
+        return json.loads(report.read_text(encoding="utf-8"))
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        return {}
+
+
+def _parse_memories(report: dict, log: str) -> list[dict]:
+    """Build the memory list from the pre-pass JSON and the synthesis log."""
+    mapped = {m.group(1): m.group(2) for m in _LIBMAP_RE.finditer(log)}
+    to_logic = {f"{m.group(2)}.{m.group(1)}" for m in _MEMMAP_RE.finditer(log)}
+    memories = []
+    for module, body in report.get("modules", {}).items():
+        for cell in body.get("cells", {}).values():
+            if cell.get("type") != "$mem_v2":
+                continue
+            p = cell["parameters"]
+            memid = str(p["MEMID"]).lstrip("\\")
+            name = f"{module}.{memid}"
+            depth, width = int(p["SIZE"]), int(p["WIDTH"])
+            mapped_to = mapped.get(name)
+            if mapped_to:
+                kind = ("distributed_ram"
+                        if any(k in mapped_to.upper() for k in _DISTRIBUTED_RAM)
+                        else "block_ram")
+            elif name in to_logic:
+                kind = "logic"
+            else:
+                kind = "removed"
+            memories.append({
+                "name": name,
+                "module": module,
+                "depth": depth,
+                "width": width,
+                "bits": depth * width,
+                "read_ports": int(p.get("RD_PORTS", 0)),
+                "write_ports": int(p.get("WR_PORTS", 0)),
+                # INIT is one 0/1/x character per bit; all x means no init data.
+                "has_init": any(c in "01" for c in str(p.get("INIT", ""))),
+                "type": kind,
+                "mapped_to": mapped_to,
+            })
+    return memories
+
+
+def _memory_warnings(memories: list[dict]) -> list[dict]:
+    """Flag read-only memories with nothing loaded into them.
+
+    Yosys usually deletes such a ROM outright, so firmware that never got
+    loaded (a $readmemh skipped by an `ifdef) leaves no other trace."""
+    warnings = []
+    for m in memories:
+        if m["write_ports"] or m["has_init"]:
+            continue
+        fate = (" and synthesis removed it" if m["type"] == "removed"
+                else ", so its contents are undefined")
+        warnings.append({
+            "file": "",
+            "line": 0,
+            "severity": "warning",
+            "message": (
+                f"Read-only memory {m['name']} ({m['depth']}x{m['width']}) has "
+                f"no init data{fate}. Check that its $readmemh/$readmemb is "
+                "reached in synthesis (not inside an `ifdef it skips)."
+            ),
+        })
+    return warnings
+
+
 def _parse_warnings(output: str) -> list[dict]:
     warnings = []
     for m in _WARNING_RE.finditer(output):
@@ -119,6 +221,7 @@ def run(
                             "lut_pct": 0.0, "ff_pct": 0.0},
             "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
             "netlist": None,
+            "memories": [],
             "warnings": [],
             "errors": [{"file": "", "line": 0, "severity": "error", "message": bad}],
             "raw_output": "",
@@ -172,6 +275,7 @@ def run(
                                 "lut_pct": 0.0, "ff_pct": 0.0},
                 "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
                 "netlist": None,
+                "memories": [],
                 "warnings": [],
                 "errors": [{"file": "", "line": 0, "severity": "error",
                             "message": f"yosys timed out after {timeout}s"}],
@@ -186,6 +290,9 @@ def run(
             netlist_out = str(Path(outdir) / "netlist.json")
             shutil.move(str(tmp_netlist), netlist_out)
 
+        mem_report = (_collect_memories(binary, read_cmds, top, timeout, tmpdir)
+                      if cp.returncode == 0 else {})
+
     combined = cp.stdout + cp.stderr
     util = _count_cells(combined)
     warnings = _parse_warnings(combined)
@@ -199,10 +306,14 @@ def run(
             "utilization": util,
             "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
             "netlist": None,
+            "memories": [],
             "warnings": warnings,
             "errors": [{"file": "", "line": 0, "severity": "error", "message": error_msg}],
             "raw_output": combined,
         }
+
+    memories = _parse_memories(mem_report, combined)
+    warnings += _memory_warnings(memories)
 
     return {
         "tool": "yosys",
@@ -212,6 +323,7 @@ def run(
         # Yosys generic synth has no timing; nextpnr would provide this
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
         "netlist": netlist_out,
+        "memories": memories,
         "warnings": warnings,
         "errors": [],
         "raw_output": combined,
@@ -220,7 +332,8 @@ def run(
 
 def _extract_error(output: str) -> str:
     for line in output.splitlines():
-        if line.strip().startswith("ERROR:") or "syntax error" in line.lower():
+        # Frontend errors carry a location prefix ("rom.v:4: ERROR: ...").
+        if "ERROR:" in line or "syntax error" in line.lower():
             return line.strip()
     return "Yosys synthesis failed"
 
@@ -233,6 +346,7 @@ def _not_found() -> dict:
         "utilization": {"luts": 0, "ffs": 0, "bram": 0, "dsp": 0, "lut_pct": 0.0, "ff_pct": 0.0},
         "timing_summary": {"wns": 0.0, "tns": 0.0, "failing_endpoints": 0},
         "netlist": None,
+        "memories": [],
         "warnings": [],
         "errors": [{"file": "", "line": 0, "severity": "error",
                     "message": f"yosys not found.\n{install_hint('yosys')}"}],

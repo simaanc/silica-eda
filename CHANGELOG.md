@@ -12,8 +12,23 @@ All notable changes to silica-eda are listed here. The format follows
   constraint file and a part such as `xc7a100tcsg324-1`. When openXC7's
   `fpga-as` and `PRJXRAY_DB_DIR` are available the result is a `.bit` ready
   for `program_device`; otherwise it is the FASM file, with a warning.
+- `capture_serial` reads a board's UART for a set time, optionally sending
+  text first, and returns the received lines with timestamps, the byte count
+  and whether an `expect` regex matched. It opens only the port it is given.
+  A missing or inaccessible port comes back as an error with the command
+  that fixes it. Needs the new `serial` extra (`pip install
+  "silica-eda[serial]"`).
+- `synthesize` with Yosys lists the inferred memories under `memories`: name,
+  depth, width, ports, how each was mapped (block RAM, distributed RAM,
+  logic, or optimized away) and whether it has init data. A read-only memory
+  with no init data (firmware loaded only under `` `ifdef SIM``, say) also
+  adds a warning, because synthesis otherwise drops it without a trace.
 
 ### Fixed
+- `synthesize` with Yosys says which file it could not open when a
+  `$readmemh` path is wrong. Errors that Yosys prefixes with a location
+  (`rom.v:4: ERROR: ...`) were not recognized, so the result only said
+  "Yosys synthesis failed".
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.
