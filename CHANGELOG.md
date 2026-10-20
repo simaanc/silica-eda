@@ -58,6 +58,13 @@ All notable changes to silica-eda are listed here. The format follows
   which FPGA flows produce a loadable bitstream, SRAM vs flash, serial
   ports and permissions, the boot banner missed after programming, and
   which adapters are only tested with mocks.
+- The README now leads with what has been tested end to end (an Arty
+  A7-100T running the full flow), lists known limitations, and gives each
+  supported tool's verification status (real tool in CI, tested on
+  hardware, mocked only). Install details for OSS CAD Suite, the linters and
+  openXC7 moved to `docs/eda-tools.md`, the code layout to
+  `docs/architecture.md`. The quick start's bug-injection example now
+  describes a real edit the testbench catches.
 
 ### Fixed
 - Tool descriptions that clients read now match what the tools do:
@@ -67,21 +74,18 @@ All notable changes to silica-eda are listed here. The format follows
   board; `run_place_route` produces a programmable `.bit` only for Xilinx;
   `run_simulation` notes that tracing needs `$dumpfile`/`$dumpvars` in the
   testbench.
-- `run_simulation` with VCS, Questa or Xcelium accepts relative source paths and
-  runs the simulation in the DUT's directory, like Icarus and Verilator, so
-  relative testbench paths such as `$readmemh("../fw/firmware.hex")` resolve
-  the same way with or without tracing. Questa and Xcelium always simulated
-  in a temp directory, so these paths never worked there. (Checked with mocked tool
-  calls only.)
-- `synthesize` with Yosys fills in `file` and `line` for errors and warnings
-  when Yosys gives a location, either as a prefix (`top.sv:12: ERROR: ...`)
-  or as an `at top.sv:12.5-12.9` clause. They were always `""` and `0`.
-  Warnings with a location prefix were not reported at all, and an error
-  with one came back as "Yosys synthesis failed"; both are now returned.
-- `synthesize` with Yosys says which file it could not open when a
-  `$readmemh` path is wrong. Errors that Yosys prefixes with a location
-  (`rom.v:4: ERROR: ...`) were not recognized, so the result only said
-  "Yosys synthesis failed".
+- `run_simulation` with VCS, Questa or Xcelium accepts relative source paths
+  and runs the simulation in the DUT's directory, like Icarus and Verilator,
+  so relative testbench paths such as `$readmemh("../fw/firmware.hex")`
+  resolve the same way with or without tracing. Questa and Xcelium always
+  simulated in a temp directory, so these paths never worked there. (Checked
+  with mocked tool calls only.)
+- `synthesize` with Yosys reports errors and warnings with their `file` and
+  `line` when Yosys gives a location, either as a prefix
+  (`top.sv:12: ERROR: ...`) or as an `at top.sv:12.5-12.9` clause; they were
+  always `""` and `0`. Located errors used to come back as just "Yosys
+  synthesis failed" (a wrong `$readmemh` path now names the missing file),
+  and located warnings were not reported at all.
 - `lint` with Verible reports its findings again. Current Verible releases
   print a column range (`file.sv:22:20-31:`), which the parser skipped, so
   every warning and syntax error was dropped.

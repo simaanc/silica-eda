@@ -139,7 +139,7 @@ TOOLS = {
             "windows": "# Download win64.zip from https://github.com/chipsalliance/verible/releases",
         },
         "url": "https://chipsalliance.github.io/verible/",
-        "docs": "https://chipsalliance.github.io/verible/installation.html",
+        "docs": "https://chipsalliance.github.io/verible/",
     },
     "verible-verilog-format": {
         "category": "format",
@@ -170,7 +170,7 @@ TOOLS = {
         "license": "commercial",
         "os_support": ["linux"],
         "vendor": "Synopsys",
-        "url": "https://www.synopsys.com/implementation-and-signoff/signoff/spyglass.html",
+        "url": "https://www.synopsys.com/verification/static-and-formal-verification/spyglass.html",
         "docs": "https://www.synopsys.com/support.html",
         "note": "Requires Synopsys license",
     },
@@ -223,7 +223,7 @@ TOOLS = {
             "windows": "# OSS CAD Suite (bundles ghdl): https://github.com/YosysHQ/oss-cad-suite-build/releases",
         },
         "url": "https://ghdl.github.io/ghdl/",
-        "docs": "https://ghdl.github.io/ghdl/quick_start/README.html",
+        "docs": "https://ghdl.github.io/ghdl/getting.html",
     },
     "nextpnr": {
         "category": "place_route",
