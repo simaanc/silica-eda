@@ -17,6 +17,10 @@ All notable changes to silica-eda are listed here. The format follows
   "command": [...]}` shape in `opencode.json` (it was `config.json` with the
   wrong shape), and Zed and OpenCode are written only on the platforms whose
   path their docs give. Elsewhere the wizard prints the block to add by hand.
+- `silica setup` replaced a client config it couldn't parse, such as a Zed
+  `settings.json` with comments, with one holding only the silica entry,
+  losing the user's other settings. It now leaves the file unchanged and
+  prints the block to add by hand.
 
 ## [0.4.0] - 2026-10-20
 

@@ -90,3 +90,14 @@ def test_other_client_block_uses_uvx(capsys):
     assert '"command": "uvx"' in out
     assert '"silica-eda@latest"' in out
     assert '"serve"' not in out
+
+
+def test_unparseable_config_is_left_unchanged(client_path, capsys):
+    # Zed's settings.json usually has comments, which json can't parse.
+    path = client_path["zed"]
+    path.parent.mkdir()
+    original = '// Zed settings\n{\n  "theme": "One Dark"\n}\n'
+    path.write_text(original)
+    setup._inject_file_client("zed", "uvx")
+    assert path.read_text() == original
+    assert "context_servers" in capsys.readouterr().out

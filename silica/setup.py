@@ -376,8 +376,16 @@ def _inject_file_client(key: str, command: str) -> None:
         try:
             with open(config_path) as f:
                 existing = json.load(f)
-        except Exception:
-            existing = {}
+            if not isinstance(existing, dict):
+                raise ValueError("not a JSON object")
+        except (OSError, ValueError) as e:
+            # Rewriting a file we couldn't parse (often JSON with comments)
+            # would drop the user's settings.
+            print(f"\n  {_bold(client['name'])} — couldn't read {config_path} ({e}).")
+            print("  Leaving it unchanged. Add this to it by hand:")
+            _print_block(config_key, entry)
+            print()
+            return
 
     merged = _merge_mcp_config(existing, config_key, entry)
 
