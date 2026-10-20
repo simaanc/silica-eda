@@ -259,7 +259,7 @@ Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_for
 | nextpnr-ice40 + icepack | `run_place_route` (`arch="ice40"`) | Real tools in CI (place and route, packing); programming mocked only |
 | nextpnr-ecp5 + ecppack | `run_place_route` (`arch="ecp5"`) | Real tools in CI (place and route, packing); programming mocked only |
 | nextpnr-nexus, -machxo2 | `run_place_route` | Mocked only |
-| openXC7 nextpnr-xilinx + fpga-as | `run_place_route` (`arch="xilinx"`) | Tested on hardware (Arty A7-100T) |
+| openXC7 nextpnr-xilinx + fpga-as | `run_place_route` (`arch="xilinx"`) | Tested on hardware (Arty A7-100T); synthesis, place and route and `.bit` assembly for an xc7a35t in CI |
 | openFPGALoader | `program_device` | Tested on hardware (Arty A7-100T); iCE40 and ECP5 mocked only |
 | pyserial | `capture_serial` | Tested on hardware; pty-based tests in CI |
 | Surfer, GTKWave, Verdi | `launch_waveform` | Untested (fire-and-forget launch) |
@@ -269,7 +269,7 @@ Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_for
 | JasperGold, VC Formal | `run_formal` | Mocked only |
 | SpyGlass | `lint` | Mocked only |
 
-"Real tool in CI" means the weekly integration workflow runs it from OSS CAD Suite. "Tested on hardware" means the manual Arty A7-100T run described under [What works today](#what-works-today). "Mocked only" means unit tests with captured or representative output, never a real install.
+"Real tool in CI" means the weekly integration workflow runs it from OSS CAD Suite. The openXC7 workflow builds openXC7 from toolchain-nix and runs the Xilinx flow when its code changes and weekly. "Tested on hardware" means the manual Arty A7-100T run described under [What works today](#what-works-today). "Mocked only" means unit tests with captured or representative output, never a real install.
 
 ## Checking a design on hardware
 

@@ -34,6 +34,11 @@ uv run pytest tests/integration/ -q -rs
 The Integration workflow runs these weekly against the latest suite release.
 Its job is to catch output-format drift in the tools, so when an adapter's
 parser changes, add or update an integration test that uses real tool output.
+The openXC7 workflow builds openXC7 with Nix and runs
+`tests/integration/test_xilinx_flow.py` (synthesis, nextpnr-xilinx and
+fpga-as for an xc7a35t) when the Xilinx flow's code changes. To bump the
+toolchain, change `TOOLCHAIN_NIX_REV` in `.github/workflows/openxc7.yml`;
+the first run after that rebuilds the tools, which takes about 11 minutes.
 
 ## Adding or changing an adapter
 
