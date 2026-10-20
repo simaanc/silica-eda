@@ -25,6 +25,11 @@ All notable changes to silica-eda are listed here. The format follows
   adds a warning, because synthesis otherwise drops it without a trace.
 
 ### Fixed
+- `synthesize` with Yosys fills in `file` and `line` for errors and warnings
+  when Yosys gives a location, either as a prefix (`top.sv:12: ERROR: ...`)
+  or as an `at top.sv:12.5-12.9` clause. They were always `""` and `0`.
+  Warnings with a location prefix were not reported at all, and an error
+  with one came back as "Yosys synthesis failed"; both are now returned.
 - `synthesize` with Yosys says which file it could not open when a
   `$readmemh` path is wrong. Errors that Yosys prefixes with a location
   (`rom.v:4: ERROR: ...`) were not recognized, so the result only said

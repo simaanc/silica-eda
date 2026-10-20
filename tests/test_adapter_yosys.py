@@ -229,6 +229,63 @@ def test_fpga_success_without_json_file_returns_no_netlist(mock_which, mock_run)
     assert result["netlist"] is None
 
 
+# --- diagnostic locations -----------------------------------------------------
+
+# Captured from yosys 0.70 (one run per line, trimmed to the diagnostic).
+YOSYS_ERRORS_CAPTURED = [
+    ("syntax.v:3: ERROR: syntax error, unexpected TOK_ENDMODULE",
+     "syntax.v", 3, "syntax error, unexpected TOK_ENDMODULE"),
+    ("readmem.v:3: ERROR:Can not open file `nope.hex` for \\$readmemh.",
+     "readmem.v", 3, "Can not open file `nope.hex` for \\$readmemh."),
+    ("nettype.v:3: ERROR:Identifier `\\nope' is implicitly declared and "
+     "`default_nettype is set to none.", "nettype.v", 3, None),
+    ("sub_b.v:1: ERROR: Re-definition of module `\\sub'!",
+     "sub_b.v", 1, "Re-definition of module `\\sub'!"),
+    # No location given: leave it empty, even when an identifier embeds one.
+    ("ERROR: Module `\\sub' referenced in module `\\t' in cell `\\u' is not part "
+     "of the design.", "", 0, None),
+    ("ERROR: Latch inferred for signal `\\t.\\y' from always_comb process "
+     "`\\t.$proc$latch.sv:2$1'.", "", 0, None),
+]
+
+YOSYS_WARNINGS_CAPTURED = """\
+implicit.v:2: Warning: Identifier `\\undeclared_sig' is implicitly declared.
+Warning: Wire t.\\undeclared_sig is used but has no driver.
+range.v:3: Warning: Range select out of bounds on signal `\\w': Setting result bit to undef.
+Warning: reg '\\y' is assigned in a continuous assignment at sv_mixed.sv:5.10-5.15.
+Warning: Resizing cell port t.u.a from 4 bits to 2 bits.
+ABC: Warning: The network is combinational (run "fraig" or "fraig_sweep").
+Warnings: 2 unique messages, 2 total
+"""
+
+
+@pytest.mark.parametrize("line,file,lineno,message", YOSYS_ERRORS_CAPTURED)
+def test_extract_error_location(line, file, lineno, message):
+    error = yosys._extract_error(f"-- Running command `...' --\n{line}\n")
+    assert (error["file"], error["line"], error["severity"]) == (file, lineno, "error")
+    assert error["message"] == (message or line.split("ERROR:", 1)[1].strip())
+
+
+def test_parse_warnings_locations():
+    warnings = yosys._parse_warnings(YOSYS_WARNINGS_CAPTURED)
+    assert [(w["file"], w["line"]) for w in warnings] == [
+        ("implicit.v", 2), ("", 0), ("range.v", 3), ("sv_mixed.sv", 5), ("", 0),
+    ]
+    assert warnings[0]["message"] == "Identifier `\\undeclared_sig' is implicitly declared."
+
+
+# Built from yosys's format strings rather than captured runs.
+@pytest.mark.parametrize("line,file,lineno", [
+    ("ERROR: Port `x' is driven twice at /work/rtl/top.sv:12.5-12.9.", "/work/rtl/top.sv", 12),
+    ("C:\\work\\rtl\\top.sv:7: ERROR: syntax error, unexpected ';'", "C:\\work\\rtl\\top.sv", 7),
+    # A cell name that looks like a location is not one.
+    ("ERROR: Detected loop at $abc$123$auto$blifparse.cc:396:parse_blif$456 in t", "", 0),
+])
+def test_extract_error_location_forms(line, file, lineno):
+    error = yosys._extract_error(line + "\n")
+    assert (error["file"], error["line"]) == (file, lineno)
+
+
 # --- inferred memories --------------------------------------------------------
 
 # Trimmed from `write_json -selected -compat-int` after memory_collect
@@ -276,6 +333,25 @@ def test_memory_warnings_only_for_empty_roms():
     assert len(warnings) == 1
     assert "soc.boot" in warnings[0]["message"]
     assert "removed" in warnings[0]["message"]
+
+
+@patch("silica.adapters.yosys.subprocess.run")
+@patch("silica.adapters.yosys.oss_cad_suite.which", return_value="/usr/bin/yosys")
+def test_failed_run_reports_error_location(mock_which, mock_run):
+    mock_run.return_value = make_proc(
+        stdout="readmem.v:3: ERROR:Can not open file `nope.hex` for \\$readmemh.\n",
+        returncode=1)
+    result = yosys.run("t", ["readmem.v"])
+    assert result["errors"] == [{
+        "file": "readmem.v", "line": 3, "severity": "error",
+        "message": "Can not open file `nope.hex` for \\$readmemh.",
+    }]
+
+
+def test_extract_error_falls_back_without_error_line():
+    error = yosys._extract_error("something went wrong\n")
+    assert error == {"file": "", "line": 0, "severity": "error",
+                     "message": "Yosys synthesis failed"}
 
 
 @patch("silica.adapters.yosys.subprocess.run")

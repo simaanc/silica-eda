@@ -41,7 +41,21 @@ _DSP_CELL_MAPPED_RE = re.compile(
 # Both must be matched.
 _CELL_RE_ABSTRACT = re.compile(r"^\s+(\$[\w:]+)\s+(\d+)\s*$", re.MULTILINE)
 _CELL_RE_MAPPED = re.compile(r"^\s+(\d+)\s+(\$[\w:]+|\w[\w:]*)\s*$", re.MULTILINE)
-_WARNING_RE = re.compile(r"^Warning:\s*(.+)$", re.MULTILINE)
+# Yosys diagnostics, located two ways (or not at all):
+#   rom.v:4: ERROR:Can not open file `nope.hex` for \$readmemh.     (prefix)
+#   range.v:3: Warning: Range select out of bounds on signal `\w': ...
+#   Warning: reg '\y' is assigned in a continuous assignment at t.sv:5.10-5.15.
+#   ERROR: Module `\sub' referenced in module `\t' ... is not part of the design.
+_DIAG_RE = re.compile(
+    r"^(?:(?P<file>(?:[A-Za-z]:)?[^:\s][^:\n]*):(?P<line>\d+):[ \t]*)?"
+    r"(?P<sev>ERROR|Warning):[ \t]*(?P<msg>.+)$",
+    re.MULTILINE,
+)
+# "at file:line" or "at file:line.col-line.col" inside the message. Only HDL
+# files count: cell names such as $auto$blifparse.cc:396:... look the same.
+_AT_LOC_RE = re.compile(
+    r"\bat ((?:[A-Za-z]:)?[^\s:]+\.(?:sv|svh|v|vh|vhd|vhdl)):(\d+)(?:\.\d+(?:-\d+\.\d+)?)?"
+)
 
 # Inferred memories come from yosys's own $mem_v2 cells (size, init data),
 # collected by a second yosys run, and from the synthesis log of how each one
@@ -93,6 +107,26 @@ def _count_cells(stat_output: str) -> dict:
 
     return {"luts": luts, "ffs": ffs, "bram": bram, "dsp": dsp,
             "lut_pct": 0.0, "ff_pct": 0.0}
+
+
+def _diagnostic(m: re.Match, severity: str) -> dict:
+    """Build a diagnostic dict, taking the location from the prefix or an "at" clause.
+
+    A message with neither keeps file "" and line 0."""
+    message = m.group("msg").strip()
+    file, line = m.group("file"), m.group("line")
+    if not file:
+        at = None
+        for at in _AT_LOC_RE.finditer(message):
+            pass  # the last "at" clause is the one the message ends with
+        if at:
+            file, line = at.group(1), at.group(2)
+    return {
+        "file": (file or "").strip(),
+        "line": int(line) if line else 0,
+        "severity": severity,
+        "message": message,
+    }
 
 
 def _collect_memories(binary: str, read_cmds: list[str], top: str, timeout: int,
@@ -186,15 +220,8 @@ def _memory_warnings(memories: list[dict]) -> list[dict]:
 
 
 def _parse_warnings(output: str) -> list[dict]:
-    warnings = []
-    for m in _WARNING_RE.finditer(output):
-        warnings.append({
-            "file": "",
-            "line": 0,
-            "severity": "warning",
-            "message": m.group(1).strip(),
-        })
-    return warnings
+    return [_diagnostic(m, "warning") for m in _DIAG_RE.finditer(output)
+            if m.group("sev") == "Warning"]
 
 
 def run(
@@ -298,7 +325,7 @@ def run(
     warnings = _parse_warnings(combined)
 
     if cp.returncode != 0:
-        error_msg = _extract_error(combined)
+        error = _extract_error(combined)
         return {
             "tool": "yosys",
             "target": target,
@@ -308,7 +335,7 @@ def run(
             "netlist": None,
             "memories": [],
             "warnings": warnings,
-            "errors": [{"file": "", "line": 0, "severity": "error", "message": error_msg}],
+            "errors": [error],
             "raw_output": combined,
         }
 
@@ -330,12 +357,15 @@ def run(
     }
 
 
-def _extract_error(output: str) -> str:
+def _extract_error(output: str) -> dict:
+    """The first ERROR yosys reported, with its location when it gave one."""
+    for m in _DIAG_RE.finditer(output):
+        if m.group("sev") == "ERROR":
+            return _diagnostic(m, "error")
     for line in output.splitlines():
-        # Frontend errors carry a location prefix ("rom.v:4: ERROR: ...").
-        if "ERROR:" in line or "syntax error" in line.lower():
-            return line.strip()
-    return "Yosys synthesis failed"
+        if "syntax error" in line.lower():
+            return {"file": "", "line": 0, "severity": "error", "message": line.strip()}
+    return {"file": "", "line": 0, "severity": "error", "message": "Yosys synthesis failed"}
 
 
 def _not_found() -> dict:
