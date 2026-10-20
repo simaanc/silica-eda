@@ -41,11 +41,11 @@ class TestVerilatorLint:
 )
 class TestVerible:
     def test_lint_returns_warnings_list(self, counter_v):
-        result = verible.lint(counter_v)
+        result = verible.run(counter_v)
         assert "warnings" in result
 
     def test_format_returns_formatted_key(self, counter_v):
-        result = verible.format(counter_v)
+        result = verible.format_src(counter_v)
         assert "formatted" in result or "error" in result
 
 
