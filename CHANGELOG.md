@@ -7,6 +7,11 @@ All notable changes to silica-eda are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- `silica setup` can add silica to Codex CLI (`codex mcp add`) and VS Code
+  (`code --add-mcp`, into the user profile), both running
+  `uvx silica-eda@latest`.
+- `silica --version` (`-V`) and `silica --help` (`-h`). They used to fail
+  with "unknown command", which now goes to stderr instead of stdout.
 - `run_place_route` packs iCE40 and ECP5 designs into a bitstream that
   `program_device` can load: a `.bin` from icepack for ice40 and a `.bit` from
   ecppack for ecp5, the way Xilinx designs are assembled with `fpga-as`. If
@@ -15,6 +20,14 @@ All notable changes to silica-eda are listed here. The format follows
   keeps nextpnr's file there and writes the bitstream beside it. Packing is
   tested with the real tools; programming iCE40 and ECP5 boards is tested only
   with mocked openFPGALoader calls. `doctor` reports icepack and ecppack.
+
+### Changed
+- The Claude Code plugin moved into `plugin/`, and the marketplace points
+  there, so installing it copies three files (about 12 KB) instead of the
+  whole repository (about 1.2 MB with the tests and docs). Existing installs
+  pick this up with the next plugin update.
+- The README explains that `uvx silica-eda@latest` needs network to start
+  the server and how to run from uv's cache with `--offline`.
 
 ### Fixed
 - ECP5 place and route failed with every device: silica passed `--device`,

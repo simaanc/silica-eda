@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -42,6 +43,30 @@ CLIENTS = {
         "url": "https://code.claude.com/docs",
         "docs": "https://code.claude.com/docs/en/mcp",
         "restart_note": "Available in new Claude Code sessions",
+    },
+    "codex": {
+        "name": "Codex CLI",
+        "config_type": "command",
+        "command": ["codex", "mcp", "add", "silica", "--", SERVER_COMMAND, *SERVER_ARGS],
+        "detect_binary": "codex",
+        "url": "https://developers.openai.com/codex/cli",
+        "docs": "https://developers.openai.com/codex/mcp",
+        "restart_note": ("Codex waits 10 s for a server to start by default; if the first "
+                         "start times out while uv downloads silica, add "
+                         "startup_timeout_sec = 60 under [mcp_servers.silica] in "
+                         "~/.codex/config.toml"),
+    },
+    "vscode": {
+        "name": "VS Code (Copilot)",
+        "config_type": "command",
+        "command": ["code", "--add-mcp", json.dumps({
+            "name": "silica", "type": "stdio",
+            "command": SERVER_COMMAND, "args": SERVER_ARGS,
+        })],
+        "detect_binary": "code",
+        "url": "https://code.visualstudio.com",
+        "docs": "https://code.visualstudio.com/docs/agents/reference/mcp-configuration",
+        "restart_note": "Added to your VS Code user profile",
     },
     "cursor": {
         "name": "Cursor",

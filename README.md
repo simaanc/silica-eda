@@ -42,6 +42,7 @@ These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolch
 - **iCE40 and ECP5** bitstreams are packed with icepack/ecppack and checked against the real tools, but `program_device` has only been tested on these boards with mocked openFPGALoader calls: no iCE40 or ECP5 board has been available. `get_project_structure` doesn't list iCE40 `.pcf` files.
 - **cocotb** needs a Python whose glibc is compatible with the simulator it loads into. With OSS CAD Suite's simulators and a newer system Python (glibc newer than the suite's), `run_cocotb` fails at import.
 - **Formal**: an `UNKNOWN` prove with `induction_failures` is inconclusive (k-induction didn't close), not a bug. Deep bounded checks can be slow; 120 steps on the example UART took 16 minutes.
+- **Offline**: clients configured with `uvx silica-eda@latest` (including the Claude Code plugin) can't start the server without network; see [Offline](#install-in-your-agent) under the install instructions for the `--offline` workaround.
 - **Serial**: `capture_serial` needs the port named explicitly and read/write access to it. A boot banner is usually missed by a capture started after programming.
 - **Windows**: the serial existence and permission pre-checks are POSIX-only, and the pty-based serial tests skip there.
 
@@ -204,15 +205,19 @@ or in `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project):
 |---|---|
 | Claude Code | Runs `claude mcp add --transport stdio --scope user silica -- uvx silica-eda@latest` |
 | Claude Desktop | `mcpServers` in `claude_desktop_config.json` (macOS, Windows, Linux) |
+| Codex CLI | Runs `codex mcp add silica -- uvx silica-eda@latest` |
+| VS Code (Copilot) | Runs `code --add-mcp '{"name":"silica","type":"stdio","command":"uvx","args":["silica-eda@latest"]}'`, which adds it to your user profile |
 | Cursor | `mcpServers` in `~/.cursor/mcp.json`, with `"type": "stdio"` |
 | Gemini CLI | `mcpServers` in `~/.gemini/settings.json` |
 | Windsurf | `mcpServers` in `~/.codeium/windsurf/mcp_config.json` |
 | OpenCode | `mcp` in `~/.config/opencode/opencode.json`, as `{"type": "local", "command": ["uvx", "silica-eda@latest"]}` (macOS, Linux) |
 | Zed | `context_servers` in `~/.config/zed/settings.json` (Linux) |
 
-Where a client's documentation gives no config path for your platform (Zed on macOS and Windows, OpenCode on Windows), or the existing file can't be read as plain JSON (for example a Zed `settings.json` with comments), the wizard leaves the file alone and prints the block to add by hand. Codex CLI and VS Code aren't in the wizard yet; use the commands above.
+Where a client's documentation gives no config path for your platform (Zed on macOS and Windows, OpenCode on Windows), or the existing file can't be read as plain JSON (for example a Zed `settings.json` with comments), the wizard leaves the file alone and prints the block to add by hand.
 
 **Optional extras.** `capture_serial` needs pyserial and `run_cocotb` needs cocotb. With uvx, add them to the arguments: `"args": ["--with", "pyserial", "silica-eda@latest"]` (or `--with cocotb`). With pip, install `silica-eda[serial]` or `silica-eda[cocotb]`.
+
+**Offline.** `@latest` makes uvx ask PyPI for the newest release every time the client starts the server, so without network the server doesn't start (`error: Request failed after 3 retries`), even when silica is already cached. To work offline, put `--offline` before the package, `"args": ["--offline", "silica-eda@latest"]` (the plugin's command can't be edited: disable the plugin with `/plugin` and add the server with `claude mcp add --scope user silica -- uvx --offline silica-eda@latest`). uvx then runs the newest release already in its cache, which needs at least one earlier online start. Remove `--offline` again to get updates.
 
 **Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and in the [changelog](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md).
 
@@ -343,6 +348,7 @@ Built for pointing an autonomous agent at a real repo:
 | `silica serve` | Start the MCP server (stdio). Default when no subcommand is given. `silica-eda` is the same command. |
 | `silica setup` | Interactive wizard that writes MCP client configs that start the server with `uvx silica-eda@latest`; see [Setup wizard](#setup-wizard). |
 | `silica config` | Show the configuration and which tools are detected. |
+| `silica --version`, `silica --help` | Print the version, or the commands. |
 
 ## Versioning and compatibility
 

@@ -30,11 +30,31 @@ def test_main_config_calls_print_config(monkeypatch):
     mock_print.assert_called_once()
 
 
-def test_main_unknown_command_exits(monkeypatch):
+def test_main_unknown_command_exits(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["silica", "bogus"])
     with pytest.raises(SystemExit) as exc_info:
         cli.main()
     assert exc_info.value.code == 1
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "unknown command 'bogus'" in err
+
+
+@pytest.mark.parametrize("arg", ["-h", "--help", "help"])
+def test_main_help(monkeypatch, capsys, arg):
+    monkeypatch.setattr(sys, "argv", ["silica", arg])
+    cli.main()
+    out = capsys.readouterr().out
+    assert out.startswith("Usage: silica")
+    assert "--version" in out
+
+
+@pytest.mark.parametrize("arg", ["-V", "--version", "version"])
+def test_main_version(monkeypatch, capsys, arg):
+    from silica import __version__
+    monkeypatch.setattr(sys, "argv", ["silica", arg])
+    cli.main()
+    assert capsys.readouterr().out == f"silica-eda {__version__}\n"
 
 
 def test_main_no_args_defaults_to_serve(monkeypatch):

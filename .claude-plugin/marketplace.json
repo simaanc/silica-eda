@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "silica-eda",
-      "source": "./",
+      "source": "./plugin",
       "description": "Lint, simulate, formally verify, synthesize, place and route, program FPGAs and read their UART from Claude Code.",
       "category": "development"
     }
