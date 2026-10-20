@@ -43,3 +43,14 @@ def test_main_no_args_defaults_to_serve(monkeypatch):
     with patch("silica.server.mcp", mock_mcp):
         cli.main()
     mock_mcp.run.assert_called_once()
+
+
+def test_silica_eda_command_points_at_the_same_entry_point():
+    # `uvx silica-eda` runs the executable named after the package.
+    import tomllib
+    from pathlib import Path
+
+    pyproject = tomllib.loads(
+        (Path(__file__).parent.parent / "pyproject.toml").read_text(encoding="utf-8"))
+    scripts = pyproject["project"]["scripts"]
+    assert scripts["silica-eda"] == scripts["silica"] == "silica.cli:main"

@@ -39,6 +39,9 @@ Changelog = "https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md"
 
 [project.scripts]
 silica = "silica.cli:main"
+# Same entry point under the package name, so `uvx silica-eda` starts the
+# server (uvx runs the executable named after the package).
+silica-eda = "silica.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["silica"]

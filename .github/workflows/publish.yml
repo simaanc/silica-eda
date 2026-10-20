@@ -1,19 +1,25 @@
 name: Publish to PyPI
 
+# Releases are cut by pushing a vMAJOR.MINOR.PATCH tag on main after the
+# release PR (from scripts/bump_version.py) has merged; see RELEASING.md.
+# The workflow filename and the "pypi" environment are what PyPI's trusted
+# publisher for silica-eda is registered against, so keep both.
 on:
   push:
-    branches: [main]
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-      contents: read
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # No cache: the release build must not restore anything another
       # workflow could have written.
@@ -21,24 +27,78 @@ jobs:
         with:
           enable-cache: false
 
-      # Publish only when pyproject.toml's version isn't on PyPI yet, so
-      # pushes that don't bump the version stay green instead of failing
-      # the re-upload check.
-      - name: Check whether this version is already published
+      - name: Check the tag matches pyproject.toml
         id: version
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
           VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if curl -fsS "https://pypi.org/pypi/silica-eda/$VERSION/json" > /dev/null 2>&1; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "silica-eda $VERSION is already on PyPI — skipping publish."
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "silica-eda $VERSION is new — publishing."
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::tag $TAG does not match pyproject.toml version $VERSION"
+            exit 1
           fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - if: steps.version.outputs.publish == 'true'
-        run: uv build
+      - run: uv build --no-sources
 
-      - if: steps.version.outputs.publish == 'true'
-        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/silica-eda/
+      # Start the built wheel in a clean environment and compare it with the
+      # tagged source over MCP before anything is uploaded.
+      - name: Smoke-test the wheel
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          uv sync
+          uv run python scripts/check_release.py --version "$VERSION" \
+            --server "uv run --isolated --no-project --with dist/silica_eda-$VERSION-py3-none-any.whl silica-eda" \
+            --expect-from "uv run silica serve"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+
+      # --check-url skips files already on PyPI, so a re-run after a partial
+      # upload finishes the job instead of failing.
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/silica-eda/
+
+  # Install what PyPI now serves, the way users do, and check it: the server
+  # starts, reports the tag's version, serves the same tools as the tagged
+  # source, and its doctor tool runs (once there is one).
+  verify:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+
+      - name: Check the published release with uvx
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          uv sync
+          uv run python scripts/check_release.py --version "$VERSION" \
+            --server "uvx --refresh silica-eda==$VERSION" \
+            --expect-from "uv run silica serve" \
+            --retries 10 --retry-delay 30
