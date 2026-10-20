@@ -60,6 +60,18 @@ def test_parse_warnings():
     assert warnings[0]["rule_id"] == "whitespace/line-length"
 
 
+def test_parse_column_range():
+    # verible v0.0-4296 reports a column range instead of a single column.
+    out = ("dut.sv:22:20-31: Localparam name does not match the naming convention "
+           "defined by regex pattern: (([A-Z0-9]+[a-z0-9]*)+(_[0-9]+)?) "
+           "[Style: constants] [parameter-name-style]\n"
+           "dut.sv:3:1-9: syntax error at token \"endmodule\"\n")
+    warnings = verible._parse(out, "dut.sv")
+    assert [(w["line"], w["rule_id"]) for w in warnings] == [
+        (22, "parameter-name-style"), (3, "unknown"),
+    ]
+
+
 @patch("silica.adapters.verible.subprocess.run",
        side_effect=__import__("subprocess").TimeoutExpired(cmd=[], timeout=30))
 @patch("silica.adapters.verible.resolve", return_value="/usr/bin/verible-verilog-lint")

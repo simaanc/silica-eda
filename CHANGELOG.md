@@ -6,6 +6,11 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `lint` with Verible reports its findings again. Current Verible releases
+  print a column range (`file.sv:22:20-31:`), which the parser skipped, so
+  every warning and syntax error was dropped.
+
 ## [0.3.1] - 2026-10-16
 
 ### Fixed
