@@ -54,6 +54,17 @@ def test_dc_shell_named(mock_run, synthesize):
     assert result["exit_code"] == 0
 
 
+@pytest.mark.parametrize("tool", ["yosys", "vivado", "quartus", "dc_shell"])
+def test_relative_paths_are_resolved(tool, synthesize, tmp_path, monkeypatch):
+    # The adapters run in a temp dir, so they must get absolute paths.
+    (tmp_path / "rtl").mkdir()
+    monkeypatch.chdir(tmp_path)
+    with patch(f"silica.adapters.{tool}.run", return_value=SYNTH_SUCCESS) as mock_run:
+        synthesize("top", ["rtl/top.sv", str(tmp_path / "rtl" / "sub.sv")], tool=tool)
+    rtl = (tmp_path / "rtl").resolve()
+    assert mock_run.call_args.args[1] == [str(rtl / "top.sv"), str(rtl / "sub.sv")]
+
+
 def test_unknown_tool_returns_error(synthesize):
     result = synthesize("top", ["dut.sv"], tool="bogus")
     assert result["exit_code"] == -1

@@ -50,6 +50,9 @@ All notable changes to silica-eda are listed here. The format follows
   `$fatal`, `$error` and runtime errors such as a missing `$readmemh` file on
   stdout, which was not parsed, so `errors` only said "Simulation exited with
   code 1" (and an Icarus `$error`, which exits 0, was not reported at all).
+- `synthesize` accepts relative source paths. The synthesis tools run in a
+  temporary directory, so `files=["rtl/top.sv"]` failed with "File not
+  found" even though `lint` and `run_simulation` took the same paths.
 
 ## [0.3.1] - 2026-10-16
 
