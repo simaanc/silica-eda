@@ -18,6 +18,10 @@ All notable changes to silica-eda are listed here. The format follows
   tested with the real tools; programming iCE40 and ECP5 boards is tested only
   with mocked openFPGALoader calls. `doctor` reports icepack and ecppack.
 
+### Changed
+- The README explains that `uvx silica-eda@latest` needs network to start
+  the server and how to run from uv's cache with `--offline`.
+
 ### Fixed
 - ECP5 place and route failed with every device: silica passed `--device`,
   which nextpnr-ecp5 doesn't accept. Parts such as `LFE5U-25F`, `LFE5UM-45F`
