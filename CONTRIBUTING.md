@@ -44,6 +44,12 @@ To make a run fail instead of skip when a tool is missing, list the tools
 SILICA_REQUIRE_TOOLS=verible-verilog-lint,svlint uv run pytest tests/integration/ -q
 ```
 
+The openXC7 workflow builds openXC7 with Nix and runs
+`tests/integration/test_xilinx_flow.py` (synthesis, nextpnr-xilinx and
+fpga-as for an xc7a35t) when the Xilinx flow's code changes. To bump the
+toolchain, change `TOOLCHAIN_NIX_REV` in `.github/workflows/openxc7.yml`;
+the first run after that rebuilds the tools, which takes about 11 minutes.
+
 ## Adding or changing an adapter
 
 Adapters live in `silica/adapters/` (one module per tool) and the MCP tools
