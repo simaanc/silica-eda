@@ -1,8 +1,40 @@
 """Shared fixtures and helpers for silica-eda tests."""
 
+import os
 from subprocess import CompletedProcess
 
 import pytest
+
+# Integration tests skip when a tool isn't installed. A CI job that installs
+# tools lists them here (comma-separated registry names, e.g.
+# "verible-verilog-lint,svlint") so a broken install fails the run instead of
+# silently turning its tests into skips.
+_REQUIRED_TOOLS = [t.strip() for t in os.environ.get("SILICA_REQUIRE_TOOLS", "").split(",")
+                   if t.strip()]
+
+
+def pytest_sessionstart(session):
+    from silica.detect import resolve
+
+    missing = [t for t in _REQUIRED_TOOLS if resolve(t) is None]
+    if missing:
+        pytest.exit(f"SILICA_REQUIRE_TOOLS names tools that aren't installed: "
+                    f"{', '.join(missing)}", returncode=1)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    # Also catch a test that skips for a required tool despite the check above,
+    # e.g. because its skip condition looks the tool up differently.
+    outcome = yield
+    report = outcome.get_result()
+    if report.skipped and _REQUIRED_TOOLS:
+        reason = str(report.longrepr[-1]) if isinstance(report.longrepr, tuple) else ""
+        hit = [t for t in _REQUIRED_TOOLS if t in reason]
+        if hit:
+            report.outcome = "failed"
+            report.longrepr = (f"skipped for a tool in SILICA_REQUIRE_TOOLS "
+                               f"({', '.join(hit)}): {reason}")
 
 
 def make_proc(stdout="", stderr="", returncode=0):

@@ -34,6 +34,16 @@ uv run pytest tests/integration/ -q -rs
 The Integration workflow runs these weekly against the latest suite release.
 Its job is to catch output-format drift in the tools, so when an adapter's
 parser changes, add or update an integration test that uses real tool output.
+Verible and svlint aren't in the suite; the CI workflow's `lint-tools` job
+installs pinned releases and runs their tests on every PR.
+
+To make a run fail instead of skip when a tool is missing, list the tools
+(registry names, comma-separated) in `SILICA_REQUIRE_TOOLS`, as CI does:
+
+```bash
+SILICA_REQUIRE_TOOLS=verible-verilog-lint,svlint uv run pytest tests/integration/ -q
+```
+
 The openXC7 workflow builds openXC7 with Nix and runs
 `tests/integration/test_xilinx_flow.py` (synthesis, nextpnr-xilinx and
 fpga-as for an xc7a35t) when the Xilinx flow's code changes. To bump the
