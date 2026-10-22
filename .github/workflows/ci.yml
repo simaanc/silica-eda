@@ -33,3 +33,61 @@ jobs:
       # Integration tests skip themselves when the real EDA binaries are
       # absent, so this exercises the full mock-based unit suite.
       - run: uv run pytest tests/ -q
+
+  # Verible and svlint aren't in OSS CAD Suite, so the integration workflow
+  # can't run their tests. Both ship small static Linux binaries; install
+  # pinned releases (checksums from the release assets' digests) and run
+  # their integration tests on every PR. SILICA_REQUIRE_TOOLS makes pytest
+  # fail, not skip, if either is missing.
+  lint-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERIBLE_VERSION: v0.0-4296-g0f262651
+      VERIBLE_SHA256: 8569defb891d2316067613ea00442af28a7a09d405d95b54c0c91f9942d26635
+      SVLINT_VERSION: v0.9.5
+      SVLINT_SHA256: 0bbb3850b8ef604d7ccf25c2b0d2a751154ac2e18b2a12753ae1648f237a8ceb
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache Verible and svlint
+        id: cache-lint-tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/lint-tools
+          key: lint-tools-${{ runner.os }}-verible-${{ env.VERIBLE_VERSION }}-svlint-${{ env.SVLINT_VERSION }}
+
+      - name: Download Verible and svlint
+        if: steps.cache-lint-tools.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/lint-tools/verible ~/lint-tools/svlint
+          curl -sSfLo verible.tar.gz \
+            "https://github.com/chipsalliance/verible/releases/download/${VERIBLE_VERSION}/verible-${VERIBLE_VERSION}-linux-static-x86_64.tar.gz"
+          echo "${VERIBLE_SHA256}  verible.tar.gz" | sha256sum -c -
+          tar -xzf verible.tar.gz -C ~/lint-tools/verible --strip-components=1
+          curl -sSfLo svlint.zip \
+            "https://github.com/dalance/svlint/releases/download/${SVLINT_VERSION}/svlint-${SVLINT_VERSION}-x86_64-lnx.zip"
+          echo "${SVLINT_SHA256}  svlint.zip" | sha256sum -c -
+          unzip -q svlint.zip -d ~/lint-tools/svlint
+          rm verible.tar.gz svlint.zip
+
+      - name: Put Verible and svlint on PATH
+        run: |
+          echo "$HOME/lint-tools/verible/bin" >> "$GITHUB_PATH"
+          echo "$HOME/lint-tools/svlint/bin" >> "$GITHUB_PATH"
+
+      - run: |
+          verible-verilog-lint --version
+          svlint --version
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - run: uv sync
+
+      - run: uv run pytest tests/integration/test_lint.py -q -rs -k "Verible or Svlint"
+        env:
+          SILICA_REQUIRE_TOOLS: verible-verilog-lint,verible-verilog-format,svlint

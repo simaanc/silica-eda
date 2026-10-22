@@ -253,7 +253,7 @@ Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_for
 | Icarus Verilog | `run_simulation`, `run_cocotb` | Real tool in CI; used in the Arty A7 flow |
 | GHDL | `run_simulation` (VHDL) | Real tool in CI |
 | cocotb | `run_cocotb` | Real tool in CI |
-| Verible, svlint | `lint`, `format_rtl` | Real tools, tested locally (not in CI) |
+| Verible, svlint | `lint`, `format_rtl` | Real tools in CI on every PR (Verible v0.0-4296, svlint 0.9.5) |
 | Yosys | `synthesize` | Real tool in CI (generic, ice40, xilinx); used in the Arty A7 flow |
 | SymbiYosys, eqy | `run_formal` | Real tools in CI |
 | nextpnr-ice40 + icepack | `run_place_route` (`arch="ice40"`) | Real tools in CI (place and route, packing); programming mocked only |
@@ -269,7 +269,7 @@ Prompts with step-by-step triage scripts: `debug_simulation_failure`, `debug_for
 | JasperGold, VC Formal | `run_formal` | Mocked only |
 | SpyGlass | `lint` | Mocked only |
 
-"Real tool in CI" means the weekly integration workflow runs it from OSS CAD Suite. "Tested on hardware" means the manual Arty A7-100T run described under [What works today](#what-works-today). "Mocked only" means unit tests with captured or representative output, never a real install.
+"Real tool in CI" means the weekly integration workflow runs it from OSS CAD Suite, except Verible and svlint, which the CI workflow installs and tests on every PR. "Tested on hardware" means the manual Arty A7-100T run described under [What works today](#what-works-today). "Mocked only" means unit tests with captured or representative output, never a real install.
 
 ## Checking a design on hardware
 

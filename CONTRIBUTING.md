@@ -34,6 +34,15 @@ uv run pytest tests/integration/ -q -rs
 The Integration workflow runs these weekly against the latest suite release.
 Its job is to catch output-format drift in the tools, so when an adapter's
 parser changes, add or update an integration test that uses real tool output.
+Verible and svlint aren't in the suite; the CI workflow's `lint-tools` job
+installs pinned releases and runs their tests on every PR.
+
+To make a run fail instead of skip when a tool is missing, list the tools
+(registry names, comma-separated) in `SILICA_REQUIRE_TOOLS`, as CI does:
+
+```bash
+SILICA_REQUIRE_TOOLS=verible-verilog-lint,svlint uv run pytest tests/integration/ -q
+```
 
 ## Adding or changing an adapter
 

@@ -1,11 +1,10 @@
 """Integration tests for lint adapters (verilator, verible, svlint)."""
 
-import shutil
-
 import pytest
 
 from silica import oss_cad_suite
 from silica.adapters import svlint, verible, verilator
+from silica.detect import resolve
 
 pytestmark = pytest.mark.integration
 
@@ -36,17 +35,24 @@ class TestVerilatorLint:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.skipif(
-    oss_cad_suite.which("verible-verilog-lint") is None,
+    resolve("verible-verilog-lint") is None,
     reason="verible-verilog-lint not installed",
 )
 class TestVerible:
     def test_lint_returns_warnings_list(self, counter_v):
         result = verible.run(counter_v)
-        assert "warnings" in result
+        assert "error" not in result, result.get("error")
+        assert result["tool"] == "verible-verilog-lint"
+        # counter.v's 4'b1 has fewer digits than its width.
+        assert any(w["rule_id"] == "undersized-binary-literal" and w["line"] > 0
+                   for w in result["warnings"]), result["warnings"]
 
+    @pytest.mark.skipif(resolve("verible-verilog-format") is None,
+                        reason="verible-verilog-format not installed")
     def test_format_returns_formatted_key(self, counter_v):
         result = verible.format_src(counter_v)
-        assert "formatted" in result or "error" in result
+        assert "error" not in result, result.get("error")
+        assert "module counter" in result["formatted"]
 
 
 # ---------------------------------------------------------------------------
@@ -54,15 +60,16 @@ class TestVerible:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.skipif(
-    shutil.which("svlint") is None,
+    resolve("svlint") is None,
     reason="svlint not installed",
 )
 class TestSvlint:
     def test_lint_returns_warnings_list(self, counter_v):
         result = svlint.run(counter_v)
-        assert "warnings" in result
+        assert "error" not in result, result.get("error")
         assert isinstance(result["warnings"], list)
+        assert all(w["line"] > 0 and w["rule_id"] for w in result["warnings"])
 
     def test_result_has_tool_key(self, counter_v):
         result = svlint.run(counter_v)
-        assert result.get("tool") == "svlint" or "error" in result
+        assert result.get("tool") == "svlint"
