@@ -5,8 +5,9 @@ Releases go to [PyPI](https://pypi.org/project/silica-eda/) and the
 version tag. Pushing `vX.Y.Z` runs
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds,
 publishes with PyPI trusted publishing, checks the published package, and then
-publishes `server.json` to the MCP registry with GitHub OIDC. Neither step uses
-a stored token.
+publishes `server.json` to the MCP registry with GitHub OIDC, and creates the
+GitHub release with the version's `CHANGELOG.md` section as its notes. None of
+these steps uses a stored token.
 
 ## One-time setup
 
@@ -81,6 +82,12 @@ a stored token.
      the registry serves X.Y.Z. Registry versions can't be changed or published
      twice, so if X.Y.Z is already there the job skips the publish and only
      runs the final check. That makes a re-run safe.
+   - **github-release**: also runs after verify. It creates the `vX.Y.Z`
+     GitHub release, titled `silica-eda X.Y.Z`, with the `## [X.Y.Z]` section
+     of `CHANGELOG.md` as its notes (printed by `scripts/release_notes.py`)
+     and the sdist and wheel attached. The build job already checked that the
+     section exists and isn't empty. If the release already exists, a re-run
+     only replaces the attached files and leaves the notes alone.
 
 ## Publish to the MCP registry by hand
 
