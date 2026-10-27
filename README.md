@@ -220,7 +220,7 @@ Where a client's documentation gives no config path for your platform (Zed on ma
 
 **Offline.** `@latest` makes uvx ask PyPI for the newest release every time the client starts the server, so without network the server doesn't start (`error: Request failed after 3 retries`), even when silica is already cached. To work offline, put `--offline` before the package, `"args": ["--offline", "silica-eda@latest"]` (the plugin's command can't be edited: disable the plugin with `/plugin` and add the server with `claude mcp add --scope user silica -- uvx --offline silica-eda@latest`). uvx then runs the newest release already in its cache, which needs at least one earlier online start. Remove `--offline` again to get updates.
 
-**Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and in the [changelog](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md).
+**Pin a version or roll back.** Replace `silica-eda@latest` with an exact version, `silica-eda@<version>` (for example `uvx silica-eda@0.4.0` once that release exists), and the client keeps running that release until you change it. To roll back after a bad release, pin the previous version the same way. The Claude Code plugin always runs `@latest`; to pin there, add the server with `claude mcp add` and a pinned version instead of installing the plugin. Releases are listed on [PyPI](https://pypi.org/project/silica-eda/#history) and [GitHub](https://github.com/simaanc/silica-eda/releases).
 
 ## MCP tools
 
@@ -356,8 +356,8 @@ Built for pointing an autonomous agent at a real repo:
 silica follows [Semantic Versioning](https://semver.org/), applied to what MCP clients and agents depend on: tool names, their parameters, and the fields in their results. The same rules hold for 0.x releases.
 
 - **Within a major version** no tool is renamed or removed, no parameter is removed or made required, and no result field is removed or renamed. Minor releases may add tools, optional parameters and result fields.
-- **Deprecations** are announced in [CHANGELOG.md](https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md) and in the affected tool's description at least one minor release before the change ships in the next major version.
-- **Every user-visible change** is listed in the changelog when it merges, under "Unreleased", and moves under the version heading at release.
+- **Deprecations** are announced in the [release notes](https://github.com/simaanc/silica-eda/releases) and in the affected tool's description at least one minor release before the change ships in the next major version.
+- **Every change** that affects the package ships in a release when it merges, and the release notes list the pull requests it includes.
 
 ## Development
 

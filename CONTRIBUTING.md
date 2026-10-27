@@ -80,7 +80,9 @@ docstring of `silica/adapters/__init__.py`. In short:
   [Conventional Commits](https://www.conventionalcommits.org/) subject line
   (`fix(eqy): ...`, `feat: ...`, `docs: ...`) and a body that says why.
 - Open pull requests against `main`. CI must pass before merging.
-- Add a line under "Unreleased" in `CHANGELOG.md` for anything user-visible.
+- Write the PR title for users when the change is user-visible: release notes
+  are generated from PR titles. Merging a PR that changes the package
+  releases it automatically (see [RELEASING.md](RELEASING.md)).
 
 ## Reporting bugs and security issues
 

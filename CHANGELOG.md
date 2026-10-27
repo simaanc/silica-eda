@@ -1,16 +1,12 @@
 # Changelog
 
-All notable changes to silica-eda are listed here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/).
+From 0.5.1 on, release notes are on
+[GitHub releases](https://github.com/simaanc/silica-eda/releases), generated
+from the pull requests in each release. This file keeps the notes for 0.5.0
+and earlier.
 
-## [Unreleased]
-
-### Fixed
-- On macOS, `doctor` ran `gtkwave --version`, which for Homebrew's GTKWave
-  cask (an unsigned app) popped a Gatekeeper "could not verify ... is free of
-  malware" warning. A tool inside an `.app` bundle is now reported as found
-  without being run.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.5.0] - 2026-10-20
 
@@ -333,7 +329,6 @@ Initial release: simulation with VCD tracing (Verilator, Icarus), synthesis
 (Yosys), lint (Verible, Verilator), formal verification (SymbiYosys),
 waveform viewer launch, and the `silica setup` wizard.
 
-[Unreleased]: https://github.com/simaanc/silica-eda/commits/main
 [0.5.0]: https://pypi.org/project/silica-eda/0.5.0/
 [0.4.0]: https://pypi.org/project/silica-eda/0.4.0/
 [0.3.1]: https://pypi.org/project/silica-eda/0.3.1/
