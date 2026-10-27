@@ -48,9 +48,20 @@ These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolch
 
 ## Quick start
 
-1. **Add silica to your agent.** Follow [Install in your agent](#install-in-your-agent): each client launches `uvx silica-eda@latest`. Or run the setup wizard, `uvx silica-eda@latest setup`, which writes that config for you; see [Setup wizard](#setup-wizard).
-2. **Install the EDA tools** you need: [OSS CAD Suite](docs/eda-tools.md#oss-cad-suite-most-open-source-tools) for most open-source tools, [Verible and svlint](docs/eda-tools.md#linters) for linting, [openXC7](docs/eda-tools.md#xilinx-7-series-place-and-route-openxc7) for Xilinx place and route. Then ask the agent to run `doctor`.
-3. **Try the UART example** in [`examples/uart/`](examples/uart/):
+1. **Install uv.** silica itself needs no separate install: your agent starts it with `uvx silica-eda@latest`, and [uv](https://docs.astral.sh/uv/)'s `uvx` downloads silica-eda from PyPI on first use and runs it. uv is the one prerequisite:
+
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh        # macOS, Linux (or: brew install uv)
+   ```
+
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"   # Windows
+   ```
+
+   Open a new terminal afterwards so `uvx` is on your `PATH`, and check it with `uvx silica-eda@latest --version`.
+2. **Add silica to your agent.** Run the setup wizard, `uvx silica-eda@latest setup`, which writes each client's config for you (see [Setup wizard](#setup-wizard)), or follow [Install in your agent](#install-in-your-agent).
+3. **Install the EDA tools** you need: [OSS CAD Suite](docs/eda-tools.md#oss-cad-suite-most-open-source-tools) for most open-source tools, [Verible and svlint](docs/eda-tools.md#linters) for linting, [openXC7](docs/eda-tools.md#xilinx-7-series-place-and-route-openxc7) for Xilinx place and route. Then ask the agent to run `doctor`.
+4. **Try the UART example** in [`examples/uart/`](examples/uart/):
 
    > Run the UART TX simulation in examples/uart/ and tell me if it passes.
 
@@ -62,7 +73,7 @@ These runs were manual, on one machine (OSS CAD Suite 2026-10-14, openXC7 toolch
 
 ## Install in your agent
 
-Every client below starts the server with `uvx silica-eda@latest`: [uv](https://docs.astral.sh/uv/getting-started/installation/) downloads silica into a cached environment on first use and picks up new releases when the client next starts the server. Install uv first. `uvx silica-eda` needs a silica-eda release newer than 0.3.1; on 0.3.1 use `uvx --from silica-eda@latest silica` instead.
+Every client below starts the server with `uvx silica-eda@latest`, so there is no separate install step for silica: uvx downloads it into a cached environment on first use and picks up new releases when the client next starts the server. [Install uv](#quick-start) first; that's what provides `uvx`. If you'd rather install silica yourself, `uv tool install silica-eda` or `pip install silica-eda` puts a `silica` command on your `PATH`, and the client's command becomes `silica` with the argument `serve`. `uvx silica-eda` needs a silica-eda release newer than 0.3.1; on 0.3.1 use `uvx --from silica-eda@latest silica` instead.
 
 silica drives EDA tools you install separately (Verilator, Yosys, SymbiYosys, nextpnr, …); see [Installing the EDA tools](docs/eda-tools.md). Once connected, ask the agent to run the `doctor` tool: it lists what's installed and how to install what's missing.
 
