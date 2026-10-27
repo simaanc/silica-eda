@@ -6,6 +6,12 @@ All notable changes to silica-eda are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- On macOS, `doctor` ran `gtkwave --version`, which for Homebrew's GTKWave
+  cask (an unsigned app) popped a Gatekeeper "could not verify ... is free of
+  malware" warning. A tool inside an `.app` bundle is now reported as found
+  without being run.
+
 ## [0.5.0] - 2026-10-20
 
 ### Added

@@ -73,6 +73,17 @@ def test_version_query_timeout_is_not_fatal(mock_which, mock_run, mock_env):
     assert "failed" in entry["note"]
 
 
+@patch("silica.doctor.subprocess.run")
+@patch("silica.doctor.os.path.realpath",
+       return_value="/Applications/gtkwave.app/Contents/Resources/bin/gtkwave")
+@patch("silica.doctor.sys.platform", "darwin")
+@patch("silica.doctor.oss_cad_suite.which", return_value="/opt/homebrew/bin/gtkwave")
+def test_macos_app_bundle_is_not_run(mock_which, mock_realpath, mock_run):
+    entry = doctor._probe(_check("gtkwave"), timeout=1)
+    mock_run.assert_not_called()
+    assert entry["status"] == "found" and "Gatekeeper" in entry["note"]
+
+
 def _pypi(version):
     return io.BytesIO(json.dumps({"info": {"version": version}}).encode())
 
