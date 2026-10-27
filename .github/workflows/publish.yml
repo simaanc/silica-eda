@@ -40,6 +40,13 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # The GitHub release job uses this section as the release body; check
+      # it exists before anything is uploaded.
+      - name: Check CHANGELOG.md has notes for the tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: python3 scripts/release_notes.py "$VERSION" > /dev/null
+
       - run: uv build --no-sources
 
       # Start the built wheel in a clean environment and compare it with the
@@ -177,3 +184,38 @@ jobs:
           done
           echo "::error::the registry does not list version $VERSION at $URL"
           exit 1
+
+  # Create the GitHub release for the tag once the PyPI release is verified,
+  # with the version's CHANGELOG.md section as its notes and the built sdist
+  # and wheel attached. A re-run after the release exists only replaces the
+  # attached files.
+  github-release:
+    needs: [build, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.build.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create the GitHub release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::notice::release $TAG already exists; replacing its files"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            python3 scripts/release_notes.py "$VERSION" > notes.md
+            gh release create "$TAG" dist/* --verify-tag \
+              --title "silica-eda $VERSION" --notes-file notes.md
+          fi
