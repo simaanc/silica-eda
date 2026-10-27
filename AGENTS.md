@@ -30,9 +30,9 @@ In short:
   Unit tests mock `subprocess.run` with output captured from the real tool.
 - Every commit is signed off (`git commit -s`), one logical change each, with
   a Conventional Commits subject.
-- Add a line under "Unreleased" in `CHANGELOG.md` for every user-visible
-  change. Tool names, parameters and result fields follow the compatibility
-  policy in the README.
+- Give user-visible PRs a title written for users: release notes are
+  generated from PR titles. Tool names, parameters and result fields follow
+  the compatibility policy in the README.
 - A new tool or prompt must also appear in the server instructions; a test
   checks this.
-- Releases: see [RELEASING.md](RELEASING.md).
+- Releases are automatic on merge; see [RELEASING.md](RELEASING.md).

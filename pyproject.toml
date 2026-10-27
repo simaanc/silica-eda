@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling>=1.27", "hatch-vcs>=0.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "silica-eda"
-version = "0.5.0"
+dynamic = ["version"]
 description = "AI-native EDA environment — MCP server for hardware design and verification"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,7 +35,7 @@ serial = ["pyserial>=3.5"]
 Homepage = "https://github.com/simaanc/silica-eda"
 Repository = "https://github.com/simaanc/silica-eda"
 Issues = "https://github.com/simaanc/silica-eda/issues"
-Changelog = "https://github.com/simaanc/silica-eda/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/simaanc/silica-eda/releases"
 
 [project.scripts]
 silica = "silica.cli:main"
@@ -43,9 +43,20 @@ silica = "silica.cli:main"
 # server (uvx runs the executable named after the package).
 silica-eda = "silica.cli:main"
 
+# The version comes from the latest vX.Y.Z git tag. Releases set it
+# explicitly with SETUPTOOLS_SCM_PRETEND_VERSION; see RELEASING.md.
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
+
 [tool.hatch.build.targets.wheel]
 packages = ["silica"]
 artifacts = ["silica/skills/**/*.md"]
+
+# Rebuild the editable install when the commit or tags change, so the
+# reported version follows git.
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

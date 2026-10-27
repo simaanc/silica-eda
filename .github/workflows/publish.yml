@@ -1,22 +1,104 @@
 name: Publish to PyPI
 
-# Releases are cut by pushing a vMAJOR.MINOR.PATCH tag on main after the
-# release PR (from scripts/bump_version.py) has merged; see RELEASING.md.
-# After PyPI, the registry job publishes server.json to the MCP registry.
+# Releases need no manual step. Every push to main that changes the package
+# (silica/, pyproject.toml, uv.lock, plugin/ or server.json) since the latest
+# vX.Y.Z tag releases the next patch version. A push that changes only CI,
+# tests or docs releases nothing. To start a new minor or major series, run
+# this workflow by hand (Actions -> Publish to PyPI -> Run workflow) and pick
+# "minor" or "major"; patches then continue from it. Pushing a vX.Y.Z tag by
+# hand releases that tag's commit.
+# The version is never committed: the build takes it from
+# SETUPTOOLS_SCM_PRETEND_VERSION, the tag job tags the commit once PyPI has
+# the release, the registry job stamps server.json, and the GitHub release
+# notes are generated from the merged PRs. See RELEASING.md.
 # The workflow filename and the "pypi" environment are what PyPI's trusted
 # publisher for silica-eda is registered against, so keep both.
 on:
   push:
+    branches: [main]
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: read
 
+# One release at a time, so two quick merges can't claim the same version.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.prepare.outputs.release }}
+      version: ${{ steps.prepare.outputs.version }}
+      tag: ${{ steps.prepare.outputs.tag }}
+    steps:
+      # Full history and tags, to find the latest release and diff against it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide what to release
+        id: prepare
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          LATEST=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)
+          RELEASE=true
+          if [ "$EVENT" = push ] && [ "${REF#refs/tags/}" != "$REF" ]; then
+            VERSION=${REF#refs/tags/v}
+          else
+            IFS=. read -r MAJOR MINOR PATCH <<< "${LATEST#v}"
+            case "$BUMP" in
+              major) VERSION="$((MAJOR + 1)).0.0" ;;
+              minor) VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+              *)     VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            esac
+            if [ "$EVENT" = push ]; then
+              CHANGED=$(git diff --name-only "$LATEST" HEAD -- \
+                silica pyproject.toml uv.lock plugin server.json)
+              if [ -z "$CHANGED" ]; then
+                echo "::notice::nothing in the package changed since $LATEST; not releasing"
+                RELEASE=false
+              else
+                echo "Changed since $LATEST:"
+                echo "$CHANGED"
+              fi
+            fi
+          fi
+          if [ "$RELEASE" = true ] && git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null \
+             && [ "$(git rev-list -n 1 "v$VERSION")" != "$GITHUB_SHA" ]; then
+            echo "::error::v$VERSION already tags another commit"
+            exit 1
+          fi
+          if [ "$RELEASE" = true ]; then
+            echo "::notice::releasing $VERSION (latest was ${LATEST:-none})"
+          fi
+          {
+            echo "release=$RELEASE"
+            echo "version=$VERSION"
+            echo "tag=v$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.prepare.outputs.version }}
+    env:
+      SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,32 +110,13 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Check the tag matches pyproject.toml
-        id: version
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
-          if [ "$TAG" != "v$VERSION" ]; then
-            echo "::error::tag $TAG does not match pyproject.toml version $VERSION"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      # The GitHub release job uses this section as the release body; check
-      # it exists before anything is uploaded.
-      - name: Check CHANGELOG.md has notes for the tag
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: python3 scripts/release_notes.py "$VERSION" > /dev/null
-
       - run: uv build --no-sources
 
       # Start the built wheel in a clean environment and compare it with the
       # tagged source over MCP before anything is uploaded.
       - name: Smoke-test the wheel
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           uv sync
           uv run python scripts/check_release.py --version "$VERSION" \
@@ -86,12 +149,36 @@ jobs:
       # upload finishes the job instead of failing.
       - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/silica-eda/
 
+  # Tag the released commit as soon as PyPI has it, so the tag marks what was
+  # published even if a later job fails. A tag created with the workflow's
+  # token doesn't start this workflow again. On a tag push it already exists.
+  tag:
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Tag the release commit
+        run: |
+          if gh api "repos/$GH_REPO/git/ref/tags/$TAG" > /dev/null 2>&1; then
+            echo "::notice::$TAG already exists"
+          else
+            gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" > /dev/null
+            echo "::notice::tagged $GITHUB_SHA as $TAG"
+          fi
+
   # Install what PyPI now serves, the way users do, and check it: the server
   # starts, reports the tag's version, serves the same tools as the tagged
   # source, and its doctor tool runs (once there is one).
   verify:
     needs: [build, publish]
     runs-on: ubuntu-latest
+    env:
+      SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.build.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -133,14 +220,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check server.json matches the tag
+      # server.json in the repository holds a placeholder version; publish
+      # it with the release's.
+      - name: Stamp server.json with the release version
         run: |
-          for v in "$(jq -r .version server.json)" "$(jq -r '.packages[0].version' server.json)"; do
-            if [ "$v" != "$VERSION" ]; then
-              echo "::error::server.json names version $v, but the tag is v$VERSION"
-              exit 1
-            fi
-          done
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.new
+          mv server.json.new server.json
 
       - name: Install mcp-publisher
         run: |
@@ -186,24 +271,20 @@ jobs:
           exit 1
 
   # Create the GitHub release for the tag once the PyPI release is verified,
-  # with the version's CHANGELOG.md section as its notes and the built sdist
-  # and wheel attached. A re-run after the release exists only replaces the
+  # with notes generated from the PRs merged since the previous release and
+  # the built sdist and wheel attached. A re-run after the release exists only replaces the
   # attached files.
   github-release:
-    needs: [build, verify]
+    needs: [prepare, build, verify, tag]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ needs.prepare.outputs.tag }}
       VERSION: ${{ needs.build.outputs.version }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
@@ -215,7 +296,6 @@ jobs:
             echo "::notice::release $TAG already exists; replacing its files"
             gh release upload "$TAG" dist/* --clobber
           else
-            python3 scripts/release_notes.py "$VERSION" > notes.md
             gh release create "$TAG" dist/* --verify-tag \
-              --title "silica-eda $VERSION" --notes-file notes.md
+              --title "silica-eda $VERSION" --generate-notes
           fi

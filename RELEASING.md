@@ -1,13 +1,15 @@
 # Releasing silica-eda
 
-Releases go to [PyPI](https://pypi.org/project/silica-eda/) and the
-[official MCP registry](https://registry.modelcontextprotocol.io) from a
-version tag. Pushing `vX.Y.Z` runs
-[`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds,
-publishes with PyPI trusted publishing, checks the published package, and then
-publishes `server.json` to the MCP registry with GitHub OIDC, and creates the
-GitHub release with the version's `CHANGELOG.md` section as its notes. None of
-these steps uses a stored token.
+Releases are automatic. Every push to `main` runs
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml). When the
+push changes the package (anything under `silica/` or `plugin/`, or
+`pyproject.toml`, `uv.lock` or `server.json`) since the latest `vX.Y.Z` tag,
+the workflow releases the next patch version: it builds, publishes to
+[PyPI](https://pypi.org/project/silica-eda/) with trusted publishing, tags
+the commit, checks the published package, publishes `server.json` to the
+[official MCP registry](https://registry.modelcontextprotocol.io) with GitHub
+OIDC, and creates the GitHub release. None of these steps uses a stored
+token, and nothing is committed: the version lives only in the tags.
 
 ## One-time setup
 
@@ -17,9 +19,9 @@ these steps uses a stored token.
   workflow filename is part of the match, so don't rename the file.
 - **GitHub environment.** The repository needs an environment named `pypi`
   (*Settings* → *Environments*). Under *Deployment branches and tags* it must
-  allow the release tags: add a tag rule `v*.*.*`. With only a `main` branch
-  rule, the publish job is refused, because it runs on the tag, not on a
-  branch. The same rule from the command line:
+  allow the `main` branch (automatic and manually started releases run there)
+  and the tag rule `v*.*.*` (a hand-pushed tag). Without the rule a run
+  needs, the publish job is refused. The tag rule from the command line:
 
   ```bash
   gh api -X POST repos/simaanc/silica-eda/environments/pypi/deployment-branch-policies \
@@ -35,59 +37,69 @@ these steps uses a stored token.
   works from `simaanc/silica-eda`; a fork's run gets the fork owner's
   namespace and is rejected.
 
+## How versions work
+
+The version isn't stored in the repository. `pyproject.toml` takes it from
+git tags through hatch-vcs, so a checkout between releases reports something
+like `0.5.1.dev3+g1a2b3c4`. The release build sets it explicitly with
+`SETUPTOOLS_SCM_PRETEND_VERSION`. `server.json` holds a placeholder that the
+registry job replaces with the release version, and the Claude Code plugin's
+`plugin.json` has no version, so Claude Code versions the plugin by commit
+and users get plugin changes without a bump.
+
 ## Cutting a release
 
-1. **Check main is green**, and that `CHANGELOG.md` has an entry under
-   "Unreleased" for every user-visible change since the last release.
+**Patch releases (0.5.1, 0.5.2, …) need nothing.** Merge the PR. If it
+changes the package, the next patch is released. A PR that changes only CI,
+tests or docs releases nothing; its changes go out with the next release
+that does. The GitHub release notes are generated from the titles of the PRs
+merged since the previous release, so write PR titles for users.
 
-2. **Bump the version** on an up-to-date main:
+**Minor and major releases (0.6.0, 1.0.0) are started by hand,** and
+patches then continue from them (0.6.1, 0.6.2, …): open *Actions* →
+*Publish to PyPI* → *Run workflow*, keep the `main` branch, and pick
+`minor` or `major`. From the command line:
 
-   ```bash
-   uv run python scripts/bump_version.py minor     # or major, patch, or e.g. 0.4.0
-   ```
+```bash
+gh workflow run publish.yml -f bump=minor
+```
 
-   This updates `pyproject.toml`, `uv.lock` and the Claude Code plugin's
-   `plugin/.claude-plugin/plugin.json` (a test fails if the plugin and package
-   versions differ), moves the "Unreleased" entries
-   under `## [X.Y.Z] - <today>`, adds the PyPI link at the bottom of the
-   changelog, and prints the commands for the next steps. It doesn't commit,
-   tag or push anything.
+A manual run always releases, even if nothing changed since the last tag.
+Pushing a `vX.Y.Z` tag by hand also releases that tag's commit as `X.Y.Z`.
 
-3. **Open the release PR** with the printed commands (`release/vX.Y.Z` branch,
-   `chore: release X.Y.Z` commit, signed off). Review the changelog section and
-   merge it once CI passes.
+Runs are queued one at a time, so two quick merges can't claim the same
+version. If a run fails partway, use *Re-run failed jobs*: it keeps the
+version the first attempt picked. Every publishing step skips what is
+already done, so a re-run is safe.
 
-4. **Tag the merge commit and push the tag:**
+### What the workflow does
 
-   ```bash
-   git switch main && git pull --ff-only
-   git tag -a vX.Y.Z -m "vX.Y.Z"
-   git push origin vX.Y.Z
-   ```
+Watch it under *Actions* → *Publish to PyPI*:
 
-   The tag must match the version in `pyproject.toml`, or the build job stops.
-
-5. **Watch the Publish workflow** (*Actions* → *Publish to PyPI*):
-   - **build**: checks the tag, builds the sdist and wheel, and starts the
-     wheel in a clean environment to compare it with the tagged source over
-     MCP.
-   - **publish**: uploads to PyPI with trusted publishing.
-   - **verify**: installs the release the way users do
-     (`uvx silica-eda==X.Y.Z`) and checks that it starts, reports X.Y.Z, serves
-     exactly the tools the tagged source serves, and that its `doctor` tool
-     runs. It retries for a few minutes while PyPI's index catches up.
-   - **registry**: runs only after verify passes. It checks that `server.json`
-     names X.Y.Z, installs a pinned `mcp-publisher` (checksum-verified), and
-     runs `validate`, `login github-oidc` and `publish`. It then checks that
-     the registry serves X.Y.Z. Registry versions can't be changed or published
-     twice, so if X.Y.Z is already there the job skips the publish and only
-     runs the final check. That makes a re-run safe.
-   - **github-release**: also runs after verify. It creates the `vX.Y.Z`
-     GitHub release, titled `silica-eda X.Y.Z`, with the `## [X.Y.Z]` section
-     of `CHANGELOG.md` as its notes (printed by `scripts/release_notes.py`)
-     and the sdist and wheel attached. The build job already checked that the
-     section exists and isn't empty. If the release already exists, a re-run
-     only replaces the attached files and leaves the notes alone.
+- **prepare**: finds the latest `vX.Y.Z` tag and decides whether this run is
+  a release and which version it gets. For a push to `main` that is the next
+  patch, and only if the package changed since that tag.
+- **build**: builds the sdist and wheel with that version, and starts the
+  wheel in a clean environment to compare it with the source over MCP.
+- **publish**: uploads to PyPI with trusted publishing. `--check-url` skips
+  files PyPI already has.
+- **tag**: tags the released commit `vX.Y.Z` as soon as PyPI has it, so the
+  tag marks what was published even if a later job fails. Tags created with
+  the workflow's token don't start the workflow again.
+- **verify**: installs the release the way users do
+  (`uvx silica-eda==X.Y.Z`) and checks that it starts, reports X.Y.Z, serves
+  exactly the tools the source serves, and that its `doctor` tool runs. It
+  retries for a few minutes while PyPI's index catches up.
+- **registry**: runs only after verify passes. It writes X.Y.Z into
+  `server.json`, installs a pinned `mcp-publisher` (checksum-verified), and
+  runs `validate`, `login github-oidc` and `publish`. It then checks that
+  the registry serves X.Y.Z. Registry versions can't be changed or published
+  twice, so if X.Y.Z is already there the job skips the publish and only
+  runs the final check.
+- **github-release**: also runs after verify. It creates the `vX.Y.Z`
+  GitHub release, titled `silica-eda X.Y.Z`, with notes generated from the
+  merged PRs and the sdist and wheel attached. If the release already
+  exists, a re-run only replaces the attached files.
 
 ## Publish to the MCP registry by hand
 
@@ -103,16 +115,14 @@ only works once the release is on PyPI.
 2. Run `mcp-publisher login github` and authorize with the `simaanc` GitHub
    account. Run it again when the token expires ("Invalid or expired Registry
    JWT token").
-3. From a checkout of the tag:
+3. From a checkout of the tag, with `server.json` set to the release version
+   (`jq '.version = "X.Y.Z" | .packages[0].version = "X.Y.Z"'`):
 
    ```bash
    mcp-publisher validate      # checks server.json against the registry's schema
    mcp-publisher publish
    curl "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.simaanc%2Fsilica-eda/versions/X.Y.Z"
    ```
-
-`server.json` already names the new version, because the bump script updates it
-along with the package version.
 
 ### Updating mcp-publisher
 

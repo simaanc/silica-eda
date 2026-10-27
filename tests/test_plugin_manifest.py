@@ -11,14 +11,11 @@ def _json(path):
     return json.loads((ROOT / path).read_text(encoding="utf-8"))
 
 
-def test_plugin_version_matches_pyproject():
-    # Users get a plugin update only when this version changes, and
-    # scripts/bump_version.py bumps both together.
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    plugin = _json("plugin/.claude-plugin/plugin.json")
-    assert plugin["version"] == pyproject["project"]["version"], (
-        "plugin.json version must match pyproject.toml; run scripts/bump_version.py "
-        "or update plugin/.claude-plugin/plugin.json")
+def test_plugin_has_no_version():
+    # Without a version, Claude Code versions the plugin by commit SHA, so
+    # users get plugin changes without a manual bump. A version here would pin
+    # every user to it until someone changes the string.
+    assert "version" not in _json("plugin/.claude-plugin/plugin.json")
 
 
 def test_plugin_launches_the_published_server():
@@ -41,8 +38,9 @@ def test_registry_server_json_matches_the_package():
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     server = _json("server.json")
     (package,) = server["packages"]
-    version = pyproject["project"]["version"]
-    assert server["version"] == package["version"] == version
+    # The Publish workflow stamps both with the release version; they only
+    # have to agree with each other here.
+    assert server["version"] == package["version"]
     assert package["registryType"] == "pypi"
     assert package["identifier"] == pyproject["project"]["name"]
     # The registry checks the PyPI description (the README) for this line.
