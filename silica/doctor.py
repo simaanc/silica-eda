@@ -2,8 +2,10 @@
 
 Open-source tools are found the way the adapters find them (PATH, then an OSS
 CAD Suite install) and asked for their version. Commercial tools are only
-looked up, never run, since starting one can check out a license. Each tool
-that is missing or too old gets a concrete fix.
+looked up, never run, since starting one can check out a license. On macOS a
+tool inside an .app bundle (Homebrew's GTKWave cask) is only looked up too:
+running an unsigned, quarantined app pops a Gatekeeper malware warning. Each
+tool that is missing or too old gets a concrete fix.
 """
 
 import importlib.metadata
@@ -98,6 +100,10 @@ def version_key(version: str) -> tuple[int, ...]:
     return tuple(nums + [0] * (3 - len(nums)))
 
 
+def _in_macos_app_bundle(path: str) -> bool:
+    return sys.platform == "darwin" and ".app/" in os.path.realpath(path)
+
+
 def _probe(check: _Check, timeout: float) -> dict:
     path = oss_cad_suite.which(check.binary)
     entry = {
@@ -115,6 +121,11 @@ def _probe(check: _Check, timeout: float) -> dict:
     if check.version_args is None:
         entry["status"] = "found"
         entry["note"] = "this tool doesn't report a version"
+        return entry
+    if _in_macos_app_bundle(path):
+        entry["status"] = "found"
+        entry["note"] = ("a macOS app bundle; not run, so Gatekeeper doesn't "
+                         "warn about an unsigned app")
         return entry
     try:
         cp = subprocess.run([path, *check.version_args], capture_output=True, text=True,
