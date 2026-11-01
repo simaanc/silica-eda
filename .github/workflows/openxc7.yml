@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31.11.2
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
 
       # Restores /nix on a hit. On a miss it saves the store after the job,
       # first collecting garbage: only the tools' runtime closures, kept
@@ -113,7 +113,7 @@ jobs:
           test -d "$PRJXRAY_DB_DIR/artix7"
           ls -l "$RUNNER_TEMP/chipdb/xc7a35tcsg324.bin"
 
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
           python-version: "3.12"
